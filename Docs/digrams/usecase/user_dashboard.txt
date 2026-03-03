@@ -1,0 +1,55 @@
+@startuml
+left to right direction
+skinparam packageStyle rectangle
+
+package Usuario {
+    actor "Empleado" as Admin
+}
+
+rectangle "Sistema Control - Consola Operativa" {
+
+    ' 1. PRIMERO: Login
+    usecase "Iniciar sesión" as L
+
+    ' 2. DESPUÉS: La Consola Principal
+    usecase "Acceder a la Consola" as AC
+
+    ' 3. AL FINAL: Funciones Administrativas
+    package "Funciones Administrativas (RBAC)" {
+        usecase "Gestionar Dispositivos" as UC5
+        usecase "Gestionar Personal Operativo" as UC6
+        usecase "Gestionar Servicios" as UC8
+        usecase "Gestionar Redes" as UC9
+        usecase "Cerrar sesión" as UC7
+    }
+
+    ' Relaciones de Flujo
+    
+    ' El Empleado entra al Login
+    Admin --> L
+
+    ' El Login es obligatorio para entrar
+    L ..> AC : <<include>>
+
+    ' El acceso a los módulos es CONDICIONAL (según permisos asignados)
+    UC5 ..> AC : <<extend>>
+    UC6 ..> AC : <<extend>>
+    UC8 ..> AC : <<extend>>
+    UC9 ..> AC : <<extend>>
+    
+    ' El cierre de sesión es una función directa
+    AC --> UC7
+}
+
+note bottom of L
+  Autenticación
+  Requerida
+end note
+
+note top of "Funciones Administrativas (RBAC)"
+  Acceso condicional: El usuario visualiza
+  módulos según permisos asignados
+  por el Administrador.
+end note
+
+@enduml

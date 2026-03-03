@@ -1,0 +1,114 @@
+   body, html {
+            height: 100%;
+            margin: 0;
+            font-family: 'Montserrat', sans-serif;
+        }
+        
+        /* Contenedor principal para manejar el footer al fondo */
+        .wrapper {
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Estilo del Header blanco */
+        .header-inea {
+            background-color: #ffffff;
+            padding: 15px 0;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 10;
+        }
+
+        /* Logo simulado del INEA */
+        .inea-logo-box {
+            background-color: #9d2449; /* Guinda institucional */
+            color: white;
+            padding: 8px 12px;
+            font-weight: 700;
+            font-size: 1.2rem;
+            margin-right: 15px;
+            border-radius: 4px;
+        }
+
+        .inea-logo-text {
+            color: #333;
+            font-size: 0.85rem;
+            font-weight: 600;
+            line-height: 1.2;
+        }
+
+        /* Fondo de la sección del formulario */
+        .main-content {
+            flex: 1; /* Esto empuja el footer hacia abajo */
+            background-color: #611232; /* Guinda más oscuro según gráfica base */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 3rem 1rem;
+        }
+
+        /* Tarjeta de Login */
+        .login-card {
+            background-color: #ffffff;
+            border-radius: 8px;
+            border: none;
+            width: 100%;
+            max-width: 480px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+        }
+
+        /* Inputs grises sin borde */
+        .custom-input {
+            background-color: #f5f5f5;
+            border: none;
+            border-radius: 6px;
+            padding: 12px 15px;
+        }
+        
+        .custom-input:focus {
+            background-color: #eef2f5;
+            box-shadow: none;
+            border: 1px solid #9d2449;
+        }
+
+        /* Botón institucional */
+        .btn-guinda {
+            background-color: #9d2449;
+            color: #ffffff;
+            font-weight: 500;
+            padding: 12px;
+            border-radius: 6px;
+            border: none;
+            transition: background-color 0.3s;
+        }
+
+        .btn-guinda:hover {
+            background-color: #7a1c39;
+            color: #ffffff;
+        }
+
+        /* Estilos del Footer */
+        .footer-gob {
+            background-color: #611232; /* Fondo guinda oscuro */
+            color: #ffffff;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .footer-link {
+            color: #ffffff;
+            text-decoration: none;
+            opacity: 0.8;
+            transition: opacity 0.3s;
+        }
+
+        .footer-link:hover {
+            color: #ffffff;
+            opacity: 1;
+            text-decoration: underline;
+        }
+
+        .footer-bar {
+            background-color: #9d2449; /* Barra decorativa con el guinda claro */
+            height: 10px;
+            width: 100%;
+        }

@@ -1,0 +1,8 @@
+body { font-family: 'Montserrat', sans-serif; background-color: #f4f7f6; }
+.navbar-inea { background: #fff; border-bottom: 3px solid #9D2449; } /* Color Guinda Institucional */
+.logo-box-inea { background: #9D2449; color: #fff; padding: 5px 10px; font-weight: bold; border-radius: 4px; }
+.logo-text-inea { font-size: 0.75rem; line-height: 1; color: #333; }
+.nav-main-inea .nav-link { color: #555; font-size: 0.85rem; padding: 0.5rem 1rem; font-weight: 500; transition: 0.3s; }
+.nav-main-inea .nav-link:hover, .nav-main-inea .nav-link.active { color: #9D2449; background: rgba(157, 36, 73, 0.1); border-radius: 5px; }
+.profile-avatar { width: 35px; height: 35px; background: #eee; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #9D2449; border: 1px solid #ddd; }
+.extra-small { font-size: 0.7rem; }

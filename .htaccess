@@ -1,0 +1,14 @@
+# Desactivar la exploración de directorios (Equivale a directoryBrowse enabled="false")
+Options -Indexes
+
+# Establecer el documento predeterminado (Equivale a defaultDocument)
+DirectoryIndex index.php
+
+# Iniciar motor de reescritura
+RewriteEngine On
+
+# Regla para URLs Amigables (Equivale a la regla FriendlyURLs)
+# Permite caracteres alfanuméricos, barras, guiones y eñes
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^([a-zA-Z0-9/ñÑ-]+)$ index.php?querystring=$1 [L,QSA]
