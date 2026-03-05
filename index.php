@@ -23,15 +23,15 @@
 	$controlador = isset($peticion[0]) ? $peticion[0] : "";
 	$accion = isset($peticion[1]) ? $peticion[1] : "";
 	$id = isset($peticion[2]) ? $peticion[2] : "";
-	 $id_user = $_SESSION["usuario"]["Id_usuar"];
-	 $id_rol=$_SESSION["usuario"]["Id_rol"]; //TODO: Verificar logica con requerimientos
+	 $id_user = $_SESSION["usuario"]["id_usuar"];
+	 $id_rol=$_SESSION["usuario"]["id_rol"]; //TODO: Verificar logica con requerimientos
 	 $nom_user = $_SESSION["usuario"]["nom_usuar"]; //TODO: verificar logia con requerimientos
 	//Procesar la peticion cargando el controlador adecuado
 	switch ($controlador) {
-        case "inicio":
+        case "inicio" :
             if ($accion == "") {
                 require_once "_controller/TableroController.php";
-                $ctrl = new TableroController($id_rol);//Pagina principal, perfil profesor
+                $ctrl = new TableroController();//Pagina principal, perfil profesor
             } 
         break;
 
@@ -42,10 +42,15 @@
             }   
         break;
 
-		default:
-            // No creamos $ctrl intencionalmente para forzar la pantalla de construcción
-            // Solo dejamos que el script continúe para incluir master.html.php
-            break;
+		case "personal":
+			if($accion== ""){
+				require_once "_controller/PersonalOPController.php";
+				$ctrl = new PersonalOPController();
+			}
+
+        default:
+            
+		break;
     }
 	
 	//Incluir la plantilla contenedora principal

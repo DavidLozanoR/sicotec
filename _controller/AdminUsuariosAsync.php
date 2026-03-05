@@ -35,8 +35,17 @@ $ctrl = new AdminUsuariosController($_SESSION["usuario"]["id_rol"]);
 // Procesamiento con Switch (Igual a tu arquitectura de referencia)
 switch ($peticion) {
     
+    case "GET_PERMISOS_ROL":
+        if (empty($id_rol)) {
+            echo json_encode(["result" => 0, "msg" => "ID de rol no proporcionado"]);
+        } else {
+            $permisos_del_rol = $ctrl->obtenerPermisosPorRol($id_rol);
+            echo json_encode(["result" => 1, "permisos" => $permisos_del_rol]);
+        }
+        break;
+    
     case "INSERT":
-        if (!$ctrl->validaAtributos($nom_usuar, $nombres, $ape_pa, $ape_ma, $id_rol) || empty($password)) {
+        if (!$ctrl->validaAtributos($nom_usuar, $nombres, $ape_pa, $ape_ma, $id_rol,$permisos) || empty($password)) {
             echo json_encode(["result" => 0, "msg" => "ERROR: Todos los campos marcados con * son obligatorios."]);
         } 
         else if ($ctrl->insertaUsuario($nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $id_rol, $permisos)) {
@@ -47,7 +56,7 @@ switch ($peticion) {
         break;
 
     case "UPDATE":
-        if (!$ctrl->validaAtributos($nom_usuar, $nombres, $ape_pa, $ape_ma, $id_rol)) {
+        if (!$ctrl->validaAtributos($nom_usuar, $nombres, $ape_pa, $ape_ma, $id_rol,$permisos)) {
             echo json_encode(["result" => 0, "msg" => "ERROR: Datos inválidos. Revise los campos obligatorios."]);
         } 
         else if ($ctrl->actualizaUsuario($id_usuar, $nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $id_rol, $permisos)) {

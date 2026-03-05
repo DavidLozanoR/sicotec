@@ -1,0 +1,22 @@
+    .card-module {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+        border: 1px solid rgba(0,0,0,0.1);
+    }
+    .card-module:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1) !important;
+        border-color: #9D2449;
+    }
+    .icon-module {
+        color: #9D2449; /* Color institucional Guinda */
+        font-size: 2.5rem;
+    }
+    .btn-inea {
+        background-color: #9D2449;
+        color: white;
+        transition: background-color 0.2s ease;
+    }
+    .btn-inea:hover {
+        background-color: #6C1D45;
+        color: white;
+    }

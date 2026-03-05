@@ -4,9 +4,10 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Extraer datos de la sesión
+// Extraer datos de la sesión (Según lo que guardamos en tu LoginModel)
 $datos_usuario = $_SESSION['usuario'] ?? [];
-$nombre_usuario = $datos_usuario['nombres'] ?? 'Usuario';
+// Usamos el nombre, o si no, el nom_usuar como respaldo
+$nombre_usuario = $datos_usuario['nombres'] ?? $datos_usuario['nom_usuar'] ?? 'Usuario';
 $rol_usuario = $datos_usuario['nom_rol'] ?? 'Invitado';
 $permisos_usuario = $_SESSION['permisos'] ?? [];
 
@@ -16,6 +17,9 @@ if (!function_exists('tiene_permiso')) {
         return in_array($permiso_requerido, $mis_permisos);
     }
 }
+
+// Prevenir error si $controlador no está definido en index.php
+$controlador = $controlador ?? '';
 ?>
 <!DOCTYPE html>
 <html lang="es-MX">
@@ -25,7 +29,6 @@ if (!function_exists('tiene_permiso')) {
     <title>INEA | Sistema de Gestión</title>
     
     <base href="<?php echo SITE_URL; ?>">
-
     <link rel="shortcut icon" type="image/x-icon" href="data:image/x-icon;base64,AAABAA...">
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -34,6 +37,7 @@ if (!function_exists('tiene_permiso')) {
     
     <link href="utils/sweetalert2_v11.11.1/sweetalert2.min.css" rel="stylesheet">
     <link rel="stylesheet" href="css/master.css">
+    <link rel="stylesheet" href="css/tablero.css">
 
 </head>
 <body class="d-flex flex-column min-vh-100">
@@ -43,7 +47,7 @@ if (!function_exists('tiene_permiso')) {
             
             <div class="d-flex align-items-center gap-5">
                 
-                <a href="dashboard/" class="d-flex align-items-center text-decoration-none">
+                <a href="inicio/" class="d-flex align-items-center text-decoration-none">
                     <div class="logo-box-inea me-2">INEA</div>
                     <div class="logo-text-inea d-none d-xl-block">
                         <small>INSTITUTO NACIONAL PARA LA</small><br>
@@ -52,18 +56,14 @@ if (!function_exists('tiene_permiso')) {
                 </a>
 
                 <nav class="d-none d-lg-flex align-items-center nav-main-inea gap-1">
-                    
-                    <a href="dashboard/" class="nav-link <?php echo ($controlador == 'dashboard' || $controlador == 'inicio' || $controlador == '') ? 'active' : ''; ?>">
+                    <a href="inicio/" class="nav-link <?php echo ($controlador == 'dashboard' || $controlador == 'inicio' || $controlador == '') ? 'active' : ''; ?>">
                         <i class="fas fa-th-large"></i> Dashboard
                     </a>
                     
-                    <?php if (tiene_permiso('Gestion PO', $permisos_usuario)): ?>
                     <a href="personal/" class="nav-link <?php echo ($controlador == 'personal') ? 'active' : ''; ?>">
                         <i class="fas fa-users"></i> Gestión de Personal
                     </a>
-                    <?php endif; ?>
                     
-                    <?php if (tiene_permiso('Servicios', $permisos_usuario)): ?>
                     <div class="dropdown">
                         <a href="#" class="nav-link dropdown-toggle d-flex align-items-center gap-1 <?php echo ($controlador == 'configuracion') ? 'active' : ''; ?>" id="dropConfig" data-bs-toggle="dropdown" aria-expanded="false">
                             <i class="fas fa-cog"></i> Configuración
@@ -75,19 +75,16 @@ if (!function_exists('tiene_permiso')) {
                             <li><a class="dropdown-item" href="configuracion/responsiva/">Responsiva de Equipos</a></li>
                         </ul>
                     </div>
-                    <?php endif; ?>
                     
-                    <?php if (tiene_permiso('Consultoria', $permisos_usuario)): ?>
-                    <a href="consultas/" class="nav-link <?php echo ($controlador == 'consultas') ? 'active' : ''; ?>">
+                    <?php if (tiene_permiso('Consultar', $permisos_usuario)): ?>
+                    <a href="consultas/" class="nav-link <?php echo ($controlador == 'Consultas') ? 'active' : ''; ?>">
                         <i class="fas fa-search"></i> Consultas
                     </a>
                     <?php endif; ?>
                     
-                    <?php if (tiene_permiso('Usuarios', $permisos_usuario)): ?>
                     <a href="usuarios/" class="nav-link <?php echo ($controlador == 'usuarios') ? 'active' : ''; ?>">
                         <i class="fas fa-shield-alt"></i> Usuarios
                     </a>
-                    <?php endif; ?>
                 </nav>
             </div>
 
@@ -98,7 +95,7 @@ if (!function_exists('tiene_permiso')) {
                         <?php echo htmlspecialchars($nombre_usuario); ?>
                     </span>
                     <span class="text-muted">|</span>
-                    <span class="text-muted extra-small">
+                    <span class="text-muted extra-small" style="text-transform: capitalize;">
                         <?php echo htmlspecialchars($rol_usuario); ?>
                     </span>
                 </div>
@@ -110,12 +107,12 @@ if (!function_exists('tiene_permiso')) {
                     <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 mt-2" style="width: 220px;">
                         <li class="px-3 py-2">
                             <p class="mb-0 fw-bold fs-6" style="text-transform: capitalize;"><?php echo htmlspecialchars($nombre_usuario); ?></p>
-                            <p class="mb-0 text-muted extra-small"><?php echo htmlspecialchars($rol_usuario); ?></p>
+                            <p class="mb-0 text-muted extra-small" style="text-transform: capitalize;"><?php echo htmlspecialchars($rol_usuario); ?></p>
                         </li>
                         <li><hr class="dropdown-divider"></li>
                         <li>
-                            <a class="dropdown-item text-danger d-flex align-items-center gap-2" href="login/out/">
-                                <i class="fas fa-sign-out-alt"></i> Cerrar Sesión
+                            <a class="dropdown-item text-danger d-flex align-items-center gap-2" href="#" id="btnLogout">
+                                <i class="fas fa-sign-out-alt">Cerrar Sesión</i>
                             </a>
                         </li>
                     </ul>
@@ -132,7 +129,7 @@ if (!function_exists('tiene_permiso')) {
         <div class="offcanvas-header border-bottom">
             <div>
                 <h5 class="offcanvas-title mb-0" style="text-transform: capitalize;"><?php echo htmlspecialchars($nombre_usuario); ?></h5>
-                <small class="text-muted"><?php echo htmlspecialchars($rol_usuario); ?></small>
+                <small class="text-muted" style="text-transform: capitalize;"><?php echo htmlspecialchars($rol_usuario); ?></small>
             </div>
             <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas"></button>
         </div>
@@ -141,42 +138,40 @@ if (!function_exists('tiene_permiso')) {
                 <i class="fas fa-th-large me-2"></i> Dashboard
             </a>
             
-            <?php if (tiene_permiso('Gestion PO', $permisos_usuario)): ?>
             <a href="personal/" class="nav-link <?php echo ($controlador == 'personal') ? 'active' : ''; ?>">
                 <i class="fas fa-users me-2"></i> Gestión de Personal
             </a>
-            <?php endif; ?>
             
-            <?php if (tiene_permiso('Servicios', $permisos_usuario)): ?>
             <a href="configuracion/" class="nav-link <?php echo ($controlador == 'configuracion') ? 'active' : ''; ?>">
                 <i class="fas fa-cog me-2"></i> Configuración Global
             </a>
-            <?php endif; ?>
             
-            <?php if (tiene_permiso('Consultoria', $permisos_usuario)): ?>
+            <?php if (tiene_permiso('Consultar', $permisos_usuario)): ?>
             <a href="consultas/" class="nav-link <?php echo ($controlador == 'consultas') ? 'active' : ''; ?>">
                 <i class="fas fa-search me-2"></i> Consultas
             </a>
             <?php endif; ?>
             
-            <?php if (tiene_permiso('Usuarios', $permisos_usuario)): ?>
             <a href="usuarios/" class="nav-link <?php echo ($controlador == 'usuarios') ? 'active' : ''; ?>">
                 <i class="fas fa-shield-alt me-2"></i> Usuarios
             </a>
-            <?php endif; ?>
         </div>
     </div>
 
     <main id="main-content" class="flex-grow-1 py-4">
         <div class="container-fluid px-4">
             <?php 
-                // Si el controlador existe y tiene la función para renderizar, lo mostramos
+                // Renderizado seguro del contenido
                 if (isset($ctrl) && is_object($ctrl) && method_exists($ctrl, 'renderContent')) {
                     $ctrl->renderContent(); 
                 } else {
-                    // Si algo falló, no cargó, o no existe, mostramos la pantalla de "En Construcción"
                     $nombre_modulo = ucfirst($controlador ?? 'desconocido'); 
-                    include "_view/enConstruccion.html.php";
+                    // Si tienes una vista de enConstruccion.html.php se mostrará, de lo contrario imprimimos un mensaje amigable
+                    if(file_exists("_view/enConstruccion.html.php")) {
+                        include "_view/enConstruccion.html.php";
+                    } else {
+                        echo "<div class='alert alert-warning'>El módulo se encuentra en construcción o no fue encontrado.</div>";
+                    }
                 }
             ?>
         </div>
@@ -234,15 +229,15 @@ if (!function_exists('tiene_permiso')) {
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="utils/sweetalert2_v11.11.1/sweetalert2.min.js"></script>
     <script src="js/site.js"></script>
+    <script src="js/logout.js"></script>
     
     <script>
         <?php 
-            // Validación para asegurar que el controlador existe antes de llamar renderJS
+            // Renderizado seguro del JS específico de la vista
             if (isset($ctrl) && is_object($ctrl) && method_exists($ctrl, 'renderJS')) {
                 $ctrl->renderJS(); 
             } 
         ?>
     </script>
-
 </body>
 </html>

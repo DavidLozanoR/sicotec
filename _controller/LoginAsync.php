@@ -1,19 +1,34 @@
-
 <?php
-ini_set("display_errors", E_ALL);
-//HABILITAR EL USO DE VARIABLES SESION
-    session_start();
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+
+header('Content-Type: application/json');
+
+// HABILITAR EL USO DE VARIABLES SESION
+session_start();
 require_once "../config/Global.php";
-require_once "LoginModel.php";
+require_once "../_model/LoginModel.php";
 
-    //Recepcion de datos
-    $user = isset($_POST["usr"]) ? $_POST["usr"]  : "";
-    $pass= isset($_POST["pass"]) ? $_POST["pass"] : "";
+$model = new LoginModel();
 
-    //validacion de los datos ingresados
-    $model = new LoginModel();
-    if ($model->createSesion($user,$pass)){
-        echo json_encode(["result"=>1,"msg"=> "credenciales correctas"]);
-    }else {
-        echo json_encode(["result"=>0,"msg"=> "credenciales incorrectas"]);
+// 1. Intercept Logout Request
+if (isset($_POST["action"]) && $_POST["action"] === "logout") {
+    if ($model->logout()) {
+        echo json_encode(["result" => 1, "msg" => "Sesion finalizada"]);
+    } else {
+        echo json_encode(["result" => 0, "msg" => "Error al finalizar sesion"]);
     }
+    exit;
+}
+
+// 2. Process Login Request (Default Execution)
+$user = isset($_POST["usr"]) ? $_POST["usr"]  : "";
+$pass = isset($_POST["pass"]) ? $_POST["pass"] : "";
+
+// Validacion de los datos ingresados
+if ($model->createSesion($user, $pass)){
+    echo json_encode(["result" => 1, "msg" => "Credenciales correctas"]);
+} else {
+    echo json_encode(["result" => 0, "msg" => "Credenciales incorrectas"]);
+}

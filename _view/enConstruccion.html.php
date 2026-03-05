@@ -11,14 +11,14 @@
                 
                 <p class="text-secondary fs-5 mb-4">
                     Estamos trabajando para implementar esta funcionalidad. 
-                    El módulo de <strong><?php echo isset($nombre_modulo) ? htmlspecialchars($nombre_modulo) : 'gestión'; ?></strong> estará disponible muy pronto.
+                    El módulo estará disponible muy pronto.
                 </p>
                 
                 <div class="progress mb-4" style="height: 8px;">
                     <div class="progress-bar progress-bar-striped progress-bar-animated" role="progressbar" style="width: 60%; background-color: #9D2449;" aria-valuenow="60" aria-valuemin="0" aria-valuemax="100"></div>
                 </div>
                 
-                <a href="<?php echo SITE_URL; ?>dashboard/" class="btn btn-light border shadow-sm px-4 py-2">
+                <a href="<?php echo SITE_URL; ?>inicio/" class="btn btn-light border shadow-sm px-4 py-2">
                     <i class="fas fa-arrow-left me-2"></i> Regresar al Tablero
                 </a>
 

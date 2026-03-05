@@ -10,15 +10,15 @@
 
     );
 
-    //variables de entorno para el server en infinity FREe
+    //variables de entorno
 
-    define("SITE_URL","http://localhost/Seguimiento-INEA/SiCoSoTe/");
+ define("SITE_URL", "http:/sicosote/");
     define("RUTA_DEFAULT", "inicio");
-    define("DB_HOST", "sql306.infinityfree.com");
-    define("DB_PORT", "3306");
-    define("DB_BASE", "if0_41288649_sicosote");
-    define("DB_USR", "if0_41288649");
-    define("DB_PASS", "AzftNoLizRdWSI");
+    define("DB_HOST", "192.168.250.24");
+    define("DB_PORT", "5075");
+    define("DB_BASE", "sicosote");
+    define("DB_USR", "bd_seguimiento");
+    define("DB_PASS", "QEWoyA56xEse");
 	define("CLAVE_SECRETA","test");
 
 ?>

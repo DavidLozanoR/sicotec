@@ -1,4 +1,4 @@
-/**
+/*
  * Diálogo de respuesta SweetAlert2 que ejecuta una operación ajax enviando un formulario vía POST.
  * @param {form} form - La referencia al formulario.
  * @param {string} actionUrl - La dirección que procesará el formulario vía POST.
@@ -9,7 +9,7 @@
  * @param {function} argsFuncSuccess - Argumentos de la función a ejecutar.
  */
 
-const SITE_URL = "<?php echo SITE_URL; ?>";
+// const SITE_URL = "<?php echo SITE_URL; ?>";
 
 function asyncProcessForm(form, actionUrl, titleProcess, textProcess, titleResult, funcSuccess=null, argsFuncSuccess=null) {
 	const formData = new FormData(form); // Crear objeto FormData con el formulario
@@ -38,6 +38,12 @@ function asyncProcessForm(form, actionUrl, titleProcess, textProcess, titleResul
 
 				Swal.hideLoading(); // Ocultar el estado de carga
 
+				if (res.result === 99) {
+					if (funcSuccess != null) {
+						funcSuccess(res); // Pass the whole response (including kernel_id) to your callback
+					}
+					return; // Stop execution here
+				}
 				// Verificar el resultado del procesamiento
 				if (res.result === 1) {
 					Swal.fire({
@@ -49,8 +55,8 @@ function asyncProcessForm(form, actionUrl, titleProcess, textProcess, titleResul
 						showConfirmButton: true,
 					}).then(() => {
 						// Ejecutar la función de éxito si fue proporcionada
-						if (funcSuccess != null) {
-							funcSuccess(argsFuncSuccess);
+						if (typeof funcSuccess === "function") {
+            				funcSuccess(res);
 						}
 					});
 				} else {

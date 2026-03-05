@@ -1,6 +1,6 @@
 <?php
-//se llama a la clase de coneccion de mariadb en lugar de sql
-require_once "MariadbAux.php";
+
+require_once "MariaDBAux.php";
 
 class MainModel {
     private $bd;
@@ -26,4 +26,7 @@ class MainModel {
     public function seleccionaRegistrosJoin($tablaPrincipal, $joins, $campos, $condicion = null, $params = null) {
         return $this->bd->selectJoin($tablaPrincipal, $joins, $campos, $condicion, $params);
     }
+    public function borraRegistro($tabla, $condicion, $params) {
+		return $this->bd->deleteRow($tabla, $condicion, $params);
+	}
 }
