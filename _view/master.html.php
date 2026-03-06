@@ -176,6 +176,39 @@ $controlador = $controlador ?? '';
                 }
             ?>
         </div>
+
+        <!-- componente para el Diccionario --> 
+         <div class="offcanvas offcanvas-end shadow" tabindex="-1" id="offcanvasDiccionario" aria-labelledby="offcanvasDiccionarioLabel" style="width: 500px;">
+            <div class="offcanvas-header border-bottom bg-light">
+                <h5 class="offcanvas-title fw-bold" id="offcanvasDiccionarioLabel">
+                    <i class="fas fa-book me-2 text-dark"></i>Diccionario
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            </div>
+            <div class="offcanvas-body d-flex flex-column">
+                
+                <div class="d-flex justify-content-end mb-3">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAgregarNomenclatura">
+                        <i class="fas fa-plus me-1"></i> Agregar Nomenclatura
+                    </button>
+                </div>
+
+                <div class="table-responsive flex-grow-1">
+                    <table class="table table-bordered table-hover table-sm" id="tablaDiccionario">
+                        <thead class="table-light">
+                            <tr>
+                                <th style="width: 30%;">Nomenclatura</th>
+                                <th style="width: 40%;">Significado</th>
+                                <th style="width: 30%;">Notas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyDiccionario">
+                            </tbody>
+                    </table>
+                </div>
+
+            </div>
+        </div>
     </main>
 
     <footer class="bg-gob-dark text-white pt-5 pb-3 footer-inea mt-auto" style="background-color: #6C1D45;">
@@ -231,6 +264,7 @@ $controlador = $controlador ?? '';
     <script src="utils/sweetalert2_v11.11.1/sweetalert2.min.js"></script>
     <script src="js/site.js"></script>
     <script src="js/logout.js"></script>
+    <script src="js/diccionario.js"></script>
     
     <script>
         <?php 
