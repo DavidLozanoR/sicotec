@@ -73,6 +73,7 @@ $controlador = $controlador ?? '';
                             <li><a class="dropdown-item" href="configuracion/servicios/">Catálogo de Servicios</a></li>
                             <li><a class="dropdown-item" href="configuracion/red/">Infraestructura de Red</a></li>
                             <li><a class="dropdown-item" href="configuracion/responsiva/">Responsiva de Equipos</a></li>
+                            <li><a class="dropdown-item" href="#" data-bs-toggle="offcanvas" data-bs-target="#offcanvasDiccionario">Diccionario de Nomenclaturas</a></li>
                         </ul>
                     </div>
                     
