@@ -147,6 +147,10 @@ $controlador = $controlador ?? '';
                 <i class="fas fa-cog me-2"></i> Configuración Global
             </a>
             
+            <a href="#" class="nav-link" data-bs-toggle="offcanvas" data-bs-target="#offcanvasDiccionario">
+                <i class="fas fa-book me-2"></i> Diccionario
+            </a>
+
             <?php if (tiene_permiso('Consultar', $permisos_usuario)): ?>
             <a href="consultas/" class="nav-link <?php echo ($controlador == 'consultas') ? 'active' : ''; ?>">
                 <i class="fas fa-search me-2"></i> Consultas
