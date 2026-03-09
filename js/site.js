@@ -8,78 +8,97 @@
  * @param {function} funcSuccess - Función a ejecutar luego de un procesamiento exitoso.
  * @param {function} argsFuncSuccess - Argumentos de la función a ejecutar.
  */
+function asyncProcessForm(form, actionUrl, arg3 = "Procesando", textProcess = "Por favor espere...", titleResult = "¡Éxito!", funcSuccess = null, argsFuncSuccess = null) {
+    
+    let titleProcess = "Procesando";
+    let callback = funcSuccess;
 
-// const SITE_URL = "<?php echo SITE_URL; ?>";
+    // MAGIA: Detectar si el 3er parámetro es la función (como en usuarios) o es un texto (formato original)
+    if (typeof arg3 === 'function') {
+        callback = arg3;
+    } else if (typeof arg3 === 'string') {
+        titleProcess = arg3;
+    }
 
-function asyncProcessForm(form, actionUrl, titleProcess, textProcess, titleResult, funcSuccess=null, argsFuncSuccess=null) {
-	const formData = new FormData(form); // Crear objeto FormData con el formulario
+    const formData = new FormData(form);
+    
+    // Aseguramos la ruta absoluta si la constante SITE_URL existe
+    const urlAbsoluta = (typeof SITE_URL !== 'undefined' ? SITE_URL : '') + actionUrl;
 
-	Swal.fire({
-		title: titleProcess,
-		text: textProcess,
-		icon: "info",
-		allowOutsideClick: () => !Swal.isLoading(),
-		showConfirmButton: false,
-		didOpen: async () => {
-			Swal.showLoading(); // Mostrar estado de carga
-			try {
-				// Enviar la petición asíncrona
-				const response = await fetch(actionUrl, {
-					method: "POST",
-					body: formData,
-				});
+    Swal.fire({
+        title: titleProcess,
+        text: textProcess,
+        icon: "info",
+        allowOutsideClick: false,
+        showConfirmButton: false,
+        didOpen: async () => {
+            Swal.showLoading(); 
+            try {
+                // Enviar la petición asíncrona usando la URL absoluta
+                const response = await fetch(urlAbsoluta, {
+                    method: "POST",
+                    body: formData,
+                });
 
-				// Verificar si la respuesta es válida
-				if (!response.ok) {
-					throw new Error(`Error: ${response.statusText}`);
-				}
+                if (!response.ok) {
+                    throw new Error(`Error: ${response.statusText}`);
+                }
 
-				const res = await response.json(); // Parsear respuesta JSON
+                const res = await response.json(); 
 
-				Swal.hideLoading(); // Ocultar el estado de carga
+                Swal.hideLoading(); 
 
-				if (res.result === 99) {
-					if (funcSuccess != null) {
-						funcSuccess(res); // Pass the whole response (including kernel_id) to your callback
-					}
-					return; // Stop execution here
-				}
-				// Verificar el resultado del procesamiento
-				if (res.result === 1) {
-					Swal.fire({
-						icon: "success",
-						title: titleResult,
-						text: res.msg,
-						timer: 3000,
-						timerProgressBar: true,
-						showConfirmButton: true,
-					}).then(() => {
-						// Ejecutar la función de éxito si fue proporcionada
-						if (typeof funcSuccess === "function") {
-            				funcSuccess(res);
-						}
-					});
-				} else {
-					// Mostrar error en caso de fallo forzando interacción del usuario
-					Swal.fire({
-						icon: "error",
-						title: "Acceso Denegado",
-						text: res.msg || "Hubo un problema con el procesamiento.",
-						allowOutsideClick: false, // Impide cerrar al dar clic afuera
-						allowEscapeKey: false,    // Impide cerrar con la tecla ESC
-						confirmButtonText: "Entendido",
-						confirmButtonColor: "#d33" // Color rojo opcional para alertas
-					});
-				}
-			} catch (error) {
-				// Manejo de errores de la petición
-				Swal.hideLoading();
-				Swal.fire({
-					icon: "error",
-					title: "Error",
-					text: error.message || "Error inesperado durante el procesamiento.",
-				});
-			}
-		},
-	});
+                // 1. Caso Integridad (Error 99)
+                if (res.result === 99) {
+                    if (callback != null) {
+                        callback(res); 
+                    }
+                    return; 
+                }
+                
+                // 2. Caso Éxito (result = 1)
+                if (res.result === 1) {
+                    Swal.fire({
+                        icon: "success", // Corregido: "success" en lugar de "Éxito" para que salga el icono verde
+                        title: (typeof arg3 === 'string') ? titleResult : "Hecho",
+                        text: res.msg,
+                        confirmButtonColor: "#6C1D45" // Tu color institucional
+                    }).then(() => {
+                        // Si hay función personalizada (como la de recargarTablas), la ejecuta. Si no, recarga la página.
+                        if (typeof callback === "function") {
+                            callback(res);
+                        } else {
+                            location.reload();
+                        }
+                    });
+                } else if (res.result === 2) {
+                    if (typeof callback === "function") {
+                        callback(res); // Le pasamos la respuesta al JS para que saque el modal de confirmación
+                    }
+                }
+                // 3. Caso Error General (result = 0)
+                else {
+                    // Cambiamos el título a algo más genérico que "Acceso Denegado"
+                    let tituloError = res.msg && res.msg.toLowerCase().includes("acceso") ? "Acceso Denegado" : "Atención";
+                    
+                    Swal.fire({
+                        icon: "error",
+                        title: tituloError,
+                        text: res.msg || "Hubo un problema con el procesamiento.",
+                        allowOutsideClick: false, 
+                        allowEscapeKey: false,    
+                        confirmButtonText: "Entendido",
+                        confirmButtonColor: "#d33" 
+                    });
+                }
+            } catch (error) {
+                Swal.hideLoading();
+                Swal.fire({
+                    icon: "error",
+                    title: "Error de Conexión",
+                    text: error.message || "Error inesperado durante el procesamiento.",
+                });
+            }
+        },
+    });
 }

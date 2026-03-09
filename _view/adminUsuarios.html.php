@@ -16,7 +16,7 @@
                 <i class="fas fa-users text-guinda me-2"></i> Usuarios Activos del Sistema
             </h6>
 
-            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+            <div class="table-responsive" id="contenedor-tabla-usuarios" style="max-height: 300px; overflow-y: auto;">
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light sticky-top">
                         <tr>
@@ -55,12 +55,15 @@
                                                 title="Editar Usuario">
                                             <i class="fas fa-edit" style="pointer-events: none;"></i>
                                         </button>
-                                        <button type="button"
-                                                class="btn btn-sm btn-outline-danger btn-baja"
-                                                data-id="<?php echo $usr['id_usuar']; ?>"
-                                                title="Dar de baja">
-                                            <i class="fas fa-trash-alt" style="pointer-events: none;"></i>
-                                        </button>
+                                        
+                                        <?php if ($usr['id_rol'] != 1): ?>
+                                            <button type="button"
+                                                    class="btn btn-sm btn-outline-danger btn-baja"
+                                                    data-id="<?php echo $usr['id_usuar']; ?>"
+                                                    title="Dar de baja">
+                                                <i class="fas fa-trash-alt" style="pointer-events: none;"></i>
+                                            </button>
+                                        <?php endif; ?>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -94,7 +97,7 @@
                 <i class="fas fa-shield-alt text-guinda me-2"></i> Roles del Sistema
             </h6>
 
-            <div class="table-responsive" style="max-height: 300px; overflow-y: auto;">
+            <div class="table-responsive" id="contenedor-tabla-roles" style="max-height: 300px; overflow-y: auto;">
                 <table class="table table-hover align-middle mb-0">
                     <thead class="table-light sticky-top">
                         <tr>
@@ -214,6 +217,9 @@
                         <label class="form-label fw-bold small text-dark mb-1">Rol de Acceso *</label>
                         <select class="form-select focus-guinda border-secondary-subtle" id="id_rol_input" name="id_rol" required>
                             <option value="" selected disabled>Seleccione un rol...</option>
+                            
+                            <option value="1" id="opt-admin" style="display:none;" disabled>Administrador (Protegido)</option>
+                            
                             <?php if(isset($roles_disponibles)): ?>
                                 <?php foreach($roles_disponibles as $rol): ?>
                                     <option value="<?php echo $rol['id_rol']; ?>"><?php echo htmlspecialchars($rol['nom_rol']); ?></option>

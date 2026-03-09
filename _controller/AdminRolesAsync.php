@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once __DIR__ . "/../config/Global.php";
 require_once "AdminRolesController.php";
 
 if (!isset($_SESSION['usuario'])) {
@@ -34,6 +35,19 @@ switch ($peticion) {
         }
 
         echo json_encode($controller->actualizaRol($id_rol, $nom_rol, $permisos));
+        break;
+
+    case 'REACTIVATE_ROL':
+        $id_rol = $_POST['id_rol'] ?? '';
+        $nom_rol = trim($_POST['nom_rol'] ?? '');
+        $permisos = $_POST['permisos'] ?? [];
+
+        if (empty($id_rol) || empty($nom_rol)) {
+            echo json_encode(["result" => 0, "msg" => "Faltan datos para la reactivación."]);
+            exit;
+        }
+
+        echo json_encode($controller->reactivaRol($id_rol, $nom_rol, $permisos));
         break;
 
     case 'DELETE_ROL':

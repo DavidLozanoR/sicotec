@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . "/../_model/MainModel.php";
+require_once "MainModel.php";
 
 
 class AdminRolesController {
@@ -10,12 +10,30 @@ class AdminRolesController {
     public function insertaRol($nom_rol, $permisos) {
         $model = new MainModel();
 
-        $rol_similar = $this->buscarRolSimilar($permisos);
-        if ($rol_similar) {
-            return ["result" => 0, "msg" => "Ya existe un rol llamado '{$rol_similar}' con exactamente estos mismos accesos. Por favor, asigne ese rol a los usuarios en lugar de crear uno nuevo."];
+        // 1. Validar si ya existe un rol con ese mismo NOMBRE
+        $rol_nombre = $model->seleccionaRegistros("Roles", ["id_rol", "status"], "nom_rol = ?", [trim($nom_rol)]);
+        if ($rol_nombre && count($rol_nombre) > 0) {
+            if ($rol_nombre[0]['status'] == 0) {
+                // Caso: Existe pero está dado de baja (Código 2)
+                return ["result" => 2, "id_rol_reactivar" => $rol_nombre[0]['id_rol'], "msg" => "Existe un rol inactivo con el nombre '{$nom_rol}'. ¿Desea reactivarlo y actualizar sus permisos?"];
+            } else {
+                return ["result" => 0, "msg" => "Ya existe un rol activo con ese nombre."];
+            }
         }
 
-        $res = $model->agregaRegistro("Roles", ["nom_rol"], [trim($nom_rol)]);
+        // 2. Validar si ya existe un rol con estos mismos PERMISOS
+        $rol_similar = $this->buscarRolSimilar($permisos);
+        if ($rol_similar) {
+            if ($rol_similar['status'] == 0) {
+                // Caso: Existe con mismos permisos pero dado de baja (Código 2)
+                return ["result" => 2, "id_rol_reactivar" => $rol_similar['id_rol'], "msg" => "Existe un rol inactivo llamado '{$rol_similar['nom_rol']}' con exactamente estos mismos accesos. ¿Desea reactivarlo usando su nuevo nombre?"];
+            } else {
+                return ["result" => 0, "msg" => "Ya existe un rol activo llamado '{$rol_similar['nom_rol']}' con exactamente estos mismos accesos."];
+            }
+        }
+
+        // 3. Inserción normal si todo es nuevo
+        $res = $model->agregaRegistro("Roles", ["nom_rol", "status"], [trim($nom_rol), 1]);
         if ($res) {
             $nuevoRol = $model->seleccionaRegistros("Roles", ["id_rol"], "nom_rol = ?", [trim($nom_rol)]);
             if ($nuevoRol) {
@@ -52,18 +70,30 @@ class AdminRolesController {
         if (in_array((int)$id_rol, self::ROLES_PROTEGIDOS)) {
             return ["result" => 0, "msg" => "ERROR: Este rol está protegido y no puede eliminarse."];
         }
-
+        //comprobar si un usuario Activo esta usando el ROL
         $model = new MainModel();
-        $usuarios = $model->seleccionaRegistros("Usuarios", ["id_usuar"], "id_rol = ? AND status = ?", [$id_rol, 1]);
-        if ($usuarios && count($usuarios) > 0) {
-            return ["result" => 0, "msg" => "No se puede eliminar porque tiene " . count($usuarios) . " usuario(s) activo(s)."];
+        $usuarios_activos = $model->seleccionaRegistros("Usuarios", ["id_usuar"], "id_rol = ? AND status = 1", [$id_rol]);
+        
+        if ($usuarios_activos && count($usuarios_activos) > 0) {
+            $total = count($usuarios_activos);
+            return ["result" => 0, "msg" => "No se puede dar de baja. Hay {$total} usuario(s) activo(s) usando este rol. Por favor reasigna el Rol a cada usuario que lo este ocupando."];
         }
 
-        $model->borraRegistro("Rol_Submodulo_Permiso", "id_rol = ?", [$id_rol]);
-        $model->borraRegistro("Rol_Modulo", "id_rol = ?", [$id_rol]);
-        $res = $model->borraRegistro("Roles", "id_rol = ?", [$id_rol]);
+        // Baja Lógica 
+        $res = $model->actualizaRegistro("Roles", ["status"], "id_rol = ?", [0, $id_rol]);
 
-        return $res ? ["result" => 1, "msg" => "Rol eliminado correctamente."] : ["result" => 0, "msg" => "Error al eliminar el rol."];
+        return $res ? ["result" => 1, "msg" => "Rol dado de baja (inactivo) correctamente."] : ["result" => 0, "msg" => "Error al dar de baja el rol."];
+    }
+    public function reactivaRol($id_rol, $nom_rol, $permisos) {
+        $model = new MainModel();
+        // Reactivamos y le ponemos el nuevo nombre que el usuario tecleó
+        $res = $model->actualizaRegistro("Roles", ["nom_rol", "status"], "id_rol = ?", [trim($nom_rol), 1, $id_rol]);
+        
+        if ($res) {
+            // Limpiamos los permisos viejos y le ponemos los nuevos del formulario
+            return ["result" => 1, "msg" => "Rol reactivado y actualizado con éxito."];
+        }
+        return ["result" => 0, "msg" => "Error al reactivar el rol."];
     }
 
     // -------------------------------------------------------
@@ -99,21 +129,18 @@ class AdminRolesController {
         }
     }
 
-    private function buscarRolSimilar($permisos_solicitados, $ignorar_id_rol = null) {
+   private function buscarRolSimilar($permisos_solicitados, $ignorar_id_rol = null) {
         $model = new MainModel();
-        
         $firma_solicitada = [];
         if (is_array($permisos_solicitados)) {
             foreach($permisos_solicitados as $id_sub => $perms) {
-                foreach($perms as $p) {
-                    $firma_solicitada[] = $id_sub . "_" . $p;
-                }
+                foreach($perms as $p) { $firma_solicitada[] = $id_sub . "_" . $p; }
             }
         }
         sort($firma_solicitada);
         $str_firma_solicitada = implode("|", $firma_solicitada);
 
-        $todos_roles = $model->seleccionaRegistros("Roles", ["id_rol", "nom_rol"]);
+        $todos_roles = $model->seleccionaRegistros("Roles", ["id_rol", "nom_rol", "status"]);
         if ($todos_roles) {
             foreach ($todos_roles as $r) {
                 if ($ignorar_id_rol && $r['id_rol'] == $ignorar_id_rol) continue;
@@ -121,15 +148,13 @@ class AdminRolesController {
                 $perms_rol = $model->seleccionaRegistros("Rol_Submodulo_Permiso", ["id_sub", "id_perm"], "id_rol = ?", [$r['id_rol']]);
                 $firma_rol = [];
                 if ($perms_rol) {
-                    foreach ($perms_rol as $pr) {
-                         $firma_rol[] = $pr['id_sub'] . "_" . $pr['id_perm'];
-                    }
+                    foreach ($perms_rol as $pr) { $firma_rol[] = $pr['id_sub'] . "_" . $pr['id_perm']; }
                 }
                 sort($firma_rol);
                 $str_firma_rol = implode("|", $firma_rol);
 
                 if ($str_firma_solicitada === $str_firma_rol) {
-                    return $r['nom_rol'];
+                    return $r; // Devolvemos todo el arreglo, incluyendo el 'status'
                 }
             }
         }

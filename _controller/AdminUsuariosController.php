@@ -21,7 +21,8 @@ class AdminUsuariosController {
         $model = new MainModel();
         
         // 1. DATOS PARA USUARIOS
-        $roles_disponibles = $model->seleccionaRegistros("Roles", ["id_rol", "nom_rol"]);
+        //ocultamos rol id=1 administrador
+        $roles_disponibles = $model->seleccionaRegistros("Roles", ["id_rol", "nom_rol"], "id_rol != ? AND status = 1", [1]);
         $usuarios = $model->seleccionaRegistrosJoin(
             "Usuarios u",
             ["JOIN Roles r ON u.id_rol = r.id_rol"],
@@ -32,7 +33,7 @@ class AdminUsuariosController {
 
         // 2. CONSTRUCCIÓN DEL ÁRBOL PARA EL MODAL DE ROLES
         $permisos_catalogo = $model->seleccionaRegistros("Permisos", ["id_perm", "nom_perm"]);
-        $modulos = $model->seleccionaRegistros("Modulos", ["*"], "1=1 ORDER BY orden");
+        $modulos = $model->seleccionaRegistros("Modulos", ["*"], "id_mod != ? ORDER BY orden", [4]);
         $submodulos = $model->seleccionaRegistros("Submodulos", ["*"], "1=1 ORDER BY orden");
 
         $arbol_modulos = [];
@@ -51,7 +52,8 @@ class AdminUsuariosController {
         }
 
         // 3. DATOS PARA LA TABLA DE ROLES
-        $roles = $model->seleccionaRegistros("Roles", ["id_rol", "nom_rol"]);
+        $roles = $model->seleccionaRegistros("Roles", ["id_rol", "nom_rol"], "status = 1");//solo activos
+
         if ($roles) {
             foreach ($roles as $index => $rol) {
                 $permisosRol = $model->seleccionaRegistros("Rol_Submodulo_Permiso", ["id_sub", "id_perm"], "id_rol = ?", [$rol['id_rol']]);
@@ -83,10 +85,14 @@ class AdminUsuariosController {
 
     public function renderJS(){ include self::JS; }
 
-    // =======================================================
     // LÓGICA EXCLUSIVA DE USUARIOS
-    // =======================================================
+    
     public function insertaUsuario($nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $id_rol) {
+        //seguridad para intento de crear usuario admin
+        if ($id_rol == 1) {
+            return ["result" => 0, "msg" => "Seguridad: No se permite asignar el rol de Administrador a nuevos usuarios."];
+        }
+
         $model = new MainModel();
         
         $existe = $model->seleccionaRegistros("Usuarios", ["id_usuar", "status"], "nom_usuar = ?", [$nom_usuar]);
@@ -110,6 +116,18 @@ class AdminUsuariosController {
     public function actualizaUsuario($id_usuar, $nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $id_rol) {
         $model = new MainModel();
         
+        //Verificamos el rol actual del usuario antes de cambiarlo
+        $usuario_actual = $model->seleccionaRegistros("Usuarios", ["id_rol"], "id_usuar = ?", [$id_usuar]);
+        $rol_actual = $usuario_actual ? $usuario_actual[0]['id_rol'] : 0;
+
+        if ($id_rol == 1 && $rol_actual != 1) {
+            return ["result" => 0, "msg" => "Seguridad: No puedes ascender a un usuario a Administrador."];
+        }
+        if ($rol_actual == 1 && $id_rol != 1) {
+            return ["result" => 0, "msg" => "Seguridad: El Administrador principal no puede perder su rol."];
+        }
+        //Continuamos si no intento de vulnerabilidad.
+
         $existe = $model->seleccionaRegistros("Usuarios", ["id_usuar"], "nom_usuar = ? AND id_usuar != ?", [$nom_usuar, $id_usuar]);
         if ($existe && count($existe) > 0) {
             return ["result" => 0, "msg" => "El nickname '$nom_usuar' ya está siendo utilizado por otro usuario."];
@@ -126,9 +144,15 @@ class AdminUsuariosController {
 
     public function bajaUsuario($id_usuar) {
         $model = new MainModel();
+        // El administrador no se puede eliminar a sí mismo
+        $usuario = $model->seleccionaRegistros("Usuarios", ["id_rol"], "id_usuar = ?", [$id_usuar]);
+        if ($usuario && $usuario[0]['id_rol'] == 1) {
+            return ["result" => 0, "msg" => "Seguridad: No se puede dar de baja al Administrador del sistema."];
+        }
+        //cualquier otro rol
         $res = $model->actualizaRegistro("Usuarios", ["status"], "id_usuar=?", [0, $id_usuar]);
         
-        // Formateamos la respuesta para que JavaScript (site.js) la entienda correctamente
+        // Formateamos la respuesta para entregarla al JavaScript 
         return $res ? ["result" => 1, "msg" => "Usuario dado de baja exitosamente."] : ["result" => 0, "msg" => "Error al dar de baja al usuario."];
     }
 }
