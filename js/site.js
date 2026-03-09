@@ -60,11 +60,15 @@ function asyncProcessForm(form, actionUrl, titleProcess, textProcess, titleResul
 						}
 					});
 				} else {
-					// Mostrar error en caso de fallo
+					// Mostrar error en caso de fallo forzando interacción del usuario
 					Swal.fire({
 						icon: "error",
-						title: "Error",
+						title: "Acceso Denegado",
 						text: res.msg || "Hubo un problema con el procesamiento.",
+						allowOutsideClick: false, // Impide cerrar al dar clic afuera
+						allowEscapeKey: false,    // Impide cerrar con la tecla ESC
+						confirmButtonText: "Entendido",
+						confirmButtonColor: "#d33" // Color rojo opcional para alertas
 					});
 				}
 			} catch (error) {

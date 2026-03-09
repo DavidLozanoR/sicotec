@@ -27,8 +27,11 @@ $user = isset($_POST["usr"]) ? $_POST["usr"]  : "";
 $pass = isset($_POST["pass"]) ? $_POST["pass"] : "";
 
 // Validacion de los datos ingresados
-if ($model->createSesion($user, $pass)){
-    echo json_encode(["result" => 1, "msg" => "Credenciales correctas"]);
-} else {
-    echo json_encode(["result" => 0, "msg" => "Credenciales incorrectas"]);
-}
+    // Llamamos al modelo y guardamos su respuesta 
+    $respuestaLogin = $model->createSesion($user, $pass);
+
+    if ($respuestaLogin["status"]){
+        echo json_encode(["result" => 1, "msg" => $respuestaLogin["msg"]]);
+    } else {
+        echo json_encode(["result" => 0, "msg" => $respuestaLogin["msg"]]);
+    }

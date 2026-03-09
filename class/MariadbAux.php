@@ -167,4 +167,45 @@ class MariaDBAux {
             return null;
         }
     }
+    public function deleteRow($tabla, $condicion = null, $params = []) {
+		// Construir la consulta SQL.
+		$query = "DELETE FROM $tabla" . ($condicion ? " WHERE $condicion" : "");
+
+		try {
+			$cnx = $this->getConnection();
+
+			// Desactiva el autocommit para manejo manual de transacciones.
+			$cnx->beginTransaction();
+
+			$pcmd = $cnx->prepare($query);
+
+			// Vincular los parámetros si existen.
+			foreach ($params as $indice => $param) {
+				$pcmd->bindValue($indice + 1, $param, PDO::PARAM_STR);
+			}
+
+			// Ejecutar la consulta y verificar el resultado.
+			$resultado = $pcmd->execute() && $pcmd->rowCount() >= 1;
+
+			// Confirmar la transacción si fue exitosa.
+			if ($resultado) {
+				$cnx->commit();
+			} else {
+				$cnx->rollBack();
+			}
+
+			$pcmd = null; // Cerrar el statement.
+			$cnx = null; // Cerrar la conexión.
+
+			return $resultado;
+		} catch (PDOException $ex) {
+			// Si ocurre un error, hacemos rollback.
+			if ($cnx->inTransaction()) {
+				$cnx->rollBack();
+			}
+			error_log("Error al eliminar la fila: " . $ex->getMessage());
+			return false;
+		}
+	}
+    
 }

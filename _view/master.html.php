@@ -4,19 +4,13 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Extraer datos de la sesión (Según lo que guardamos en tu LoginModel)
+// Extraer datos de la sesión
 $datos_usuario = $_SESSION['usuario'] ?? [];
-// Usamos el nombre, o si no, el nom_usuar como respaldo
 $nombre_usuario = $datos_usuario['nombres'] ?? $datos_usuario['nom_usuar'] ?? 'Usuario';
 $rol_usuario = $datos_usuario['nom_rol'] ?? 'Invitado';
-$permisos_usuario = $_SESSION['permisos'] ?? [];
 
-// Helper para validar permisos
-if (!function_exists('tiene_permiso')) {
-    function tiene_permiso($permiso_requerido, $mis_permisos) {
-        return in_array($permiso_requerido, $mis_permisos);
-    }
-}
+// EXTRAEMOS EL MENÚ DINÁMICO QUE ARMÓ EL LOGINMODEL
+$menu_dinamico = $_SESSION['menu'] ?? [];
 
 // Prevenir error si $controlador no está definido en index.php
 $controlador = $controlador ?? '';
@@ -56,36 +50,48 @@ $controlador = $controlador ?? '';
                 </a>
 
                 <nav class="d-none d-lg-flex align-items-center nav-main-inea gap-1">
+                    
                     <a href="inicio/" class="nav-link <?php echo ($controlador == 'dashboard' || $controlador == 'inicio' || $controlador == '') ? 'active' : ''; ?>">
                         <i class="fas fa-th-large"></i> Dashboard
                     </a>
                     
-                    <a href="personal/" class="nav-link <?php echo ($controlador == 'personal') ? 'active' : ''; ?>">
-                        <i class="fas fa-users"></i> Gestión de Personal
-                    </a>
-                    
-                    <div class="dropdown">
-                        <a href="#" class="nav-link dropdown-toggle d-flex align-items-center gap-1 <?php echo ($controlador == 'configuracion') ? 'active' : ''; ?>" id="dropConfig" data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-cog"></i> Configuración
-                        </a>
-                        <ul class="dropdown-menu shadow-sm border-0 mt-2" aria-labelledby="dropConfig">
-                            <li><a class="dropdown-item" href="configuracion/">Vista General</a></li>
-                            <li><a class="dropdown-item" href="configuracion/servicios/">Catálogo de Servicios</a></li>
-                            <li><a class="dropdown-item" href="configuracion/red/">Infraestructura de Red</a></li>
-                            <li><a class="dropdown-item" href="configuracion/responsiva/">Responsiva de Equipos</a></li>
-                            <li><a class="dropdown-item" href="#" data-bs-toggle="offcanvas" data-bs-target="#offcanvasDiccionario">Diccionario de Nomenclaturas</a></li>
-                        </ul>
-                    </div>
-                    
-                    <?php if (tiene_permiso('Consultar', $permisos_usuario)): ?>
-                    <a href="consultas/" class="nav-link <?php echo ($controlador == 'Consultas') ? 'active' : ''; ?>">
-                        <i class="fas fa-search"></i> Consultas
-                    </a>
-                    <?php endif; ?>
-                    
-                    <a href="usuarios/" class="nav-link <?php echo ($controlador == 'usuarios') ? 'active' : ''; ?>">
-                        <i class="fas fa-shield-alt"></i> Usuarios
-                    </a>
+                    <?php foreach ($menu_dinamico as $id_mod => $modulo): 
+                        // Filtramos si este módulo tiene submenús configurados para mostrarse
+                        $hijos_visibles = array_filter($modulo['hijos'], function($h) { return $h['mostrar'] == 1; });
+                        $tiene_dropdown = count($hijos_visibles) > 0;
+                    ?>
+
+                        <?php if ($tiene_dropdown): ?>
+                            <div class="dropdown">
+                                <a href="#" class="nav-link dropdown-toggle d-flex align-items-center gap-1" id="dropMod_<?php echo $id_mod; ?>" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <i class="<?php echo $modulo['icono']; ?>"></i> <?php echo htmlspecialchars($modulo['nombre']); ?>
+                                </a>
+                                <ul class="dropdown-menu shadow-sm border-0 mt-2" aria-labelledby="dropMod_<?php echo $id_mod; ?>">
+                                    <?php foreach ($modulo['hijos'] as $slug => $sub): ?>
+                                        <?php if ($sub['mostrar'] == 1): ?>
+                                            <li>
+                                                <?php if ($slug === 'diccionario'): ?>
+                                                    <a class="dropdown-item" href="#" data-bs-toggle="offcanvas" data-bs-target="#offcanvasDiccionario"><?php echo htmlspecialchars($sub['nombre']); ?></a>
+                                                <?php else: ?>
+                                                    <a class="dropdown-item" href="<?php echo $slug; ?>/"><?php echo htmlspecialchars($sub['nombre']); ?></a>
+                                                <?php endif; ?>
+                                            </li>
+                                        <?php endif; ?>
+                                    <?php endforeach; ?>
+                                </ul>
+                            </div>
+
+                        <?php else: 
+                            // B. DIBUJAR ENLACE DIRECTO (Ej. Gestión de Personal)
+                            // Tomamos el primer slug de sus hijos (aunque estén ocultos) para la URL
+                            $slug_directo = !empty($modulo['hijos']) ? array_key_first($modulo['hijos']) : '#';
+                        ?>
+                            <a href="<?php echo $slug_directo; ?>/" class="nav-link <?php echo ($controlador == $slug_directo) ? 'active' : ''; ?>">
+                                <i class="<?php echo $modulo['icono']; ?>"></i> <?php echo htmlspecialchars($modulo['nombre']); ?>
+                            </a>
+                        <?php endif; ?>
+
+                    <?php endforeach; ?>
                 </nav>
             </div>
 
@@ -134,44 +140,47 @@ $controlador = $controlador ?? '';
             </div>
             <button type="button" class="btn-close text-reset" data-bs-dismiss="offcanvas"></button>
         </div>
+        
         <div class="offcanvas-body nav-main-inea d-flex flex-column gap-2 px-3">
-            <a href="dashboard/" class="nav-link <?php echo ($controlador == 'dashboard' || $controlador == 'inicio' || $controlador == '') ? 'active' : ''; ?>">
+            <a href="inicio/" class="nav-link <?php echo ($controlador == 'dashboard' || $controlador == 'inicio' || $controlador == '') ? 'active' : ''; ?>">
                 <i class="fas fa-th-large me-2"></i> Dashboard
             </a>
             
-            <a href="personal/" class="nav-link <?php echo ($controlador == 'personal') ? 'active' : ''; ?>">
-                <i class="fas fa-users me-2"></i> Gestión de Personal
-            </a>
-            
-            <a href="configuracion/" class="nav-link <?php echo ($controlador == 'configuracion') ? 'active' : ''; ?>">
-                <i class="fas fa-cog me-2"></i> Configuración Global
-            </a>
-            
-            <a href="#" class="nav-link" data-bs-toggle="offcanvas" data-bs-target="#offcanvasDiccionario">
-                <i class="fas fa-book me-2"></i> Diccionario
-            </a>
-
-            <?php if (tiene_permiso('Consultar', $permisos_usuario)): ?>
-            <a href="consultas/" class="nav-link <?php echo ($controlador == 'consultas') ? 'active' : ''; ?>">
-                <i class="fas fa-search me-2"></i> Consultas
-            </a>
-            <?php endif; ?>
-            
-            <a href="usuarios/" class="nav-link <?php echo ($controlador == 'usuarios') ? 'active' : ''; ?>">
-                <i class="fas fa-shield-alt me-2"></i> Usuarios
-            </a>
+            <?php foreach ($menu_dinamico as $id_mod => $modulo): 
+                $hijos_visibles = array_filter($modulo['hijos'], function($h) { return $h['mostrar'] == 1; });
+                $tiene_dropdown = count($hijos_visibles) > 0;
+            ?>
+                <?php if ($tiene_dropdown): ?>
+                    <div class="fw-bold text-muted mt-2 mb-1 border-bottom pb-1">
+                        <i class="<?php echo $modulo['icono']; ?> me-2"></i> <?php echo htmlspecialchars($modulo['nombre']); ?>
+                    </div>
+                    <?php foreach ($modulo['hijos'] as $slug => $sub): ?>
+                        <?php if ($sub['mostrar'] == 1): ?>
+                            <?php if ($slug === 'diccionario'): ?>
+                                <a href="#" class="nav-link ms-3" data-bs-toggle="offcanvas" data-bs-target="#offcanvasDiccionario"><i class="fas fa-caret-right me-1"></i> <?php echo htmlspecialchars($sub['nombre']); ?></a>
+                            <?php else: ?>
+                                <a href="<?php echo $slug; ?>/" class="nav-link ms-3 <?php echo ($controlador == $slug) ? 'active' : ''; ?>"><i class="fas fa-caret-right me-1"></i> <?php echo htmlspecialchars($sub['nombre']); ?></a>
+                            <?php endif; ?>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                <?php else: 
+                    $slug_directo = !empty($modulo['hijos']) ? array_key_first($modulo['hijos']) : '#';
+                ?>
+                    <a href="<?php echo $slug_directo; ?>/" class="nav-link mt-1 <?php echo ($controlador == $slug_directo) ? 'active' : ''; ?>">
+                        <i class="<?php echo $modulo['icono']; ?> me-2"></i> <?php echo htmlspecialchars($modulo['nombre']); ?>
+                    </a>
+                <?php endif; ?>
+            <?php endforeach; ?>
         </div>
     </div>
 
     <main id="main-content" class="flex-grow-1 py-4">
         <div class="container-fluid px-4">
             <?php 
-                // Renderizado seguro del contenido
                 if (isset($ctrl) && is_object($ctrl) && method_exists($ctrl, 'renderContent')) {
                     $ctrl->renderContent(); 
                 } else {
                     $nombre_modulo = ucfirst($controlador ?? 'desconocido'); 
-                    // Si tienes una vista de enConstruccion.html.php se mostrará, de lo contrario imprimimos un mensaje amigable
                     if(file_exists("_view/enConstruccion.html.php")) {
                         include "_view/enConstruccion.html.php";
                     } else {
@@ -181,8 +190,7 @@ $controlador = $controlador ?? '';
             ?>
         </div>
 
-        <!-- componente para el Diccionario --> 
-         <div class="offcanvas offcanvas-end shadow" tabindex="-1" id="offcanvasDiccionario" aria-labelledby="offcanvasDiccionarioLabel" style="width: 500px;">
+        <div class="offcanvas offcanvas-end shadow" tabindex="-1" id="offcanvasDiccionario" aria-labelledby="offcanvasDiccionarioLabel" style="width: 500px;">
             <div class="offcanvas-header border-bottom bg-light">
                 <h5 class="offcanvas-title fw-bold" id="offcanvasDiccionarioLabel">
                     <i class="fas fa-book me-2 text-dark"></i>Diccionario
@@ -272,7 +280,6 @@ $controlador = $controlador ?? '';
     
     <script>
         <?php 
-            // Renderizado seguro del JS específico de la vista
             if (isset($ctrl) && is_object($ctrl) && method_exists($ctrl, 'renderJS')) {
                 $ctrl->renderJS(); 
             } 
