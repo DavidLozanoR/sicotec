@@ -1,7 +1,6 @@
 <?php
-
+require_once __DIR__ . "/../config/Global.php";
 require_once "MariaDBAux.php";
-
 class MainModel {
     private $bd;
 

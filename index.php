@@ -31,7 +31,7 @@
         case "inicio" :
             if ($accion == "") {
                 require_once "_controller/TableroController.php";
-                $ctrl = new TableroController();//Pagina principal, perfil profesor
+                $ctrl = new TableroController();
             } 
         break;
 

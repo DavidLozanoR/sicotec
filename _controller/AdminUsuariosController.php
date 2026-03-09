@@ -1,124 +1,79 @@
 <?php
-    ini_set("display_errors", E_ALL);
-
+ini_set("display_errors", E_ALL);
 require_once "MainModel.php";
+
 
 class AdminUsuariosController {
 
     private $id;
-
-    public $id_user;
-    private $pass_hash;
-    public $id_rol;
-    public $nom_user;
-    public $ap_pa;
-    public $ap_ma;
-    
     const VISTA = '_view/adminUsuarios.html.php';
     const JS = 'js/adminUsuarios.js';
 
-    // Roles completamente protegidos contra cualquier modificación
-    const ROLES_PROTEGIDOS = [1];
-
     function __construct($id=null){ 
         $this->id = $id;
-
          if(!isset($_SESSION['usuario']) && $this->id!=1){
             die("Error: Su usuario no tiene acceso a este módulo");
         }
     }
 
+    // Dibuja la vista completa (Tablas de Usuarios y Roles)
     function renderContent(){
         $model = new MainModel();
         
-        // --- DATOS PARA USUARIOS ---
+        // 1. DATOS PARA USUARIOS
+        $roles_disponibles = $model->seleccionaRegistros("Roles", ["id_rol", "nom_rol"]);
+        $usuarios = $model->seleccionaRegistrosJoin(
+            "Usuarios u",
+            ["JOIN Roles r ON u.id_rol = r.id_rol"],
+            ["u.id_usuar", "u.nom_usuar", "u.nombres", "u.ape_pa", "u.ape_ma", "u.id_rol", "r.nom_rol"],
+            "u.status = ?",
+            [1]
+        );
 
-        // Catálogos para el Modal de Usuarios
-        $roles_disponibles   = $model->seleccionaRegistros("Roles",    ["id_rol", "nom_rol"]);
-        $permisos_disponibles = $model->seleccionaRegistros("Permisos", ["id_perm", "nom_perm"]);
+        // 2. CONSTRUCCIÓN DEL ÁRBOL PARA EL MODAL DE ROLES
+        $permisos_catalogo = $model->seleccionaRegistros("Permisos", ["id_perm", "nom_perm"]);
+        $modulos = $model->seleccionaRegistros("Modulos", ["*"], "1=1 ORDER BY orden");
+        $submodulos = $model->seleccionaRegistros("Submodulos", ["*"], "1=1 ORDER BY orden");
 
-        // Lista de usuarios activos con su rol
-        $tablaPrincipal = "Usuarios u";
-        $joins = ["JOIN Roles r ON u.id_rol = r.id_rol"];
-        $campos = [
-            "u.id_usuar", 
-            "u.nom_usuar", 
-            "u.nombres", 
-            "u.ape_pa", 
-            "u.ape_ma", 
-            "u.id_rol",
-            "r.nom_rol"
-        ];
-        $condicion = "u.status = ?";
-        $params    = [1];
-        
-        $usuarios = $model->seleccionaRegistrosJoin($tablaPrincipal, $joins, $campos, $condicion, $params);
-        
-        // Permisos por usuario
-        if ($usuarios) {
-            foreach ($usuarios as $index => $usr) {
-                $permisosUsuario = $model->seleccionaRegistrosJoin(
-                    "Rol_Permiso rp",
-                    ["JOIN Permisos p ON rp.id_perm = p.id_perm"],
-                    ["p.id_perm", "p.nom_perm"],
-                    "rp.id_rol = ?",
-                    [$usr['id_rol']]
-                );
-
-                $nombres_permisos = [];
-                $ids_permisos     = [];
-
-                if ($permisosUsuario) {
-                    foreach ($permisosUsuario as $perm) {
-                        $nombres_permisos[] = $perm['nom_perm'];
-                        $ids_permisos[]     = $perm['id_perm'];
+        $arbol_modulos = [];
+        if ($modulos) {
+            foreach ($modulos as $mod) {
+                $mod['submodulos'] = [];
+                if ($submodulos) {
+                    foreach ($submodulos as $sub) {
+                        if ($sub['id_mod'] == $mod['id_mod']) {
+                            $mod['submodulos'][] = $sub;
+                        }
                     }
                 }
-
-                $usuarios[$index]['permisos_lista'] = !empty($nombres_permisos)
-                    ? implode(", ", $nombres_permisos)
-                    : "Sin permisos asignados";
-                $usuarios[$index]['permisos_ids'] = $ids_permisos;
+                $arbol_modulos[] = $mod;
             }
         }
 
-        // --- DATOS PARA ROLES ---
-
+        // 3. DATOS PARA LA TABLA DE ROLES
         $roles = $model->seleccionaRegistros("Roles", ["id_rol", "nom_rol"]);
-
         if ($roles) {
             foreach ($roles as $index => $rol) {
-                // Permisos asignados al rol
-                $permisosRol = $model->seleccionaRegistrosJoin(
-                    "Rol_Permiso rp",
-                    ["JOIN Permisos p ON rp.id_perm = p.id_perm"],
-                    ["p.id_perm", "p.nom_perm"],
-                    "rp.id_rol = ?",
-                    [$rol['id_rol']]
-                );
-
-                $nombres = [];
-                $ids     = [];
+                $permisosRol = $model->seleccionaRegistros("Rol_Submodulo_Permiso", ["id_sub", "id_perm"], "id_rol = ?", [$rol['id_rol']]);
+                
+                $total_permisos = 0;
+                $submodulos_unicos = [];
+                $permisos_json = []; 
 
                 if ($permisosRol) {
-                    foreach ($permisosRol as $perm) {
-                        $nombres[] = $perm['nom_perm'];
-                        $ids[]     = (int)$perm['id_perm'];
+                    $total_permisos = count($permisosRol);
+                    foreach ($permisosRol as $pr) {
+                        $submodulos_unicos[$pr['id_sub']] = true;
+                        if(!isset($permisos_json[$pr['id_sub']])) $permisos_json[$pr['id_sub']] = [];
+                        $permisos_json[$pr['id_sub']][] = $pr['id_perm'];
                     }
                 }
 
-                $roles[$index]['permisos_lista'] = !empty($nombres)
-                    ? implode(", ", $nombres)
-                    : "Sin permisos asignados";
-                $roles[$index]['permisos_ids'] = $ids;
+                $roles[$index]['total_permisos'] = $total_permisos;
+                $roles[$index]['total_submodulos'] = count($submodulos_unicos);
+                $roles[$index]['permisos_json'] = $permisos_json;
 
-                // Cuántos usuarios activos tienen este rol
-                $usuariosAsignados = $model->seleccionaRegistros(
-                    "Usuarios",
-                    ["id_usuar"],
-                    "id_rol = ? AND status = ?",
-                    [$rol['id_rol'], 1]
-                );
+                $usuariosAsignados = $model->seleccionaRegistros("Usuarios", ["id_usuar"], "id_rol = ? AND status = ?", [$rol['id_rol'], 1]);
                 $roles[$index]['total_usuarios'] = $usuariosAsignados ? count($usuariosAsignados) : 0;
             }
         }
@@ -126,228 +81,55 @@ class AdminUsuariosController {
         include self::VISTA;
     }
 
-    public function renderJS(){
-        include self::JS;
-    }
+    public function renderJS(){ include self::JS; }
 
-    // -------------------------------------------------------
-    // LÓGICA DE NEGOCIO — USUARIOS
-    // -------------------------------------------------------
-
-    public function validaAtributos($nom_usuar, $nombres, $ape_pa, $ape_ma, $id_rol, $permisos) {
-        if (empty(trim($nom_usuar)) || empty(trim($nombres)) || empty(trim($ape_pa)) || empty(trim($ape_ma))) {
-            return false;
-        }
-
-        if (empty($id_rol) || !is_numeric($id_rol)) {
-            return false;
-        }
-
-        if (!is_array($permisos)) {
-            return false;
-        }
-
-        $model = new MainModel();
-        $permisosValidosBD = [];
-        $resPermisos = $model->seleccionaRegistros("permisos", ["id_perm"]);
-        
-        if ($resPermisos) {
-            foreach ($resPermisos as $p) {
-                $permisosValidosBD[] = (int)$p['id_perm'];
-            }
-        }
-
-        foreach ($permisos as $perm) {
-            if (!is_numeric($perm) || !in_array((int)$perm, $permisosValidosBD, true)) {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-    public function actualizaUsuario($id_usuar, $nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $id_rol, $permisos) {
+    // =======================================================
+    // LÓGICA EXCLUSIVA DE USUARIOS
+    // =======================================================
+    public function insertaUsuario($nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $id_rol) {
         $model = new MainModel();
         
-        if (!empty($password)) {
-            $pass_hash = password_hash($password, PASSWORD_DEFAULT);
-            $campos = ["nom_usuar", "nombres", "ape_pa", "ape_ma", "pass_hash", "id_rol"];
-            $params = [$nom_usuar, $nombres, $ape_pa, $ape_ma, $pass_hash, $id_rol, $id_usuar];
-        } else {
-            $campos = ["nom_usuar", "nombres", "ape_pa", "ape_ma", "id_rol"];
-            $params = [$nom_usuar, $nombres, $ape_pa, $ape_ma, $id_rol, $id_usuar];
-        }
-
-        $res = $model->actualizaRegistro("Usuarios", $campos, "id_usuar=?", $params);
-        
-        if ($res) {
-            if ($id_rol == 1 || $id_rol == 2) {
-                // Roles protegidos: permisos inmutables
+        $existe = $model->seleccionaRegistros("Usuarios", ["id_usuar", "status"], "nom_usuar = ?", [$nom_usuar]);
+        if ($existe && count($existe) > 0) {
+            if ($existe[0]['status'] == 1) {
+                return ["result" => 0, "msg" => "El usuario '$nom_usuar' ya existe. Si desea cambiar sus accesos, edite su rol en la tabla."];
             } else {
-                $model->borraRegistro("Rol_Permiso", "id_rol=?", [$id_rol]);
-                
-                if (!empty($permisos) && is_array($permisos)) {
-                    foreach ($permisos as $id_perm) {
-                        $id_perm_limpio = (int)$id_perm;
-                        $model->agregaRegistro("Rol_Permiso", ["id_rol", "id_perm"], [$id_rol, $id_perm_limpio]);
-                    }
-                }
+                return ["result" => 0, "msg" => "El usuario '$nom_usuar' existe pero está dado de baja. Contacte al administrador de BD para reactivarlo."];
             }
         }
-        return $res;
-    }
-
-    public function insertaUsuario($nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $id_rol, $permisos) {
-        $model = new MainModel();
         
         $pass_hash = password_hash($password, PASSWORD_DEFAULT);
-        $campos = ["nom_usuar", "nombres", "ape_pa", "ape_ma", "pass_hash", "id_rol", "status"];
-        $params = [$nom_usuar, $nombres, $ape_pa, $ape_ma, $pass_hash, $id_rol, 1];
+        $res = $model->agregaRegistro("Usuarios", 
+            ["nom_usuar", "nombres", "ape_pa", "ape_ma", "pass_hash", "id_rol", "status"], 
+            [$nom_usuar, $nombres, $ape_pa, $ape_ma, $pass_hash, $id_rol, 1]
+        );
         
-        $res = $model->agregaRegistro("Usuarios", $campos, $params);
+        return $res ? ["result" => 1, "msg" => "Usuario creado con éxito"] : ["result" => 0, "msg" => "Error al guardar el usuario"];
+    }
+
+    public function actualizaUsuario($id_usuar, $nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $id_rol) {
+        $model = new MainModel();
         
-        if ($res) {
-            if ($id_rol == 1 || $id_rol == 2) {
-                // Roles protegidos: permisos inmutables
-            } else {
-                $model->borraRegistro("Rol_Permiso", "id_rol=?", [$id_rol]);
-                if (!empty($permisos) && is_array($permisos)) {
-                    foreach ($permisos as $id_perm) {
-                        $model->agregaRegistro("Rol_Permiso", ["id_rol", "id_perm"], [$id_rol, (int)$id_perm]);
-                    }
-                }
-            }
+        $existe = $model->seleccionaRegistros("Usuarios", ["id_usuar"], "nom_usuar = ? AND id_usuar != ?", [$nom_usuar, $id_usuar]);
+        if ($existe && count($existe) > 0) {
+            return ["result" => 0, "msg" => "El nickname '$nom_usuar' ya está siendo utilizado por otro usuario."];
         }
-        return $res;
+
+        if (!empty($password)) {
+            $pass_hash = password_hash($password, PASSWORD_DEFAULT);
+            $res = $model->actualizaRegistro("Usuarios", ["nom_usuar", "nombres", "ape_pa", "ape_ma", "pass_hash", "id_rol"], "id_usuar=?", [$nom_usuar, $nombres, $ape_pa, $ape_ma, $pass_hash, $id_rol, $id_usuar]);
+        } else {
+            $res = $model->actualizaRegistro("Usuarios", ["nom_usuar", "nombres", "ape_pa", "ape_ma", "id_rol"], "id_usuar=?", [$nom_usuar, $nombres, $ape_pa, $ape_ma, $id_rol, $id_usuar]);
+        }
+        return $res ? ["result" => 1, "msg" => "Usuario actualizado con éxito"] : ["result" => 0, "msg" => "Error al actualizar"];
     }
 
     public function bajaUsuario($id_usuar) {
         $model = new MainModel();
-        return $model->actualizaRegistro("Usuarios", ["status"], "id_usuar=?", [0, $id_usuar]);
-    }
-
-    public function obtenerPermisosPorRol($id_rol) {
-        $model   = new MainModel();
-        $permisos = [];
+        $res = $model->actualizaRegistro("Usuarios", ["status"], "id_usuar=?", [0, $id_usuar]);
         
-        $res = $model->seleccionaRegistros("Rol_Permiso", ["id_perm"], "id_rol=?", [$id_rol]);
-        
-        if ($res) {
-            foreach ($res as $rp) {
-                $permisos[] = (int)$rp['id_perm'];
-            }
-        }
-        
-        return $permisos;
-    }
-
-    // -------------------------------------------------------
-    // LÓGICA DE NEGOCIO — ROLES
-    // -------------------------------------------------------
-
-    public function validaAtributosRol($nom_rol, $permisos) {
-        if (empty(trim($nom_rol))) {
-            return false;
-        }
-
-        if (!is_array($permisos)) {
-            return false;
-        }
-
-        if (!empty($permisos)) {
-            $model = new MainModel();
-            $permisosValidosBD = [];
-            $resPermisos = $model->seleccionaRegistros("Permisos", ["id_perm"]);
-
-            if ($resPermisos) {
-                foreach ($resPermisos as $p) {
-                    $permisosValidosBD[] = (int)$p['id_perm'];
-                }
-            }
-
-            foreach ($permisos as $perm) {
-                if (!is_numeric($perm) || !in_array((int)$perm, $permisosValidosBD, true)) {
-                    return false;
-                }
-            }
-        }
-
-        return true;
-    }
-
-    public function insertaRol($nom_rol, $permisos) {
-        $model = new MainModel();
-
-        $res = $model->agregaRegistro("Roles", ["nom_rol"], [trim($nom_rol)]);
-
-        if ($res) {
-            $nuevoRol = $model->seleccionaRegistros("Roles", ["id_rol"], "nom_rol = ?", [trim($nom_rol)]);
-
-            if ($nuevoRol && !empty($permisos)) {
-                $id_rol_nuevo = (int)end($nuevoRol)['id_rol'];
-
-                foreach ($permisos as $id_perm) {
-                    $model->agregaRegistro("Rol_Permiso", ["id_rol", "id_perm"], [$id_rol_nuevo, (int)$id_perm]);
-                }
-            }
-        }
-
-        return $res;
-    }
-
-    public function actualizaRol($id_rol, $nom_rol, $permisos) {
-        // Rol 1 (Admin) nunca se toca
-        if (in_array((int)$id_rol, self::ROLES_PROTEGIDOS)) {
-            return false;
-        }
-
-        $model = new MainModel();
-
-        $res = $model->actualizaRegistro("Roles", ["nom_rol"], "id_rol = ?", [trim($nom_rol), $id_rol]);
-
-        if ($res) {
-            // Delete & Insert en Rol_Permiso — propaga a todos los usuarios del rol
-            $model->borraRegistro("Rol_Permiso", "id_rol = ?", [$id_rol]);
-
-            if (!empty($permisos) && is_array($permisos)) {
-                foreach ($permisos as $id_perm) {
-                    $model->agregaRegistro("Rol_Permiso", ["id_rol", "id_perm"], [(int)$id_rol, (int)$id_perm]);
-                }
-            }
-        }
-
-        return $res;
-    }
-
-    public function eliminaRol($id_rol) {
-        if (in_array((int)$id_rol, self::ROLES_PROTEGIDOS)) {
-            return ["result" => 0, "msg" => "ERROR: Este rol está protegido y no puede eliminarse."];
-        }
-
-        $model = new MainModel();
-
-        $usuariosAsignados = $model->seleccionaRegistros(
-            "Usuarios",
-            ["id_usuar"],
-            "id_rol = ? AND status = ?",
-            [(int)$id_rol, 1]
-        );
-
-        if ($usuariosAsignados && count($usuariosAsignados) > 0) {
-            return [
-                "result" => 0,
-                "msg"    => "ERROR: No se puede eliminar el rol porque tiene " . count($usuariosAsignados) . " usuario(s) activo(s) asignado(s)."
-            ];
-        }
-
-        $model->borraRegistro("Rol_Permiso", "id_rol = ?", [(int)$id_rol]);
-        $res = $model->borraRegistro("Roles",      "id_rol = ?", [(int)$id_rol]);
-
-        if ($res) {
-            return ["result" => 1, "msg" => "Rol eliminado correctamente."];
-        } else {
-            return ["result" => 0, "msg" => "ERROR: No se pudo eliminar el rol de la base de datos."];
-        }
+        // Formateamos la respuesta para que JavaScript (site.js) la entienda correctamente
+        return $res ? ["result" => 1, "msg" => "Usuario dado de baja exitosamente."] : ["result" => 0, "msg" => "Error al dar de baja al usuario."];
     }
 }
 ?>

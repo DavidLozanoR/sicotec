@@ -1,75 +1,51 @@
 <?php
-ini_set("display_errors", E_ALL);
-require_once "../config/Global.php";
-require_once "AdminUsuariosController.php";
-
-// Solo aceptamos peticiones POST
-if ($_SERVER["REQUEST_METHOD"] !== "POST") {
-    echo json_encode(["result" => 0, "msg" => "Método no permitido"]);
-    die();
-}
-
 session_start();
+require_once "AdminRolesController.php";
 
-// Solo el Rol 1 (Admin) puede administrar roles
-if (!isset($_SESSION["usuario"]) || $_SESSION["usuario"]["id_rol"] != 1) {
-    echo json_encode(["result" => 0, "msg" => "No tienes permiso para realizar esta acción"]);
-    die();
+if (!isset($_SESSION['usuario'])) {
+    echo json_encode(["result" => 0, "msg" => "Sesión expirada o no válida."]);
+    exit;
 }
 
-// Recepción de datos
-$peticion = isset($_POST['peticion']) ? $_POST['peticion'] : "";
-$id_rol   = isset($_POST['id_rol'])   ? $_POST['id_rol']   : null;
-$nom_rol  = isset($_POST['nom_rol'])  ? $_POST['nom_rol']  : "";
-$permisos = isset($_POST['permisos']) ? $_POST['permisos'] : []; // Arreglo de checkboxes
-
-$ctrl = new AdminRolesController($_SESSION["usuario"]["id_rol"]);
+$controller = new AdminRolesController();
+$peticion = $_POST['peticion'] ?? '';
 
 switch ($peticion) {
+    case 'INSERT_ROL':
+        $nom_rol = trim($_POST['nom_rol'] ?? '');
+        $permisos = $_POST['permisos'] ?? [];
 
-    case "GET_PERMISOS_ROL":
-        if (empty($id_rol)) {
-            echo json_encode(["result" => 0, "msg" => "ID de rol no proporcionado"]);
-        } else {
-            $permisos_del_rol = $ctrl->obtenerPermisosPorRol($id_rol);
-            echo json_encode(["result" => 1, "permisos" => $permisos_del_rol]);
+        if (empty($nom_rol)) {
+            echo json_encode(["result" => 0, "msg" => "El nombre del rol es obligatorio."]);
+            exit;
         }
+
+        echo json_encode($controller->insertaRol($nom_rol, $permisos));
         break;
 
-    case "INSERT":
-        if (!$ctrl->validaAtributos($nom_rol, $permisos)) {
-            echo json_encode(["result" => 0, "msg" => "ERROR: El nombre del rol es obligatorio y los permisos deben ser válidos."]);
-        } else if ($ctrl->insertaRol($nom_rol, $permisos)) {
-            echo json_encode(["result" => 1, "msg" => "Rol creado correctamente."]);
-        } else {
-            echo json_encode(["result" => 0, "msg" => "ERROR: No se pudo guardar el rol en la base de datos."]);
+    case 'UPDATE_ROL':
+        $id_rol = $_POST['id_rol'] ?? '';
+        $nom_rol = trim($_POST['nom_rol'] ?? '');
+        $permisos = $_POST['permisos'] ?? [];
+
+        if (empty($id_rol) || empty($nom_rol)) {
+            echo json_encode(["result" => 0, "msg" => "Faltan datos obligatorios para actualizar el rol."]);
+            exit;
         }
+
+        echo json_encode($controller->actualizaRol($id_rol, $nom_rol, $permisos));
         break;
 
-    case "UPDATE":
+    case 'DELETE_ROL':
+        $id_rol = $_POST['id_rol'] ?? '';
         if (empty($id_rol)) {
-            echo json_encode(["result" => 0, "msg" => "ERROR: Identificador de rol no proporcionado."]);
-        } else if (!$ctrl->validaAtributos($nom_rol, $permisos)) {
-            echo json_encode(["result" => 0, "msg" => "ERROR: Datos inválidos. Revise los campos obligatorios."]);
-        } else if ($ctrl->actualizaRol($id_rol, $nom_rol, $permisos)) {
-            echo json_encode(["result" => 1, "msg" => "Rol actualizado correctamente."]);
-        } else {
-            echo json_encode(["result" => 0, "msg" => "ERROR: No se pudo actualizar el rol. Puede estar protegido."]);
+            echo json_encode(["result" => 0, "msg" => "ID de rol no válido."]);
+            exit;
         }
-        break;
-
-    case "DELETE":
-        if (empty($id_rol)) {
-            echo json_encode(["result" => 0, "msg" => "ERROR: Identificador de rol no proporcionado."]);
-        } else {
-            // eliminaRol devuelve el arreglo con result y msg directamente
-            $resultado = $ctrl->eliminaRol($id_rol);
-            echo json_encode($resultado);
-        }
+        echo json_encode($controller->eliminaRol($id_rol));
         break;
 
     default:
-        echo json_encode(["result" => 0, "msg" => "ERROR: Petición inválida."]);
-        die();
+        echo json_encode(["result" => 0, "msg" => "Petición de rol no reconocida."]);
+        break;
 }
-?>
