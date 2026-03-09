@@ -110,13 +110,9 @@ class AdminRolesController {
     public function reactivaRol($id_sub, $id_rol, $nom_rol, $permisos) {
         $model = new MainModel();
         // Reactivamos y le ponemos el nuevo nombre que el usuario tecleó
-        $res = $model->actualizaRegistro("Roles", ["nom_rol", "status"], "id_rol = ?", [trim($nom_rol), 1, $id_rol]);
+        $res = $model->actualizaRegistro("Roles", ["status"], "id_rol = ?", [1, $id_rol]);
         
         if ($res) {
-            // Limpiamos los permisos viejos y le ponemos los nuevos
-            $model->borraRegistro("Rol_Submodulo_Permiso", "id_rol = ?", [$id_rol]);
-            $this->guardarPermisosSubmodulo($id_rol, $permisos, $model);
-            $this->sincronizarModulosPadre($id_rol, $permisos, $model);
 
             // Bitácora
             $bitacora = $model->registrarBitacora($id_sub, 'REACTIVATE', "Reactivó el rol '{$nom_rol}'");
