@@ -59,12 +59,14 @@ function asyncProcessForm(form, actionUrl, arg3 = "Procesando", textProcess = "P
                 // 2. Caso Éxito (result = 1)
                 if (res.result === 1) {
                     Swal.fire({
-                        icon: "success", // Corregido: "success" en lugar de "Éxito" para que salga el icono verde
+                        icon: "success", 
                         title: (typeof arg3 === 'string') ? titleResult : "Hecho",
                         text: res.msg,
-                        confirmButtonColor: "#6C1D45" // Tu color institucional
+                        showConfirmButton: false, // Ocultamos el botón
+                        timer: 2500, // Se cerrará automáticamente en 2 segundos (2000 ms)
+                        timerProgressBar: true // Muestra una línea de tiempo para avisar al usuario
                     }).then(() => {
-                        // Si hay función personalizada (como la de recargarTablas), la ejecuta. Si no, recarga la página.
+                        // El '.then()' se dispara automáticamente cuando el timer se acaba
                         if (typeof callback === "function") {
                             callback(res);
                         } else {

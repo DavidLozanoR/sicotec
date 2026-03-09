@@ -1,5 +1,9 @@
 document.addEventListener("DOMContentLoaded", function () {
     
+    // 1. OBTENEMOS EL ID DEL SUBMÓDULO DINÁMICAMENTE DESDE LA VISTA
+    const mainContainer = document.getElementById('main-admin-container');
+    const idSubActual = mainContainer ? mainContainer.getAttribute('data-id-sub') : '';
+
     // ========================================================
     // FUNCIÓN DE RECARGA PARCIAL (DOM DINÁMICO)
     // ========================================================
@@ -89,6 +93,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (formUsuario) {
         formUsuario.addEventListener('submit', function (e) {
             e.preventDefault();
+            // Inyectamos el id_sub antes de enviar
+            this.querySelector('.dynamic-id-sub').value = idSubActual;
             asyncProcessForm(this, '_controller/AdminUsuariosAsync.php', recargarTablasYModales);
         });
     }
@@ -99,6 +105,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const modalRol = document.getElementById('modalRol');
     const formRol = document.getElementById('formRol');
     
+    // (Tu código de modalRol se queda igual, solo modificamos el submit abajo)
     if (modalRol) {
         modalRol.addEventListener('show.bs.modal', function (event) {
             const button = event.relatedTarget;
@@ -132,19 +139,16 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // AQUÍ ESTÁ EL CAMBIO PARA MANEJAR LA REACTIVACIÓN DE ROLES
     if (formRol) {
         formRol.addEventListener('submit', function (e) {
             e.preventDefault();
-            
-            // Pasamos una función anónima que analiza la respuesta
+            // Inyectamos el id_sub antes de enviar
+            this.querySelector('.dynamic-id-sub').value = idSubActual;
+
             asyncProcessForm(this, '_controller/AdminRolesAsync.php', function(res) {
-                // Éxito normal
                 if (res.result === 1) {
                     recargarTablasYModales(res);
-                } 
-                // Encontró un rol inactivo (Código 2)
-                else if (res.result === 2) {
+                } else if (res.result === 2) {
                     Swal.fire({
                         title: 'Rol Inactivo Detectado',
                         text: res.msg,
@@ -156,11 +160,8 @@ document.addEventListener("DOMContentLoaded", function () {
                         cancelButtonText: 'No, cancelar'
                     }).then((result) => {
                         if (result.isConfirmed) {
-                            // Cambiamos la petición para forzar la reactivación
                             document.getElementById('peticion_rol_input').value = 'REACTIVATE_ROL';
                             document.getElementById('id_rol_hidden').value = res.id_rol_reactivar;
-                            
-                            // Volvemos a enviar el formulario
                             asyncProcessForm(formRol, '_controller/AdminRolesAsync.php', recargarTablasYModales);
                         }
                     });
@@ -189,9 +190,11 @@ document.addEventListener("DOMContentLoaded", function () {
             }).then((result) => {
                 if (result.isConfirmed) {
                     const formVirtual = document.createElement('form');
+                    // Inyectamos el id_sub en el form virtual
                     formVirtual.innerHTML = `
                         <input type="hidden" name="peticion" value="BAJA_USUARIO">
                         <input type="hidden" name="id_usuar" value="${id}">
+                        <input type="hidden" name="id_sub" value="${idSubActual}">
                     `;
                     asyncProcessForm(formVirtual, '_controller/AdminUsuariosAsync.php', recargarTablasYModales);
                 }
@@ -214,14 +217,15 @@ document.addEventListener("DOMContentLoaded", function () {
             }).then((result) => {
                 if (result.isConfirmed) {
                     const formVirtual = document.createElement('form');
+                    // Inyectamos el id_sub en el form virtual
                     formVirtual.innerHTML = `
                         <input type="hidden" name="peticion" value="DELETE_ROL">
                         <input type="hidden" name="id_rol" value="${id}">
+                        <input type="hidden" name="id_sub" value="${idSubActual}">
                     `;
                     asyncProcessForm(formVirtual, '_controller/AdminRolesAsync.php', recargarTablasYModales);
                 }
             });
         }
     });
-
 });

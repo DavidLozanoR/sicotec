@@ -1,5 +1,4 @@
-<div class="container-fluid px-4 py-3">
-
+<div class="container-fluid px-4 py-3" id="main-admin-container" data-id-sub="<?php echo $id_sub_actual ?? 4; ?>">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h3 class="fw-bold mb-0" style="color: #333;">Administración de Usuarios</h3>
@@ -15,6 +14,7 @@
             <h6 class="fw-bold text-dark mb-4">
                 <i class="fas fa-users text-guinda me-2"></i> Usuarios Activos del Sistema
             </h6>
+           
 
             <div class="table-responsive" id="contenedor-tabla-usuarios" style="max-height: 300px; overflow-y: auto;">
                 <table class="table table-hover align-middle mb-0">
@@ -184,6 +184,7 @@
                 
                 <form id="formUsuario">
                     <input type="hidden" id="peticion_input"  name="peticion"  value="INSERT">
+                    <input type="hidden" name="id_sub" class="dynamic-id-sub" value="">
                     <input type="hidden" id="id_usuar_input"  name="id_usuar"  value="">
 
                     <div class="mb-3">
@@ -251,6 +252,7 @@
             <div class="modal-body pt-1 px-4">
                 <form id="formRol">
                     <input type="hidden" id="peticion_rol_input" name="peticion" value="INSERT">
+                    <input type="hidden" name="id_sub" class="dynamic-id-sub" value="">
                     <input type="hidden" id="id_rol_hidden"      name="id_rol"   value="">
 
                     <div class="mb-4">

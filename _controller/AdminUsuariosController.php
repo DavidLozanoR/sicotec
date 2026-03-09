@@ -86,9 +86,8 @@ class AdminUsuariosController {
     public function renderJS(){ include self::JS; }
 
     // LÓGICA EXCLUSIVA DE USUARIOS
-    
-    public function insertaUsuario($nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $id_rol) {
-        //seguridad para intento de crear usuario admin
+   
+    public function insertaUsuario($id_sub, $nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $id_rol) {
         if ($id_rol == 1) {
             return ["result" => 0, "msg" => "Seguridad: No se permite asignar el rol de Administrador a nuevos usuarios."];
         }
@@ -98,9 +97,9 @@ class AdminUsuariosController {
         $existe = $model->seleccionaRegistros("Usuarios", ["id_usuar", "status"], "nom_usuar = ?", [$nom_usuar]);
         if ($existe && count($existe) > 0) {
             if ($existe[0]['status'] == 1) {
-                return ["result" => 0, "msg" => "El usuario '$nom_usuar' ya existe. Si desea cambiar sus accesos, edite su rol en la tabla."];
+                return ["result" => 0, "msg" => "El usuario '$nom_usuar' ya existe. Si desea cambiar sus accesos, edite su rol."];
             } else {
-                return ["result" => 0, "msg" => "El usuario '$nom_usuar' existe pero está dado de baja. Contacte al administrador de BD para reactivarlo."];
+                return ["result" => 0, "msg" => "El usuario '$nom_usuar' existe pero está dado de baja."];
             }
         }
         
@@ -110,28 +109,26 @@ class AdminUsuariosController {
             [$nom_usuar, $nombres, $ape_pa, $ape_ma, $pass_hash, $id_rol, 1]
         );
         
-        return $res ? ["result" => 1, "msg" => "Usuario creado con éxito"] : ["result" => 0, "msg" => "Error al guardar el usuario"];
+        if ($res) {
+            $bitacora = $model->registrarBitacora($id_sub, 'INSERT', "Creó al nuevo usuario '{$nom_usuar}' (Rol ID: {$id_rol})");
+            $msg_extra = ($bitacora !== true) ? "\n\n" . $bitacora : "";
+            
+            return ["result" => 1, "msg" => "Usuario creado con éxito." . $msg_extra];
+        }
+        return ["result" => 0, "msg" => "Error al guardar el usuario"];
     }
 
-    public function actualizaUsuario($id_usuar, $nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $id_rol) {
+    public function actualizaUsuario($id_sub, $id_usuar, $nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $id_rol) {
         $model = new MainModel();
         
-        //Verificamos el rol actual del usuario antes de cambiarlo
         $usuario_actual = $model->seleccionaRegistros("Usuarios", ["id_rol"], "id_usuar = ?", [$id_usuar]);
         $rol_actual = $usuario_actual ? $usuario_actual[0]['id_rol'] : 0;
 
-        if ($id_rol == 1 && $rol_actual != 1) {
-            return ["result" => 0, "msg" => "Seguridad: No puedes ascender a un usuario a Administrador."];
-        }
-        if ($rol_actual == 1 && $id_rol != 1) {
-            return ["result" => 0, "msg" => "Seguridad: El Administrador principal no puede perder su rol."];
-        }
-        //Continuamos si no intento de vulnerabilidad.
-
+        if ($id_rol == 1 && $rol_actual != 1) return ["result" => 0, "msg" => "Seguridad: No puedes ascender a un usuario a Administrador."];
+        if ($rol_actual == 1 && $id_rol != 1) return ["result" => 0, "msg" => "Seguridad: El Administrador principal no puede perder su rol."];
+        
         $existe = $model->seleccionaRegistros("Usuarios", ["id_usuar"], "nom_usuar = ? AND id_usuar != ?", [$nom_usuar, $id_usuar]);
-        if ($existe && count($existe) > 0) {
-            return ["result" => 0, "msg" => "El nickname '$nom_usuar' ya está siendo utilizado por otro usuario."];
-        }
+        if ($existe && count($existe) > 0) return ["result" => 0, "msg" => "El nickname '$nom_usuar' ya está siendo utilizado."];
 
         if (!empty($password)) {
             $pass_hash = password_hash($password, PASSWORD_DEFAULT);
@@ -139,21 +136,38 @@ class AdminUsuariosController {
         } else {
             $res = $model->actualizaRegistro("Usuarios", ["nom_usuar", "nombres", "ape_pa", "ape_ma", "id_rol"], "id_usuar=?", [$nom_usuar, $nombres, $ape_pa, $ape_ma, $id_rol, $id_usuar]);
         }
-        return $res ? ["result" => 1, "msg" => "Usuario actualizado con éxito"] : ["result" => 0, "msg" => "Error al actualizar"];
+
+        if ($res) {
+            $bitacora = $model->registrarBitacora($id_sub, 'UPDATE', "Actualizó datos del usuario '{$nom_usuar}'");
+            $msg_extra = ($bitacora !== true) ? "\n\n" . $bitacora : "";
+
+            if (isset($_SESSION['usuario']['id_usuar']) && $_SESSION['usuario']['id_usuar'] == $id_usuar) {
+                $_SESSION['usuario']['nom_usuar'] = $nom_usuar;
+                $_SESSION['usuario']['nombres'] = $nombres;
+                $_SESSION['usuario']['ape_pa'] = $ape_pa;
+                $_SESSION['usuario']['ape_ma'] = $ape_ma;
+                return ["result" => 1, "msg" => "Usuario actualizado con éxito." . $msg_extra, "update_current_user" => true, "nuevo_nombre" => $nombres];
+            }
+            return ["result" => 1, "msg" => "Usuario actualizado con éxito." . $msg_extra];
+        }
+        return ["result" => 0, "msg" => "Error al actualizar el usuario."];
     }
 
-    public function bajaUsuario($id_usuar) {
+    public function bajaUsuario($id_sub, $id_usuar) {
         $model = new MainModel();
-        // El administrador no se puede eliminar a sí mismo
-        $usuario = $model->seleccionaRegistros("Usuarios", ["id_rol"], "id_usuar = ?", [$id_usuar]);
-        if ($usuario && $usuario[0]['id_rol'] == 1) {
-            return ["result" => 0, "msg" => "Seguridad: No se puede dar de baja al Administrador del sistema."];
-        }
-        //cualquier otro rol
+        
+        $usuario = $model->seleccionaRegistros("Usuarios", ["id_rol", "nom_usuar"], "id_usuar = ?", [$id_usuar]);
+        if ($usuario && $usuario[0]['id_rol'] == 1) return ["result" => 0, "msg" => "Seguridad: No se puede dar de baja al Administrador."];
+
+        $nom_baja = $usuario ? $usuario[0]['nom_usuar'] : 'Desconocido';
         $res = $model->actualizaRegistro("Usuarios", ["status"], "id_usuar=?", [0, $id_usuar]);
         
-        // Formateamos la respuesta para entregarla al JavaScript 
-        return $res ? ["result" => 1, "msg" => "Usuario dado de baja exitosamente."] : ["result" => 0, "msg" => "Error al dar de baja al usuario."];
+        if ($res) {
+            $bitacora = $model->registrarBitacora($id_sub, 'DELETE', "Dio de baja al usuario '{$nom_baja}'");
+            $msg_extra = ($bitacora !== true) ? "\n\n" . $bitacora : "";
+            return ["result" => 1, "msg" => "Usuario dado de baja exitosamente." . $msg_extra];
+        }
+        return ["result" => 0, "msg" => "Error al dar de baja al usuario."];
     }
 }
 ?>

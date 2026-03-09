@@ -1,21 +1,19 @@
 <?php
 require_once "MainModel.php";
 
-
 class AdminRolesController {
 
     // Roles completamente protegidos contra cualquier modificación
     const ROLES_PROTEGIDOS = [1];
 
-    public function insertaRol($nom_rol, $permisos) {
+    public function insertaRol($id_sub, $nom_rol, $permisos) {
         $model = new MainModel();
 
         // 1. Validar si ya existe un rol con ese mismo NOMBRE
         $rol_nombre = $model->seleccionaRegistros("Roles", ["id_rol", "status"], "nom_rol = ?", [trim($nom_rol)]);
         if ($rol_nombre && count($rol_nombre) > 0) {
             if ($rol_nombre[0]['status'] == 0) {
-                // Caso: Existe pero está dado de baja (Código 2)
-                return ["result" => 2, "id_rol_reactivar" => $rol_nombre[0]['id_rol'], "msg" => "Existe un rol inactivo con el nombre '{$nom_rol}'. ¿Desea reactivarlo y actualizar sus permisos?"];
+                return ["result" => 2, "id_rol_reactivar" => $rol_nombre[0]['id_rol'], "msg" => "Existe un rol inactivo con el nombre '{$nom_rol}'. ¿Desea reactivarlo y usar sus permisos?"];
             } else {
                 return ["result" => 0, "msg" => "Ya existe un rol activo con ese nombre."];
             }
@@ -25,7 +23,6 @@ class AdminRolesController {
         $rol_similar = $this->buscarRolSimilar($permisos);
         if ($rol_similar) {
             if ($rol_similar['status'] == 0) {
-                // Caso: Existe con mismos permisos pero dado de baja (Código 2)
                 return ["result" => 2, "id_rol_reactivar" => $rol_similar['id_rol'], "msg" => "Existe un rol inactivo llamado '{$rol_similar['nom_rol']}' con exactamente estos mismos accesos. ¿Desea reactivarlo usando su nuevo nombre?"];
             } else {
                 return ["result" => 0, "msg" => "Ya existe un rol activo llamado '{$rol_similar['nom_rol']}' con exactamente estos mismos accesos."];
@@ -40,19 +37,25 @@ class AdminRolesController {
                 $id_rol_nuevo = (int)end($nuevoRol)['id_rol'];
                 $this->guardarPermisosSubmodulo($id_rol_nuevo, $permisos, $model);
                 $this->sincronizarModulosPadre($id_rol_nuevo, $permisos, $model);
+                
+                // Bitácora
+                $bitacora = $model->registrarBitacora($id_sub, 'INSERT', "Creó el nuevo rol '{$nom_rol}' con sus permisos");
+                $msg_extra = ($bitacora !== true) ? "\n\n" . $bitacora : "";
+
+                return ["result" => 1, "msg" => "Rol creado correctamente." . $msg_extra];
             }
         }
-        return ["result" => 1, "msg" => "Rol creado correctamente"];
+        return ["result" => 0, "msg" => "Error al crear el rol en la base de datos."];
     }
 
-    public function actualizaRol($id_rol, $nom_rol, $permisos) {
+    public function actualizaRol($id_sub, $id_rol, $nom_rol, $permisos) {
         if (in_array((int)$id_rol, self::ROLES_PROTEGIDOS)) {
             return ["result" => 0, "msg" => "Error: No se pueden modificar los permisos del rol administrador."];
         }
 
         $rol_similar = $this->buscarRolSimilar($permisos, $id_rol);
         if ($rol_similar) {
-            return ["result" => 0, "msg" => "Esta configuración de permisos es idéntica al rol '{$rol_similar}'. Cambie el rol de los usuarios en lugar de duplicar configuraciones."];
+            return ["result" => 0, "msg" => "Esta configuración de permisos es idéntica al rol '{$rol_similar['nom_rol']}'. Cambie el rol de los usuarios en lugar de duplicar configuraciones."];
         }
 
         $model = new MainModel();
@@ -62,43 +65,70 @@ class AdminRolesController {
             $model->borraRegistro("Rol_Submodulo_Permiso", "id_rol = ?", [$id_rol]);
             $this->guardarPermisosSubmodulo($id_rol, $permisos, $model);
             $this->sincronizarModulosPadre($id_rol, $permisos, $model);
+
+            // Bitácora
+            $bitacora = $model->registrarBitacora($id_sub, 'UPDATE', "Actualizó los datos y permisos del rol '{$nom_rol}'");
+            $msg_extra = ($bitacora !== true) ? "\n\n" . $bitacora : "";
+
+            return ["result" => 1, "msg" => "Rol actualizado correctamente." . $msg_extra];
         }
-        return ["result" => 1, "msg" => "Rol actualizado correctamente"];
+        return ["result" => 0, "msg" => "Error al actualizar el rol."];
     }
 
-    public function eliminaRol($id_rol) {
+    public function eliminaRol($id_sub, $id_rol) {
         if (in_array((int)$id_rol, self::ROLES_PROTEGIDOS)) {
             return ["result" => 0, "msg" => "ERROR: Este rol está protegido y no puede eliminarse."];
         }
-        //comprobar si un usuario Activo esta usando el ROL
+
         $model = new MainModel();
-        $usuarios_activos = $model->seleccionaRegistros("Usuarios", ["id_usuar"], "id_rol = ? AND status = 1", [$id_rol]);
         
+        // Obtenemos el nombre del rol para la bitácora antes de darlo de baja
+        $rol_info = $model->seleccionaRegistros("Roles", ["nom_rol"], "id_rol = ?", [$id_rol]);
+        $nom_rol_baja = $rol_info ? $rol_info[0]['nom_rol'] : "ID: $id_rol";
+
+        // 1. Verificar si existen usuarios ACTIVOS usando este rol
+        $usuarios_activos = $model->seleccionaRegistros("Usuarios", ["id_usuar"], "id_rol = ? AND status = 1", [$id_rol]);
         if ($usuarios_activos && count($usuarios_activos) > 0) {
             $total = count($usuarios_activos);
-            return ["result" => 0, "msg" => "No se puede dar de baja. Hay {$total} usuario(s) activo(s) usando este rol. Por favor reasigna el Rol a cada usuario que lo este ocupando."];
+            return ["result" => 0, "msg" => "No se puede dar de baja. Hay {$total} usuario(s) activo(s) usando este rol. Cámbieles el rol primero."];
         }
 
-        // Baja Lógica 
+        // 2. Baja Lógica 
         $res = $model->actualizaRegistro("Roles", ["status"], "id_rol = ?", [0, $id_rol]);
 
-        return $res ? ["result" => 1, "msg" => "Rol dado de baja (inactivo) correctamente."] : ["result" => 0, "msg" => "Error al dar de baja el rol."];
+        if ($res) {
+            // Bitácora
+            $bitacora = $model->registrarBitacora($id_sub, 'DELETE', "Dio de baja el rol '{$nom_rol_baja}'");
+            $msg_extra = ($bitacora !== true) ? "\n\n" . $bitacora : "";
+
+            return ["result" => 1, "msg" => "Rol dado de baja (inactivo) correctamente." . $msg_extra];
+        }
+        
+        return ["result" => 0, "msg" => "Error al dar de baja el rol."];
     }
-    public function reactivaRol($id_rol, $nom_rol, $permisos) {
+
+    public function reactivaRol($id_sub, $id_rol, $nom_rol, $permisos) {
         $model = new MainModel();
         // Reactivamos y le ponemos el nuevo nombre que el usuario tecleó
         $res = $model->actualizaRegistro("Roles", ["nom_rol", "status"], "id_rol = ?", [trim($nom_rol), 1, $id_rol]);
         
         if ($res) {
-            // Limpiamos los permisos viejos y le ponemos los nuevos del formulario
-            return ["result" => 1, "msg" => "Rol reactivado y actualizado con éxito."];
+            // Limpiamos los permisos viejos y le ponemos los nuevos
+            $model->borraRegistro("Rol_Submodulo_Permiso", "id_rol = ?", [$id_rol]);
+            $this->guardarPermisosSubmodulo($id_rol, $permisos, $model);
+            $this->sincronizarModulosPadre($id_rol, $permisos, $model);
+
+            // Bitácora
+            $bitacora = $model->registrarBitacora($id_sub, 'REACTIVATE', "Reactivó el rol '{$nom_rol}'");
+            $msg_extra = ($bitacora !== true) ? "\n\n" . $bitacora : "";
+
+            return ["result" => 1, "msg" => "Rol reactivado con éxito." . $msg_extra];
         }
         return ["result" => 0, "msg" => "Error al reactivar el rol."];
     }
 
-    // -------------------------------------------------------
-    // MÉTODOS PRIVADOS AUXILIARES
-    // -------------------------------------------------------
+    // MÉTODOS PRIVADOS AUXILIARES 
+   
     private function guardarPermisosSubmodulo($id_rol, $permisos, $model) {
         if (empty($permisos) || !is_array($permisos)) return;
         
@@ -129,7 +159,7 @@ class AdminRolesController {
         }
     }
 
-   private function buscarRolSimilar($permisos_solicitados, $ignorar_id_rol = null) {
+    private function buscarRolSimilar($permisos_solicitados, $ignorar_id_rol = null) {
         $model = new MainModel();
         $firma_solicitada = [];
         if (is_array($permisos_solicitados)) {
@@ -154,7 +184,7 @@ class AdminRolesController {
                 $str_firma_rol = implode("|", $firma_rol);
 
                 if ($str_firma_solicitada === $str_firma_rol) {
-                    return $r; // Devolvemos todo el arreglo, incluyendo el 'status'
+                    return $r;
                 }
             }
         }

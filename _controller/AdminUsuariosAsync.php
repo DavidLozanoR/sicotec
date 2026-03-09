@@ -11,6 +11,9 @@ if (!isset($_SESSION['usuario'])) {
 $controller = new AdminUsuariosController();
 $peticion = $_POST['peticion'] ?? '';
 
+// Capturamos el ID del submódulo
+$id_sub = $_POST['id_sub'] ?? '';
+
 switch ($peticion) {
     case 'INSERT_USUARIO':
         $nom_usuar = trim($_POST['nom_usuar'] ?? '');
@@ -20,12 +23,12 @@ switch ($peticion) {
         $password = $_POST['password'] ?? '';
         $id_rol = $_POST['id_rol'] ?? '';
 
-        if (empty($nom_usuar) || empty($nombres) || empty($ape_pa) || empty($id_rol) || empty($password)) {
+        if (empty($id_sub) || empty($nom_usuar) || empty($nombres) || empty($ape_pa) || empty($id_rol) || empty($password)) {
             echo json_encode(["result" => 0, "msg" => "Faltan datos obligatorios para crear el usuario."]);
             exit;
         }
 
-        echo json_encode($controller->insertaUsuario($nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $id_rol));
+        echo json_encode($controller->insertaUsuario($id_sub, $nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $id_rol));
         break;
 
     case 'UPDATE_USUARIO':
@@ -37,21 +40,23 @@ switch ($peticion) {
         $password = $_POST['password'] ?? '';
         $id_rol = $_POST['id_rol'] ?? '';
 
-        if (empty($id_usuar) || empty($nom_usuar) || empty($nombres) || empty($ape_pa) || empty($id_rol)) {
+        if (empty($id_sub) || empty($id_usuar) || empty($nom_usuar) || empty($nombres) || empty($ape_pa) || empty($id_rol)) {
             echo json_encode(["result" => 0, "msg" => "Faltan datos obligatorios para actualizar."]);
             exit;
         }
 
-        echo json_encode($controller->actualizaUsuario($id_usuar, $nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $id_rol));
+        echo json_encode($controller->actualizaUsuario($id_sub, $id_usuar, $nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $id_rol));
         break;
 
     case 'BAJA_USUARIO':
         $id_usuar = $_POST['id_usuar'] ?? '';
-        if (empty($id_usuar)) {
-            echo json_encode(["result" => 0, "msg" => "ID de usuario no válido."]);
+        
+        if (empty($id_sub) || empty($id_usuar)) {
+            echo json_encode(["result" => 0, "msg" => "ID de usuario o módulo no válido."]);
             exit;
         }
-        echo json_encode($controller->bajaUsuario($id_usuar));
+        
+        echo json_encode($controller->bajaUsuario($id_sub, $id_usuar));
         break;
 
     default:
