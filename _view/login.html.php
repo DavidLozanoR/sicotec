@@ -5,6 +5,7 @@
 <!DOCTYPE html>
 <html lang="es-MX">
 <head>
+
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Iniciar Sesión | INEA</title>
@@ -14,6 +15,7 @@
     <link href="<?php echo SITE_URL; ?>utils/sweetalert2_v11.11.1/sweetalert2.min.css" rel="stylesheet">
 
     <link rel="stylesheet" href="<?php echo SITE_URL; ?>./css/login.css">
+    <base href="<?php echo SITE_URL; ?>">
 
 
 </head>
@@ -91,10 +93,7 @@
    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="<?php echo SITE_URL; ?>utils/sweetalert2_v11.11.1/sweetalert2.min.js"></script>
-    <script>
-    // Esto sí funciona porque está dentro de un archivo .php
-    const SITE_URL = "<?php echo SITE_URL; ?>";
-</script>
+    
 <script src="<?php echo SITE_URL; ?>js/site.js"></script>
 <script src="<?php echo SITE_URL; ?>js/login.js"></script>
 </body>
