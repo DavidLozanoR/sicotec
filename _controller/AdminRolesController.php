@@ -6,6 +6,57 @@ class AdminRolesController {
     // Roles completamente protegidos contra cualquier modificación
     const ROLES_PROTEGIDOS = [1];
 
+
+    //Funcion para validar los datos y evitar ataques
+    public function validarRol($nom_rol, $permisos) {
+        // 1. Validar el nombre
+        if (strlen($nom_rol) > 100) {
+            return "El nombre del rol supera los 100 caracteres permitidos.";
+        }
+        if (!preg_match('/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]+$/', $nom_rol)) {
+            return "El nombre del rol contiene caracteres no permitidos (solo use letras y números).";
+        }
+
+        // 2. Validar la matriz de permisos
+        if (!is_array($permisos)) {
+            return "El formato de los permisos no es válido.";
+        }
+
+        // 3. CONSULTA DINÁMICA: Obtenemos los permisos válidos directamente de la Base de Datos
+        $model = new MainModel();
+        $permisos_db = $model->seleccionaRegistros("Permisos", ["id_perm"]);
+        
+        $permisos_validos = [];
+        if ($permisos_db) {
+            foreach ($permisos_db as $p) {
+                $permisos_validos[] = (int)$p['id_perm'];
+            }
+        }
+
+        // 4. Recorremos la matriz recibida: [ id_submodulo => [id_permiso_1, id_permiso_2, ...] ]
+        foreach ($permisos as $id_sub => $lista_permisos) {
+            
+            // A. El ID del submódulo debe ser un número entero positivo
+            if (!is_numeric($id_sub) || (int)$id_sub <= 0) {
+                return "ALERTA DE SEGURIDAD: Se detectó una alteración en el origen de los módulos.";
+            }
+            
+            if (!is_array($lista_permisos)) {
+                return "El formato de los permisos asignados no es válido.";
+            }
+
+            // B. Cada ID de permiso debe coincidir con alguno de los extraídos de la BD
+            foreach ($lista_permisos as $id_perm) {
+                if (!is_numeric($id_perm) || !in_array((int)$id_perm, $permisos_validos)) {
+                    return "ALERTA DE SEGURIDAD: Se detectó un permiso no reconocido o malicioso en la petición.";
+                }
+            }
+        }
+
+        return true; // Todo está completamente limpio y validado
+    }
+
+    //funcion que nos permite unsertar un nuevo rol
     public function insertaRol($id_sub, $nom_rol, $permisos) {
         $model = new MainModel();
 
@@ -48,6 +99,7 @@ class AdminRolesController {
         return ["result" => 0, "msg" => "Error al crear el rol en la base de datos."];
     }
 
+    //funcion para actualiazr un rol existente
     public function actualizaRol($id_sub, $id_rol, $nom_rol, $permisos) {
         if (in_array((int)$id_rol, self::ROLES_PROTEGIDOS)) {
             return ["result" => 0, "msg" => "Error: No se pueden modificar los permisos del rol administrador."];
@@ -75,6 +127,7 @@ class AdminRolesController {
         return ["result" => 0, "msg" => "Error al actualizar el rol."];
     }
 
+        //funcion para desactivar un rol, status=0
     public function eliminaRol($id_sub, $id_rol) {
         if (in_array((int)$id_rol, self::ROLES_PROTEGIDOS)) {
             return ["result" => 0, "msg" => "ERROR: Este rol está protegido y no puede eliminarse."];
@@ -107,6 +160,7 @@ class AdminRolesController {
         return ["result" => 0, "msg" => "Error al dar de baja el rol."];
     }
 
+        //funcion para reactivar un rol existente
     public function reactivaRol($id_sub, $id_rol, $nom_rol, $permisos) {
         $model = new MainModel();
         // Reactivamos y le ponemos el nuevo nombre que el usuario tecleó
@@ -123,7 +177,7 @@ class AdminRolesController {
         return ["result" => 0, "msg" => "Error al reactivar el rol."];
     }
 
-    // MÉTODOS PRIVADOS AUXILIARES 
+    // MÉTODOS PRIVADOS AUXILIARES (Los consumen funciones internas de la clase)
    
     private function guardarPermisosSubmodulo($id_rol, $permisos, $model) {
         if (empty($permisos) || !is_array($permisos)) return;

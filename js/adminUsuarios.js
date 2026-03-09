@@ -4,9 +4,67 @@ document.addEventListener("DOMContentLoaded", function () {
     const mainContainer = document.getElementById('main-admin-container');
     const idSubActual = mainContainer ? mainContainer.getAttribute('data-id-sub') : '';
 
-    // ========================================================
+
+    // VALIDACIONES EN TIEMPO REAL (FRONTEND)
+  
+    // 1. Nickname: Una sola palabra, sin espacios, permite letras, números, guiones y guiones bajos
+    const inputNomUsuar = document.getElementById('nom_usuar_input');
+    if (inputNomUsuar) {
+        inputNomUsuar.addEventListener('input', function () {
+            // Eliminamos cualquier espacio en blanco al instante
+            let texto = this.value.replace(/\s/g, '');
+            
+            // Eliminamos cualquier carácter que no sea letra, número, CARACTERES
+            texto = texto.replace(/^[^a-zA-ZáéíóúÁÉÍÓÚñÑ]+/, '');
+            
+            // Regla estricta: obligamos a que el primer carácter sea siempre una letra
+            if (texto.length > 0 && !/^[a-zA-Z]/.test(texto)) {
+                texto = texto.substring(1);
+            }
+
+            this.value = texto;
+        });
+    }
+
+    // 2. Nombres y Apellidos: Solo letras y espacios (sin espacios al inicio)
+    const nameInputs = ['nombres_input', 'ape_pa_input', 'ape_ma_input'];
+    nameInputs.forEach(id => {
+        const input = document.getElementById(id);
+        if (input) {
+            input.addEventListener('input', function () {
+                // Paso 1: Permitir solo letras y espacios
+                let texto = this.value.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+                
+                // Paso 2: Eliminar espacios al inicio de la cadena
+                texto = texto.replace(/^\s+/, '');
+
+                // Paso 3: Evitar múltiples espacios consecutivos entre palabras
+                texto = texto.replace(/\s{2,}/g, ' ');
+
+                this.value = texto;
+            });
+        }
+    });
+
+    // 3. Contraseña: Sin espacios en blanco
+    const inputPassword = document.getElementById('password_input');
+    if (inputPassword) {
+        inputPassword.addEventListener('input', function () {
+            // Borra cualquier espacio en blanco que intente escribir
+            this.value = this.value.replace(/\s/g, ''); 
+        });
+    }
+
+    // 4. Nombre del Rol: Letras, números y espacios
+    const inputNomRol = document.getElementById('nom_rol_input');
+    if (inputNomRol) {
+        inputNomRol.addEventListener('input', function () {
+            // Letras, acentos, ñ, números y espacios permitidos
+            this.value = this.value.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '');
+        });
+    }
+
     // FUNCIÓN DE RECARGA PARCIAL (DOM DINÁMICO)
-    // ========================================================
     function recargarTablasYModales(res) {
         const modalU = bootstrap.Modal.getInstance(document.getElementById('modalUsuario'));
         if (modalU) modalU.hide();
@@ -24,9 +82,7 @@ document.addEventListener("DOMContentLoaded", function () {
         }
     }
 
-    // ========================================================
     // MODAL Y FORMULARIO DE USUARIOS
-    // ========================================================
     const modalUsuario = document.getElementById('modalUsuario');
     const formUsuario = document.getElementById('formUsuario');
     
@@ -35,6 +91,8 @@ document.addEventListener("DOMContentLoaded", function () {
             const button = event.relatedTarget;
             const esEdicion = button.classList.contains('btn-editar');
             
+            // Limpiamos los colores rojos de validaciones previas al abrir
+            formUsuario.classList.remove('was-validated');
             formUsuario.reset();
 
             const selectRol = document.getElementById('id_rol_input');
@@ -93,24 +151,32 @@ document.addEventListener("DOMContentLoaded", function () {
     if (formUsuario) {
         formUsuario.addEventListener('submit', function (e) {
             e.preventDefault();
-            // Inyectamos el id_sub antes de enviar
+            
+            // VERIFICACIÓN DE BOOTSTRAP
+            if (!this.checkValidity()) {
+                e.stopPropagation();
+                this.classList.add('was-validated'); // Muestra los mensajes rojos
+                return; // Detiene la ejecución aquí
+            }
+
+            // Si pasa la validación, procesamos normal
+            this.classList.remove('was-validated'); 
             this.querySelector('.dynamic-id-sub').value = idSubActual;
             asyncProcessForm(this, '_controller/AdminUsuariosAsync.php', recargarTablasYModales);
         });
     }
 
-    // ========================================================
     // MODAL Y FORMULARIO DE ROLES
-    // ========================================================
     const modalRol = document.getElementById('modalRol');
     const formRol = document.getElementById('formRol');
     
-    // (Tu código de modalRol se queda igual, solo modificamos el submit abajo)
     if (modalRol) {
         modalRol.addEventListener('show.bs.modal', function (event) {
             const button = event.relatedTarget;
             const esEdicion = button.classList.contains('btn-editar-rol');
             
+            // Limpiamos validaciones pasadas
+            formRol.classList.remove('was-validated');
             formRol.reset();
             document.querySelectorAll('.check-permiso-rol').forEach(chk => chk.checked = false);
 
@@ -142,7 +208,16 @@ document.addEventListener("DOMContentLoaded", function () {
     if (formRol) {
         formRol.addEventListener('submit', function (e) {
             e.preventDefault();
-            // Inyectamos el id_sub antes de enviar
+
+            // VERIFICACIÓN DE BOOTSTRAP
+            if (!this.checkValidity()) {
+                e.stopPropagation();
+                this.classList.add('was-validated'); // Muestra los mensajes rojos
+                return; // Detiene la ejecución aquí
+            }
+
+            // Si es válido, avanza
+            this.classList.remove('was-validated');
             this.querySelector('.dynamic-id-sub').value = idSubActual;
 
             asyncProcessForm(this, '_controller/AdminRolesAsync.php', function(res) {
@@ -170,9 +245,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // ========================================================
     // EVENTOS DE BOTONES DINÁMICOS (Dar de Baja y Eliminar)
-    // ========================================================
     document.addEventListener('click', function (e) {
         
         // 1. Botón Dar de Baja (Usuarios)
@@ -190,7 +263,6 @@ document.addEventListener("DOMContentLoaded", function () {
             }).then((result) => {
                 if (result.isConfirmed) {
                     const formVirtual = document.createElement('form');
-                    // Inyectamos el id_sub en el form virtual
                     formVirtual.innerHTML = `
                         <input type="hidden" name="peticion" value="BAJA_USUARIO">
                         <input type="hidden" name="id_usuar" value="${id}">
@@ -217,7 +289,6 @@ document.addEventListener("DOMContentLoaded", function () {
             }).then((result) => {
                 if (result.isConfirmed) {
                     const formVirtual = document.createElement('form');
-                    // Inyectamos el id_sub en el form virtual
                     formVirtual.innerHTML = `
                         <input type="hidden" name="peticion" value="DELETE_ROL">
                         <input type="hidden" name="id_rol" value="${id}">

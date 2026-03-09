@@ -84,6 +84,45 @@ class AdminUsuariosController {
     }
 
     public function renderJS(){ include self::JS; }
+    //VALIDAR ATRIBUTOS
+
+    public function validarDatosUsuario($nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $esInsercion = false) {
+        
+        // 1. Validar Nickname (Una sola palabra, sin espacios, inicia con letra, admite cualquier símbolo)
+        $regex_usuario = '/^[a-zA-ZáéíóúÁÉÍÓÚñÑ][^\s]*$/';
+        if (strlen($nom_usuar) > 50 || !preg_match($regex_usuario, $nom_usuar)) {
+            return "El nombre de usuario es inválido: debe ser una sola palabra sin espacios, iniciar con una letra y puede contener números o cualquier símbolo especial.";
+        }
+
+        // REGEX PARA NOMBRES: Empieza con letra, permite un solo espacio entre palabras, termina con letra.
+        $regex_nombres = '/^[a-zA-ZáéíóúÁÉÍÓÚñÑ]+( [a-zA-ZáéíóúÁÉÍÓÚñÑ]+)*$/';
+
+        // 2. Validar Nombres
+        if (strlen($nombres) > 100 || !preg_match($regex_nombres, $nombres)) {
+            return "El nombre es inválido: solo debe contener letras, no iniciar ni terminar con espacios, ni tener espacios dobles.";
+        }
+
+        // 3. Validar Apellido Paterno
+        if (strlen($ape_pa) > 100 || !preg_match($regex_nombres, $ape_pa)) {
+            return "El apellido paterno es inválido: solo debe contener letras, no iniciar ni terminar con espacios, ni tener espacios dobles.";
+        }
+
+        // 4. Validar Apellido Materno (Si no está vacío)
+        if (!empty($ape_ma) && (strlen($ape_ma) > 100 || !preg_match($regex_nombres, $ape_ma))) {
+            return "El apellido materno es inválido: solo debe contener letras, no iniciar ni terminar con espacios, ni tener espacios dobles.";
+        }
+
+        // 5. Validar Contraseña
+        if ($esInsercion && empty($password)) {
+            return "La contraseña es obligatoria para usuarios nuevos.";
+        }
+        if (!empty($password)) {
+            if (strlen($password) > 8) return "La contraseña no puede tener más de 8 caracteres.";
+            if (strpos($password, ' ') !== false) return "La contraseña no puede contener espacios.";
+        }
+
+        return true; // Todo en orden
+    }
 
     // LÓGICA EXCLUSIVA DE USUARIOS
    

@@ -182,35 +182,40 @@
             <div class="modal-body pt-1 px-4">
                 <p class="text-muted small mb-4">Complete la información del usuario en el sistema</p>
                 
-                <form id="formUsuario">
+                <form id="formUsuario" novalidate>
                     <input type="hidden" id="peticion_input"  name="peticion"  value="INSERT">
                     <input type="hidden" name="id_sub" class="dynamic-id-sub" value="">
                     <input type="hidden" id="id_usuar_input"  name="id_usuar"  value="">
 
                     <div class="mb-3">
                         <label class="form-label fw-bold small text-dark mb-1">Usuario (Nickname) *</label>
-                        <input type="text" class="form-control focus-guinda border-secondary-subtle" id="nom_usuar_input" name="nom_usuar" required>
+                        <input type="text" class="form-control focus-guinda border-secondary-subtle" id="nom_usuar_input" name="nom_usuar" maxlength="50" required>
+                        <div class="invalid-feedback fw-bold small">El nombre de usuario es obligatorio.</div>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-bold small text-dark mb-1">Nombre(s) *</label>
-                        <input type="text" class="form-control focus-guinda border-secondary-subtle" id="nombres_input" name="nombres" required>
+                        <input type="text" class="form-control focus-guinda border-secondary-subtle" id="nombres_input" name="nombres" maxlength="100" required>
+                        <div class="invalid-feedback fw-bold small">El nombre es obligatorio.</div>
                     </div>
 
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold small text-dark mb-1">Apellido Paterno *</label>
-                            <input type="text" class="form-control focus-guinda border-secondary-subtle" id="ape_pa_input" name="ape_pa" required>
+                            <input type="text" class="form-control focus-guinda border-secondary-subtle" id="ape_pa_input" name="ape_pa" maxlength="100" required>
+                            <div class="invalid-feedback fw-bold small">El apellido paterno es obligatorio.</div>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold small text-dark mb-1">Apellido Materno *</label>
-                            <input type="text" class="form-control focus-guinda border-secondary-subtle" id="ape_ma_input" name="ape_ma" required>
+                            <input type="text" class="form-control focus-guinda border-secondary-subtle" id="ape_ma_input" name="ape_ma" maxlength="100" required>
+                            <div class="invalid-feedback fw-bold small">El apellido materno es obligatorio.</div>
                         </div>
                     </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-bold small text-dark mb-1">Contraseña</label>
-                        <input type="password" class="form-control focus-guinda border-secondary-subtle" id="password_input" name="password">
+                        <input type="password" class="form-control focus-guinda border-secondary-subtle" id="password_input" name="password" maxlength="8">
+                        <div class="invalid-feedback fw-bold small">Debe asignar una contraseña para un nuevo usuario.</div>
                         <div class="form-text small text-muted mt-1">Déjalo en blanco si no deseas cambiar la contraseña al editar.</div>
                     </div>
 
@@ -218,15 +223,14 @@
                         <label class="form-label fw-bold small text-dark mb-1">Rol de Acceso *</label>
                         <select class="form-select focus-guinda border-secondary-subtle" id="id_rol_input" name="id_rol" required>
                             <option value="" selected disabled>Seleccione un rol...</option>
-                            
                             <option value="1" id="opt-admin" style="display:none;" disabled>Administrador (Protegido)</option>
-                            
                             <?php if(isset($roles_disponibles)): ?>
                                 <?php foreach($roles_disponibles as $rol): ?>
                                     <option value="<?php echo $rol['id_rol']; ?>"><?php echo htmlspecialchars($rol['nom_rol']); ?></option>
                                 <?php endforeach; ?>
                             <?php endif; ?>
                         </select>
+                        <div class="invalid-feedback fw-bold small">Debe seleccionar un rol de la lista.</div>
                         <div class="form-text small text-muted mt-1">Los permisos del usuario se heredarán automáticamente del rol seleccionado.</div>
                     </div>
 
@@ -243,26 +247,25 @@
 <div class="modal fade" id="modalRol" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content shadow-lg border-0" style="border-radius: 12px;">
-
             <div class="modal-header border-0 pb-0 mt-2 px-4">
                 <h5 class="modal-title fw-bold text-dark" id="modalRolLabel">Configuración de Rol</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
 
             <div class="modal-body pt-1 px-4">
-                <form id="formRol">
+                <form id="formRol" novalidate>
                     <input type="hidden" id="peticion_rol_input" name="peticion" value="INSERT">
                     <input type="hidden" name="id_sub" class="dynamic-id-sub" value="">
                     <input type="hidden" id="id_rol_hidden"      name="id_rol"   value="">
 
                     <div class="mb-4">
                         <label class="form-label fw-bold small text-dark mb-1">Nombre del Rol *</label>
-                        <input type="text" class="form-control focus-guinda border-secondary-subtle" id="nom_rol_input" name="nom_rol" required>
+                        <input type="text" class="form-control focus-guinda border-secondary-subtle" id="nom_rol_input" name="nom_rol" maxlength="100" required>
+                        <div class="invalid-feedback fw-bold small">El nombre del rol es obligatorio.</div>
                     </div>
 
                     <label class="form-label fw-bold small text-dark mb-3">Permisos de Acceso por Submódulo</label>
                     <div class="permisos-container p-3 bg-light rounded border border-secondary-subtle" style="max-height: 400px; overflow-y: auto;">
-                        
                         <?php if(isset($arbol_modulos) && count($arbol_modulos) > 0): ?>
                             <?php foreach($arbol_modulos as $mod): ?>
                                 <div class="mb-4">
@@ -302,7 +305,6 @@
                                 </div>
                             <?php endforeach; ?>
                         <?php endif; ?>
-
                     </div>
 
                     <div class="d-flex justify-content-end mt-4 mb-2">
