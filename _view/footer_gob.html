@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://framework-gb.cdn.gob.mx/gm/v3/assets/styles/main.css" rel="stylesheet">
+    <style>
+        /* Ocultar el Header del gobierno, solo queremos el Footer */
+        header.navbar, nav.navbar-inverse, .navbar-inverse { display: none !important; }
+        
+        /* Evitar scroll interno y adaptar fondo */
+        body { 
+            padding: 0 !important; 
+            margin: 0 !important; 
+            overflow: hidden; 
+            background-color: #13322B; /* Mismo color del footer */
+        }
+        main, .page { display: none !important; }
+        footer { margin-top: 0 !important; }
+    </style>
+</head>
+<body>
+
+    <script src="https://framework-gb.cdn.gob.mx/gm/v3/assets/js/gobmx.js"></script>
+
+    <script>
+        // Envía la altura real del footer a la página principal para evitar recortes
+        function reportHeight() {
+            var footer = document.querySelector('footer');
+            if (footer) {
+                window.parent.postMessage({ type: 'resizeFooter', height: footer.scrollHeight }, '*');
+            }
+        }
+
+        // Ejecutar cuando cargue el script del gobierno y si cambia el tamaño de pantalla
+        window.addEventListener('load', function() {
+            setTimeout(reportHeight, 500); 
+            setTimeout(reportHeight, 2000); 
+        });
+        window.addEventListener('resize', reportHeight);
+    </script>
+</body>
+</html>

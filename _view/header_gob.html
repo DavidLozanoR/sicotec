@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://framework-gb.cdn.gob.mx/gm/v3/assets/styles/main.css" rel="stylesheet">
+    <style>
+        /* Ocultar el Footer, el contenido y sub-navegaciones del gobierno */
+        footer, main, .page, nav.sub-navbar { display: none !important; }
+        
+        /* Ajustes para que el iframe no tenga bordes ni scroll */
+        body { 
+            padding: 0 !important; 
+            margin: 0 !important; 
+            overflow: hidden; 
+            background-color: transparent;
+        }
+    </style>
+</head>
+<body>
+
+    <script src="https://framework-gb.cdn.gob.mx/gm/v3/assets/js/gobmx.js"></script>
+
+    <script>
+        function reportHeight() {
+            var header = document.querySelector('header.navbar') || document.body;
+            if (header) {
+                // Enviar la altura al master.html.php
+                window.parent.postMessage({ type: 'resizeHeader', height: header.scrollHeight }, '*');
+            }
+        }
+
+        window.addEventListener('load', function() {
+            setTimeout(reportHeight, 200); 
+            setTimeout(reportHeight, 1000); 
+        });
+        window.addEventListener('resize', reportHeight);
+
+        // Detectar si el menú móvil del gobierno se despliega para hacer crecer el Iframe
+        var observer = new MutationObserver(reportHeight);
+        window.addEventListener('DOMContentLoaded', function() {
+            observer.observe(document.body, { attributes: true, childList: true, subtree: true });
+        });
+    </script>
+</body>
+</html>

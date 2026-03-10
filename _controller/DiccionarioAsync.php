@@ -4,8 +4,8 @@ if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
 
-// Ajustar la ruta de inclusión según la estructura de directorios
-require_once "../_model/MainModel.php";
+require_once __DIR__ . "/../config/Global.php";
+require_once "MainModel.php";
 
 header('Content-Type: application/json; charset=utf-8');
 

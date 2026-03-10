@@ -7,8 +7,8 @@ header('Content-Type: application/json');
 
 // HABILITAR EL USO DE VARIABLES SESION
 session_start();
-require_once "../config/Global.php";
-require_once "../_model/LoginModel.php";
+require_once __DIR__ . "/../config/Global.php";
+require_once "LoginModel.php";
 
 $model = new LoginModel();
 
