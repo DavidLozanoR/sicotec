@@ -55,5 +55,5 @@
 	
 	//Incluir la plantilla contenedora principal
 	include "_view/master.html.php";
-
+//hola
 ?>
