@@ -83,6 +83,11 @@ function __construct(){
 
     }
 
+    //funciones para el async
+
+    
+
+
 }
 
 
