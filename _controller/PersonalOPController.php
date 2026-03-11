@@ -22,9 +22,24 @@ function __construct(){
     public function renderContent(){
         $model = new MainModel();
         
+        $datos= $this->traerContenido($model);//trae el contenido a renderizar
+        //estraemos los datos para consumirlos es la vista
+        extract($datos);
+
+        // 4. Incluimos la vista
+        include self::VISTA;
+    }
+
+    public function renderJS(){
+        // Incluimos el JavaScript específico para esta vista
+        // (Donde programaremos los filtros en vivo y el modal)
+        include self::JS;
+    }
+
+    private function traerContenido($model){
         // 1. Obtener catálogos para los filtros (Selects)
         $departamentos = $model->seleccionaRegistros("Departamentos", ["id_dep", "nom_dep"]);
-        $segmentos = $model->seleccionaRegistros("Segmentos", ["id_seg", "ip_ini", "ip_lim"]);
+        //$segmentos = $model->seleccionaRegistros("Segmentos", ["id_seg", "ip_ini", "ip_lim"]);
 
         // 2. Preparamos el JOIN para traer los datos del personal + el nombre de su departamento
         $tablaPrincipal = "Personal_Operativo po";
@@ -61,16 +76,13 @@ function __construct(){
             // Si no hay personal, aseguramos que sea un arreglo vacío para no romper la vista
             $lista_personal = [];
         }
+        return [
+            'departamentos' => $departamentos,
+            'lista_personal' => $lista_personal
+        ];
 
-        // 4. Incluimos la vista
-        include self::VISTA;
     }
 
-    public function renderJS(){
-        // Incluimos el JavaScript específico para esta vista
-        // (Donde programaremos los filtros en vivo y el modal)
-        include self::JS;
-    }
 }
 
 

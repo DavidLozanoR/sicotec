@@ -1,8 +1,7 @@
 <?php
-// Variables esperadas desde el PersonalController.php
+// Variables esperadas desde el PersonalOPController.php
 $lista_personal = $lista_personal ?? [];
 $departamentos = $departamentos ?? [];
-$segmentos = $segmentos ?? [];
 ?>
 
 <div class="space-y-6">
@@ -26,84 +25,84 @@ $segmentos = $segmentos ?? [];
             
             <div class="row g-3 mb-4">
                 <div class="col-12 col-md-4">
-                    <div class="input-group">
+                    <div class="input-group shadow-sm">
                         <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-search"></i></span>
-                        <input type="text" class="form-control border-start-0 ps-0 focus-guinda" id="buscarNombre" placeholder="Buscar por nombre o cobro...">
+                        <input type="text" class="form-control border-start-0 ps-0 focus-guinda" id="buscarCobroNombre" placeholder="Buscar No. Cobro o Nombre...">
                     </div>
                 </div>
 
                 <div class="col-12 col-sm-6 col-md-3">
                     <div class="d-flex align-items-center gap-2">
                         <label class="small fw-bold text-nowrap mb-0 text-muted">Depto:</label>
-                        <select class="form-select focus-guinda" id="filtroDepartamento">
-                            <option value="all">Todos</option>
+                        <select class="form-select focus-guinda shadow-sm" id="filtroDepartamento">
+                            <option value="all">Todos los departamentos</option>
                             <?php foreach($departamentos as $dep): ?>
-                                <option value="<?php echo htmlspecialchars($dep['nom_dep']); ?>"><?php echo htmlspecialchars($dep['nom_dep']); ?></option>
+                                <option value="<?php echo htmlspecialchars(strtolower($dep['nom_dep'])); ?>">
+                                    <?php echo htmlspecialchars($dep['nom_dep']); ?>
+                                </option>
                             <?php endforeach; ?>
                         </select>
                     </div>
                 </div>
 
                 <div class="col-12 col-sm-6 col-md-3">
-                    <div class="d-flex align-items-center gap-2">
-                        <label class="small fw-bold text-nowrap mb-0 text-muted">Segmento:</label>
-                        <select class="form-select focus-guinda" id="filtroSegmento">
-                            <option value="all">Todos</option>
-                            <?php foreach($segmentos as $seg): ?>
-                                <option value="<?php echo htmlspecialchars($seg['id_seg']); ?>"><?php echo htmlspecialchars($seg['ip_ini']); ?> - <?php echo htmlspecialchars($seg['ip_lim']); ?></option>
-                            <?php endforeach; ?>
-                        </select>
+                    <div class="input-group shadow-sm">
+                        <span class="input-group-text bg-light border-end-0 text-muted"><i class="fas fa-briefcase"></i></span>
+                        <input type="text" class="form-control border-start-0 ps-0 focus-guinda" id="buscarPuesto" placeholder="Filtrar por puesto...">
                     </div>
                 </div>
 
                 <div class="col-12 col-md-2 text-md-end">
-                    <button class="btn btn-outline-secondary w-100" id="btnLimpiarFiltros">
-                        Limpiar
+                    <button class="btn btn-outline-secondary w-100 shadow-sm" id="btnLimpiarFiltros">
+                        <i class="fas fa-eraser me-1"></i> Limpiar
                     </button>
                 </div>
             </div>
 
-            <div class="table-responsive border rounded">
+            <div class="table-responsive border rounded shadow-sm">
                 <table class="table table-hover align-middle mb-0" id="tablaPersonal">
                     <thead class="table-light text-muted small">
                         <tr>
                             <th class="d-none d-sm-table-cell text-center" style="width: 60px;">ID</th>
                             <th>No. Cobro</th>
-                            <th>Nombre</th>
+                            <th>Nombre Completo</th>
                             <th class="d-none d-md-table-cell">Departamento</th>
                             <th class="d-none d-lg-table-cell">Puesto</th>
                             <th class="text-center">Equipos</th>
                             <th class="text-end pe-4">Acciones</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody id="tbodyPersonal">
                         <?php if(!empty($lista_personal)): ?>
                             <?php foreach($lista_personal as $po): ?>
                                 <tr class="fila-personal" 
                                     data-nombre="<?php echo strtolower($po['nombres'].' '.$po['ape_pa'].' '.$po['ape_ma']); ?>"
                                     data-cobro="<?php echo strtolower($po['num_cobro']); ?>"
-                                    data-depto="<?php echo htmlspecialchars($po['nom_dep']); ?>">
+                                    data-depto="<?php echo strtolower($po['nom_dep']); ?>"
+                                    data-puesto="<?php echo strtolower($po['puesto']); ?>">
                                     
                                     <td class="d-none d-sm-table-cell text-center text-muted font-monospace small">
                                         <?php echo $po['id_po']; ?>
                                     </td>
                                     
-                                    <td class="fw-medium">
+                                    <td class="fw-medium text-guinda">
                                         <?php echo htmlspecialchars($po['num_cobro']); ?>
                                     </td>
                                     
                                     <td style="min-width: 200px;">
                                         <div class="d-flex align-items-center gap-2">
-                                            <i class="fas fa-user text-muted small"></i>
+                                            <div class="bg-light rounded-circle d-flex align-items-center justify-content-center text-muted" style="width: 32px; height: 32px;">
+                                                <i class="fas fa-user small"></i>
+                                            </div>
                                             <span class="fw-bold text-dark">
                                                 <?php echo htmlspecialchars($po['nombres'].' '.$po['ape_pa'].' '.$po['ape_ma']); ?>
                                             </span>
                                         </div>
-                                        <div class="d-block d-md-none text-muted extra-small mt-1">
-                                            <?php echo htmlspecialchars($po['nom_dep']); ?>
+                                        <div class="d-block d-md-none text-muted extra-small mt-1 ms-4 ps-1">
+                                            <i class="fas fa-building me-1"></i> <?php echo htmlspecialchars($po['nom_dep']); ?>
                                         </div>
-                                        <div class="d-block d-lg-none text-muted extra-small">
-                                            <?php echo htmlspecialchars($po['puesto']); ?>
+                                        <div class="d-block d-lg-none text-muted extra-small ms-4 ps-1">
+                                            <i class="fas fa-briefcase me-1"></i> <?php echo htmlspecialchars($po['puesto']); ?>
                                         </div>
                                     </td>
                                     
@@ -116,8 +115,8 @@ $segmentos = $segmentos ?? [];
                                     </td>
                                     
                                     <td class="text-center">
-                                        <span class="badge bg-light text-dark border d-inline-flex align-items-center gap-1 px-2 py-1">
-                                            <i class="fas fa-laptop text-muted"></i> 
+                                        <span class="badge <?php echo ($po['total_equipos'] > 0) ? 'bg-info text-dark' : 'bg-light text-muted'; ?> border d-inline-flex align-items-center gap-1 px-2 py-1">
+                                            <i class="fas fa-laptop"></i> 
                                             <?php echo $po['total_equipos'] ?? 0; ?>
                                         </span>
                                     </td>
@@ -139,9 +138,9 @@ $segmentos = $segmentos ?? [];
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
-                            <tr>
+                            <tr id="fila-vacia">
                                 <td colspan="7" class="text-center py-5 text-muted">
-                                    <i class="fas fa-inbox fa-3x mb-3 opacity-25"></i>
+                                    <i class="fas fa-users-slash fa-3x mb-3 opacity-25"></i>
                                     <p class="mb-0">No se encontraron registros de personal operativo.</p>
                                 </td>
                             </tr>
@@ -149,8 +148,7 @@ $segmentos = $segmentos ?? [];
                     </tbody>
                 </table>
             </div>
-
-        </div>
+            </div>
     </div>
 </div>
 
@@ -171,7 +169,7 @@ $segmentos = $segmentos ?? [];
                     <ul class="nav nav-tabs mb-4" id="personalTabs" role="tablist">
                         <li class="nav-item" role="presentation">
                             <button class="nav-link active fw-bold" id="caracteristicas-tab" data-bs-toggle="tab" data-bs-target="#caracteristicas" type="button" role="tab" aria-selected="true">
-                                <i class="fas fa-id-card me-2"></i> Características
+                                <i class="fas fa-id-card me-2"></i> Datos del Trabajador
                             </button>
                         </li>
                         <li class="nav-item" role="presentation">
@@ -186,7 +184,8 @@ $segmentos = $segmentos ?? [];
                         <div class="tab-pane fade show active" id="caracteristicas" role="tabpanel">
                             <div class="text-center py-5 text-muted">
                                 <i class="fas fa-tools fa-3x mb-3 opacity-25"></i>
-                                <h5>Formulario en construcción</h5>
+                                <h5>Formulario de registro en construcción</h5>
+                                <p class="small">Aquí irán los inputs de nombre, apellidos, dirección, etc.</p>
                             </div>
                         </div>
 
@@ -194,6 +193,7 @@ $segmentos = $segmentos ?? [];
                             <div class="text-center py-5 text-muted">
                                 <i class="fas fa-network-wired fa-3x mb-3 opacity-25"></i>
                                 <h5>Lógica de dispositivos en construcción</h5>
+                                <p class="small">Aquí se mostrará la tabla de equipos asignados a este empleado.</p>
                             </div>
                         </div>
                         
@@ -202,8 +202,8 @@ $segmentos = $segmentos ?? [];
             </div>
             
             <div class="modal-footer bg-light border-top-0">
-                <button type="button" class="btn btn-outline-secondary px-4" data-bs-dismiss="modal">Cancelar</button>
-                <button type="submit" form="formPersonal" class="btn btn-inea px-4 d-flex align-items-center gap-2">
+                <button type="button" class="btn btn-outline-secondary px-4 shadow-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" form="formPersonal" class="btn btn-inea px-4 d-flex align-items-center gap-2 shadow-sm">
                     <i class="fas fa-save"></i> Guardar Personal
                 </button>
             </div>
