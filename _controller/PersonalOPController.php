@@ -7,7 +7,10 @@ class PersonalOPController{
 const VISTA = "_view/personalOperativo.html.php";
 const JS = "js/personalOperativo.js";
 
-function __construct(){ 
+private $slug;
+
+
+function __construct($slug=null){ 
         // Validamos que exista una sesión activa
         if(session_status() === PHP_SESSION_NONE) {
             session_start();
@@ -16,6 +19,8 @@ function __construct(){
         if(!isset($_SESSION['usuario'])){
             die("Error: Su sesión ha expirado o no tiene acceso a este módulo");
         }
+        $this->slug=$slug;
+
 
     }
 
@@ -37,6 +42,11 @@ function __construct(){
     }
 
     private function traerContenido($model){
+        // Buscamos en la tabla Submodulos aquel que coincida con la ruta de este módulo
+        $consultaSub = $model->seleccionaRegistros("Submodulos", ["id_sub"], "slug = ?", ["$this->slug"]);
+        
+        // Si la consulta arroja resultados, extraemos el ID. Si por alguna razón falla, usamos 1 como respaldo de seguridad.
+        $id_sub_actual = (!empty($consultaSub)) ? $consultaSub[0]['id_sub'] : 1;
         // 1. Obtener catálogos para los filtros (Selects)
         $departamentos = $model->seleccionaRegistros("Departamentos", ["id_dep", "nom_dep"]);
         //$segmentos = $model->seleccionaRegistros("Segmentos", ["id_seg", "ip_ini", "ip_lim"]);
@@ -82,9 +92,6 @@ function __construct(){
         ];
 
     }
-
-    //funciones para el async
-
     
 
 

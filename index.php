@@ -14,20 +14,21 @@
 		die();
     	//fin de verificación de sesion
 	}
-	//Determinar el controlador / accion / id del usuario
+	//Determinar el slug / accion / id del usuario
 	$querystring = isset($_GET["querystring"]) ? $_GET["querystring"] : RUTA_DEFAULT;
 	if ( !str_ends_with($querystring, "/") ) {
 		$querystring = $querystring."/"; //le falta "/", se la pongo
 	} 
 	$peticion = explode("/", $querystring);
-	$controlador = isset($peticion[0]) ? $peticion[0] : "";
+	$slug = isset($peticion[0]) ? $peticion[0] : "";
 	$accion = isset($peticion[1]) ? $peticion[1] : "";
-	$id = isset($peticion[2]) ? $peticion[2] : "";
+	$id_submod = isset($peticion[2]) ? $peticion[2] : "";
+	$id_usrop = isset($peticion[3]) ? $peticion[3] : "";
 	 $id_user = $_SESSION["usuario"]["id_usuar"];
 	 $id_rol=$_SESSION["usuario"]["id_rol"]; //TODO: Verificar logica con requerimientos
 	 $nom_user = $_SESSION["usuario"]["nom_usuar"]; //TODO: verificar logia con requerimientos
-	//Procesar la peticion cargando el controlador adecuado
-	switch ($controlador) {
+	//Procesar la peticion cargando el slug adecuado
+	switch ($slug) {
         case "inicio" :
             if ($accion == "") {
                 require_once "_controller/TableroController.php";
@@ -45,7 +46,11 @@
 		case "personal":
 			if($accion== ""){
 				require_once "_controller/PersonalOPController.php";
-				$ctrl = new PersonalOPController();
+				$ctrl = new PersonalOPController($slug);
+			}
+			if($accion=="formulario"){
+				require_once "_controller/PersonalOPFormController.php";
+				$ctrl = new PersonalOPFormController($slug,$id_submod,$id_usrop);//pasamos el Id del personal O y del submodulo Para saber en qué submodulo estamos
 			}
 		
         default:
