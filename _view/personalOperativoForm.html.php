@@ -176,7 +176,7 @@ if ($personal) {
                                         <small class="text-muted">Equipos asignados para uso diario o bajo resguardo legal.</small>
                                     </div>
                                     <?php if($personal): ?>
-                                        <button type="button" class="btn btn-sm btn-guinda shadow-sm">
+                                        <button type="button" class="btn btn-sm btn-guinda shadow-sm" data-bs-toggle="modal" data-bs-target="#modalDispositivo">
                                             <i class="fas fa-plus me-1"></i> Añadir Equipo
                                         </button>
                                     <?php endif; ?>
@@ -220,7 +220,7 @@ if ($personal) {
                                                                 </button>
                                                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 ring-1 ring-secondary-subtle">
                                                                     <li>
-                                                                        <a class="dropdown-item py-2" href="#" data-id="<?php echo $disp['id_disp']; ?>">
+                                                                        <a class="dropdown-item py-2" href="#" data-bs-toggle="modal" data-bs-target="#modalDispositivo" data-id="<?php echo $disp['id_disp']; ?>">
                                                                             <i class="fas fa-edit me-2 text-primary"></i> Editar Dispositivo
                                                                         </a>
                                                                     </li>
@@ -296,7 +296,206 @@ if ($personal) {
     </form>
 </div>
 
+<div class="modal fade" id="modalDispositivo" tabindex="-1" aria-labelledby="modalDispositivoLabel" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow-lg">
+            
+            <div class="modal-header text-white" style="background-color: #9D2449;">
+                <h5 class="modal-title fw-bold" id="modalDispositivoLabel">
+                    <i class="fas fa-laptop me-2"></i> Formulario de Dispositivo
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <div class="modal-body p-0 bg-light">
+                <form id="formDispositivo" novalidate>
+                    <input type="hidden" name="peticion_disp" id="peticion_disp" value="INSERT">
+                    <input type="hidden" name="id_disp" id="id_disp" value="">
+
+                    <div class="bg-white border-bottom px-4 pt-3">
+                        <ul class="nav nav-tabs border-0" id="dispTabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active fw-bold text-secondary custom-tab-inea" id="caract-tab" data-bs-toggle="tab" data-bs-target="#caract" type="button" role="tab" aria-selected="true">
+                                    <i class="fas fa-list me-1"></i> Características
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link fw-bold text-secondary custom-tab-inea" id="net-tab" data-bs-toggle="tab" data-bs-target="#net" type="button" role="tab" aria-selected="false">
+                                    <i class="fas fa-network-wired me-1"></i> Network
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link fw-bold text-secondary custom-tab-inea" id="serv-tab" data-bs-toggle="tab" data-bs-target="#serv" type="button" role="tab" aria-selected="false">
+                                    <i class="fas fa-cogs me-1"></i> Servicios
+                                </button>
+                            </li>
+                        </ul>
+                    </div>
+
+                    <div class="tab-content p-4" id="dispTabsContent">
+                        
+                        <div class="tab-pane fade show active" id="caract" role="tabpanel" aria-labelledby="caract-tab">
+                            
+                            <div class="mb-4 bg-white p-3 rounded-3 border border-secondary-subtle shadow-sm">
+                                <label class="form-label fw-bold small text-dark mb-3"><i class="fas fa-link me-1 text-guinda"></i> Relación de Asignación al Empleado *</label>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <input type="checkbox" class="btn-check" id="check_uso" name="es_uso" value="1" autocomplete="off" checked>
+                                        <label class="btn btn-outline-primary w-100 fw-bold d-flex flex-column align-items-center py-3 shadow-sm" for="check_uso">
+                                            <i class="fas fa-desktop fa-2x mb-2"></i>
+                                            Uso Diario (Asignado)
+                                        </label>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <input type="checkbox" class="btn-check" id="check_resguardo" name="es_resguardo" value="1" autocomplete="off">
+                                        <label class="btn btn-outline-success w-100 fw-bold d-flex flex-column align-items-center py-3 shadow-sm" for="check_resguardo">
+                                            <i class="fas fa-file-signature fa-2x mb-2"></i>
+                                            Resguardo Legal (Responsable)
+                                        </label>
+                                    </div>
+                                </div>
+                                <small class="text-muted d-block mt-3 text-center"><i class="fas fa-info-circle me-1"></i> Puede seleccionar ambos roles simultáneamente.</small>
+                            </div>
+
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Tipo de Equipo *</label>
+                                    <select class="form-select focus-guinda" name="id_tipo_d" required>
+                                        <option value="" selected disabled>Seleccione...</option>
+                                        <option value="1">Computadora de Escritorio</option>
+                                        <option value="2">Laptop</option>
+                                        <option value="3">Impresora</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Marca *</label>
+                                    <select class="form-select focus-guinda" name="id_mar" required>
+                                        <option value="" selected disabled>Seleccione...</option>
+                                        <option value="1">Dell</option>
+                                        <option value="2">HP</option>
+                                        <option value="3">Lenovo</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Modelo</label>
+                                    <input type="text" class="form-control focus-guinda" name="modelo" placeholder="Ej. Optiplex 3080">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Procesador</label>
+                                    <input type="text" class="form-control focus-guinda" name="procesador" placeholder="Ej. Intel Core i5">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Memoria RAM</label>
+                                    <input type="text" class="form-control focus-guinda" name="ram" placeholder="Ej. 16 GB">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Almacenamiento</label>
+                                    <input type="text" class="form-control focus-guinda" name="almacenamiento" placeholder="Ej. 512 GB SSD">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small text-dark">No. de Serie *</label>
+                                    <input type="text" class="form-control focus-guinda border-secondary-subtle" name="num_ser" required>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small text-dark">No. de Inventario</label>
+                                    <input type="text" class="form-control focus-guinda border-secondary-subtle" name="num_inv">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="net" role="tabpanel" aria-labelledby="net-tab">
+                            <div class="row g-3">
+                                <div class="col-md-12">
+                                    <label class="form-label fw-bold small">Nombre de Host (Hostname)</label>
+                                    <input type="text" class="form-control focus-guinda font-monospace" name="nom_host" placeholder="Ej. PC-INEA-01">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Dirección MAC</label>
+                                    <input type="text" class="form-control focus-guinda font-monospace" name="dir_mac" placeholder="00:1A:2B:3C:4D:5E">
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label fw-bold small">Dirección IP</label>
+                                    <input type="text" class="form-control focus-guinda font-monospace" name="dir_ip" placeholder="192.168.x.x">
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="tab-pane fade" id="serv" role="tabpanel" aria-labelledby="serv-tab">
+                            
+                            <div class="alert alert-light border border-info border-start border-5 shadow-sm d-flex align-items-center py-2 mb-4">
+                                <i class="fas fa-info-circle text-info fa-lg me-3"></i>
+                                <small class="text-muted">Marque los servicios instalados en el equipo. Si un servicio aparece resaltado en <strong class="text-danger">rojo</strong>, indica que la versión instalada está obsoleta respecto al catálogo oficial.</small>
+                            </div>
+
+                            <div class="list-group shadow-sm border-secondary-subtle mb-3">
+                                
+                                <label class="list-group-item d-flex justify-content-between align-items-center py-3 list-group-item-action cursor-pointer">
+                                    <div class="d-flex align-items-start gap-3">
+                                        <input class="form-check-input mt-1 focus-guinda border-secondary-subtle" type="checkbox" name="servicios[]" value="3" checked>
+                                        <div>
+                                            <h6 class="mb-0 fw-bold text-dark">Antivirus <span class="text-muted fw-normal small">(Kaspersky Endpoint)</span></h6>
+                                            <small class="text-muted d-block mt-1">Versión en equipo: <strong>Windows 10 Pro 22H2</strong></small>
+                                        </div>
+                                    </div>
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-3 py-2 shadow-sm">
+                                        <i class="fas fa-check-circle me-1"></i> Al día
+                                    </span>
+                                </label>
+
+                                <label class="list-group-item d-flex justify-content-between align-items-center py-3 list-group-item-action cursor-pointer bg-danger bg-opacity-10 border-danger border-opacity-50">
+                                    <div class="d-flex align-items-start gap-3">
+                                        <input class="form-check-input mt-1 focus-guinda border-danger" type="checkbox" name="servicios[]" value="1" checked>
+                                        <div>
+                                            <h6 class="mb-0 fw-bold text-danger">
+                                                <i class="fas fa-exclamation-triangle me-1"></i> Sistema Operativo <span class="fw-normal small">(Windows Principal)</span>
+                                            </h6>
+                                            <small class="text-danger d-block mt-1">
+                                                Instalado: <strong>Windows 10 Pro 22H2</strong><br>
+                                                <span class="opacity-75">Catálogo oficial: Windows 11 Enterprise</span>
+                                            </small>
+                                        </div>
+                                    </div>
+                                    <div class="text-end">
+                                        <span class="badge bg-danger text-white rounded-pill px-3 py-1 mb-2 shadow-sm">
+                                            Obsoleto
+                                        </span><br>
+                                        <button type="button" class="btn btn-sm btn-outline-danger" style="font-size: 0.70rem; padding: 0.2rem 0.5rem;" title="Registrar actualización en sistema">
+                                            <i class="fas fa-sync-alt me-1"></i> Actualizar a Oficial
+                                        </button>
+                                    </div>
+                                </label>
+
+                                <label class="list-group-item d-flex justify-content-between align-items-center py-3 list-group-item-action cursor-pointer bg-light">
+                                    <div class="d-flex align-items-start gap-3 opacity-50">
+                                        <input class="form-check-input mt-1 focus-guinda border-secondary-subtle" type="checkbox" name="servicios[]" value="2">
+                                        <div>
+                                            <h6 class="mb-0 fw-bold text-dark">Suite Ofimática <span class="text-muted fw-normal small">(Microsoft Office)</span></h6>
+                                            <small class="text-muted d-block mt-1">Sin instalar</small>
+                                        </div>
+                                    </div>
+                                </label>
+
+                            </div>
+                            
+                        </div>
+
+                    </div>
+                </form>
+            </div>
+            
+            <div class="modal-footer bg-white border-top">
+                <button type="button" class="btn btn-outline-secondary px-4 fw-bold shadow-sm" data-bs-dismiss="modal">Cancelar</button>
+                <button type="submit" form="formDispositivo" class="btn btn-guinda px-4 fw-bold shadow-sm">
+                    <i class="fas fa-save me-2"></i> Guardar Dispositivo
+                </button>
+            </div>
+            
+        </div>
+    </div>
+</div>
+
 <style>
+    /* Estilos del Menú Lateral Vertical */
     .custom-pills-inea .nav-link {
         color: #495057;
         background-color: transparent;
@@ -319,5 +518,21 @@ if ($personal) {
     .border-dashed {
         border-style: dashed !important;
         border-width: 2px !important;
+    }
+    
+    /* Estilos de las Pestañas (Tabs) del Modal de Dispositivos */
+    .custom-tab-inea { 
+        border: none !important; 
+        border-bottom: 3px solid transparent !important; 
+        background: transparent !important; 
+    }
+    .custom-tab-inea.active { 
+        border-bottom-color: #9D2449 !important; 
+        color: #9D2449 !important; 
+    }
+
+    /* Estilo para las filas seleccionables de los servicios */
+    .cursor-pointer {
+        cursor: pointer;
     }
 </style>
