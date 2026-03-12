@@ -27,7 +27,6 @@ class DispositivosFormController {
     public function renderContent() {
         $model = new MainModel();
 
-        // 1. VALIDACIÓN DE SEGURIDAD DINÁMICA (ANTI-TAMPERING)
         $url_buscar = $this->slug; 
         
         $consultaSub = $model->seleccionaRegistros("Submodulos", ["id_sub"], "slug = ?", [$url_buscar]);
@@ -36,12 +35,11 @@ class DispositivosFormController {
         if (!$id_sub_real || $this->id_submod != $id_sub_real) {
             echo "<div class='alert alert-danger m-4 shadow-sm border-0 border-start border-danger border-5'>
                     <h5 class='fw-bold mb-1'><i class='fas fa-shield-alt me-2'></i> Alerta de Seguridad</h5>
-                    <p class='mb-0 small'>El identificador del submódulo en la URL ha sido alterado o es inválido. La acción ha sido bloqueada para proteger la integridad del sistema.</p>
+                    <p class='mb-0 small'>El identificador del submódulo en la URL ha sido alterado o es inválido.</p>
                   </div>";
             return; 
         }
 
-        // 2. OBTENER DATOS Y CATÁLOGOS
         $datos = $this->traerContenido($model);
         extract($datos);
 
@@ -50,44 +48,48 @@ class DispositivosFormController {
 
     private function traerContenido($model) {
         $dispositivo = null;
+        $servicios_asignados = [];
 
-        // Extraer redes: Disponibles (NULL o 0) o la que ya tiene asignada este dispositivo.
         $condicionRed = "id_disp IS NULL OR id_disp = 0";
         $paramsRed = [];
         if (!empty($this->id_disp)) {
             $condicionRed = "id_disp IS NULL OR id_disp = 0 OR id_disp = ?";
             $paramsRed = [$this->id_disp];
         }
+        
         $redes_disponibles = $model->seleccionaRegistros("infraestructura_red", ["id_red", "ip", "mac"], $condicionRed, $paramsRed);
         
-        // Extraer servicios disponibles en catálogo
-        $servicios = $model->seleccionaRegistros("servicios", ["id_serv", "nom"]);
+        // Catálogos para los dropdowns dinámicos
+        $servicios = $model->seleccionaRegistros("servicios", ["id_serv", "nom", "id_ver"]);
+        $versiones = $model->seleccionaRegistros("versiones", ["id_ver", "ver"]);
 
-        // MODO EDICIÓN
         if (!empty($this->id_disp)) {
             $joins = [
-                "LEFT JOIN infraestructura_red r ON d.id_disp = r.id_disp",
-                "LEFT JOIN servicios s ON d.id_serv = s.id_serv"
+                "LEFT JOIN infraestructura_red r ON d.id_disp = r.id_disp"
             ];
             $campos = [
-                "d.*", "r.id_red", "r.ip", "r.mac", "s.nom as nom_servicio"
+                "d.*", "r.id_red", "r.ip", "r.mac"
             ];
             
             $resultado = $model->seleccionaRegistrosJoin("dispositivos d", $joins, $campos, "d.id_disp = ?", [$this->id_disp]);
             
             if (!empty($resultado)) {
                 $dispositivo = $resultado[0];
+                // Extraer servicios instalados en el equipo
+                $servicios_asignados = $model->seleccionaRegistros("dispositivo_servicio", ["id_serv", "id_ver_instalada"], "id_disp = ?", [$this->id_disp]);
             } else {
                 die("<div class='alert alert-warning m-4 fw-bold'>El dispositivo no existe.</div>");
             }
         }
 
         return [
-            'redes_disponibles' => $redes_disponibles,
-            'servicios'         => $servicios,
-            'dispositivo'       => $dispositivo,
-            'id_sub_actual'     => $this->id_submod,
-            'id_disp'           => $this->id_disp
+            'redes_disponibles'   => $redes_disponibles,
+            'servicios'           => $servicios ?: [],
+            'versiones'           => $versiones ?: [],
+            'servicios_asignados' => $servicios_asignados ?: [],
+            'dispositivo'         => $dispositivo,
+            'id_sub_actual'       => $this->id_submod,
+            'id_disp'             => $this->id_disp
         ];
     }
 

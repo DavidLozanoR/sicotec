@@ -3,15 +3,23 @@ $id_disp = $id_disp ?? null;
 $dispositivo = $dispositivo ?? null;
 $redes_disponibles = $redes_disponibles ?? [];
 $servicios = $servicios ?? [];
+$versiones = $versiones ?? [];
+$servicios_asignados = $servicios_asignados ?? [];
 $id_sub_actual = $id_sub_actual ?? 1;
 
 $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
 ?>
 
+<script>
+    const catalogoServicios = <?php echo json_encode($servicios); ?>;
+    const catalogoVersiones = <?php echo json_encode($versiones); ?>;
+    const serviciosAsignadosIniciales = <?php echo json_encode($servicios_asignados); ?>;
+</script>
+
 <div class="container-fluid px-4 py-3">
     
     <div class="d-flex align-items-center mb-4 gap-3">
-        <a href="configuracion/" class="btn btn-light border shadow-sm rounded-circle d-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
+        <a href="dispositivos/" class="btn btn-light border shadow-sm rounded-circle d-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
             <i class="fas fa-arrow-left text-muted"></i>
         </a>
         <div>
@@ -49,7 +57,7 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                             
                             <button class="nav-link text-start px-3 py-3 fw-bold rounded-3 d-flex align-items-center" id="v-pills-asig-tab" data-bs-toggle="pill" data-bs-target="#v-pills-asig" type="button" role="tab" aria-selected="false">
                                 <div class="bg-light rounded-circle d-flex justify-content-center align-items-center me-3 icon-box" style="width: 35px; height: 35px;">
-                                    <i class="fas fa-user-tag"></i>
+                                    <i class="fas fa-cogs"></i>
                                 </div>
                                 Asignación y Servicios
                             </button>
@@ -65,9 +73,7 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                         <div class="tab-content" id="v-pills-tabContent">
                             
                             <div class="tab-pane fade show active" id="v-pills-hw" role="tabpanel" aria-labelledby="v-pills-hw-tab">
-                                <h5 class="fw-bold text-guinda mb-4 border-bottom border-secondary-subtle pb-3">
-                                    Características Físicas del Equipo
-                                </h5>
+                                <h5 class="fw-bold text-guinda mb-4 border-bottom border-secondary-subtle pb-3">Características Físicas del Equipo</h5>
                                 <div class="row g-4">
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold small text-dark mb-1">Marca *</label>
@@ -85,19 +91,15 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                                         <label class="form-label fw-bold small text-dark mb-1">Número de Inventario</label>
                                         <input type="text" class="form-control focus-guinda border-secondary-subtle font-monospace" name="num_inv" value="<?php echo htmlspecialchars($dispositivo['num_inv'] ?? ''); ?>" maxlength="100">
                                     </div>
-                                    
                                     <div class="col-12">
                                         <label class="form-label fw-bold small text-dark mb-1">Especificaciones de Hardware</label>
                                         <textarea class="form-control focus-guinda border-secondary-subtle" name="especs_hw" rows="4"><?php echo htmlspecialchars($dispositivo['especs_hw'] ?? ''); ?></textarea>
-                                        <div class="form-text small text-muted">Ej: Procesador, RAM, Almacenamiento.</div>
                                     </div>
                                 </div>
                             </div>
 
                             <div class="tab-pane fade" id="v-pills-net" role="tabpanel" aria-labelledby="v-pills-net-tab">
-                                <h5 class="fw-bold text-guinda mb-4 border-bottom border-secondary-subtle pb-3">
-                                    Configuración Lógica y de Red
-                                </h5>
+                                <h5 class="fw-bold text-guinda mb-4 border-bottom border-secondary-subtle pb-3">Configuración Lógica y de Red</h5>
                                 <div class="row g-4">
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold small text-dark mb-1">Hostname *</label>
@@ -107,7 +109,6 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                                         <label class="form-label fw-bold small text-dark mb-1">Dominio</label>
                                         <input type="text" class="form-control focus-guinda border-secondary-subtle" name="dom" value="<?php echo htmlspecialchars($dispositivo['dom'] ?? ''); ?>" maxlength="100">
                                     </div>
-                                    
                                     <div class="col-md-12">
                                         <label class="form-label fw-bold small text-dark mb-1">Asignación de IP y Red</label>
                                         <select class="form-select focus-guinda border-secondary-subtle font-monospace" name="id_red">
@@ -123,10 +124,8 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                             </div>
 
                             <div class="tab-pane fade" id="v-pills-asig" role="tabpanel" aria-labelledby="v-pills-asig-tab">
-                                <h5 class="fw-bold text-guinda mb-4 border-bottom border-secondary-subtle pb-3">
-                                    Asignación de Personal y Software
-                                </h5>
-                                <div class="row g-4">
+                                <h5 class="fw-bold text-guinda mb-4 border-bottom border-secondary-subtle pb-3">Asignación de Personal</h5>
+                                <div class="row g-4 mb-5">
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold small text-dark mb-1">ID PO Asignado (Uso Diario)</label>
                                         <input type="number" class="form-control focus-guinda border-secondary-subtle" name="asig_po_id" value="<?php echo htmlspecialchars($dispositivo['asig_po_id'] ?? ''); ?>">
@@ -135,20 +134,17 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                                         <label class="form-label fw-bold small text-dark mb-1">ID PO Responsable (Resguardo Legal)</label>
                                         <input type="number" class="form-control focus-guinda border-secondary-subtle" name="resp_po_id" value="<?php echo htmlspecialchars($dispositivo['resp_po_id'] ?? ''); ?>">
                                     </div>
-
-                                    <div class="col-md-12 mt-5">
-                                        <label class="form-label fw-bold small text-dark mb-1"><i class="fas fa-cogs text-guinda me-1"></i> Servicio Asociado</label>
-                                        <select class="form-select focus-guinda border-secondary-subtle" name="id_serv">
-                                            <option value="" selected>Ningún servicio asignado...</option>
-                                            <?php foreach($servicios as $serv): ?>
-                                                <option value="<?php echo $serv['id_serv']; ?>" <?php echo (isset($dispositivo) && $dispositivo['id_serv'] == $serv['id_serv']) ? 'selected' : ''; ?>>
-                                                    <?php echo htmlspecialchars($serv['nom']); ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                        <div class="form-text small text-muted">Seleccione el servicio o catálogo de software vinculado a este equipo.</div>
-                                    </div>
                                 </div>
+
+                                <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-secondary-subtle pb-2">
+                                    <h5 class="fw-bold text-guinda mb-0"><i class="fas fa-cogs me-2"></i>Servicios Instalados</h5>
+                                    <button type="button" class="btn btn-sm btn-outline-guinda fw-bold" id="btn-add-servicio">
+                                        <i class="fas fa-plus me-1"></i> Añadir Servicio
+                                    </button>
+                                </div>
+                                
+                                <div id="contenedor-servicios" class="d-flex flex-column gap-3">
+                                    </div>
                             </div>
 
                         </div>
@@ -156,10 +152,6 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                 </div>
 
                 <div class="d-flex justify-content-end gap-3 mt-2 mb-5">
-                    <a href="dispositivos/" class="btn btn-light border shadow-sm rounded-circle d-flex justify-content-center align-items-center" style="width: 40px; height: 40px;">
-                        <i class="fas fa-arrow-left text-muted"></i>
-                    </a>
-                    
                     <a href="dispositivos/" class="btn btn-outline-secondary px-4 fw-bold shadow-sm">Cancelar</a>
                     <button type="submit" class="btn btn-guinda px-4 fw-bold shadow-sm" id="btnGuardarDispositivo">
                         <i class="fas fa-save me-2"></i> Guardar Dispositivo
@@ -172,23 +164,10 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
 </div>
 
 <style>
-    .custom-pills-inea .nav-link {
-        color: #495057;
-        background-color: transparent;
-        border: 1px solid transparent;
-        transition: all 0.2s ease-in-out;
-    }
-    .custom-pills-inea .nav-link:hover {
-        background-color: #f8f9fa;
-        color: #9D2449;
-    }
-    .custom-pills-inea .nav-link.active {
-        color: #fff !important;
-        background-color: #9D2449 !important;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-    }
-    .custom-pills-inea .nav-link.active .icon-box {
-        background-color: rgba(255,255,255,0.2) !important;
-        color: #fff !important;
-    }
+    .custom-pills-inea .nav-link { color: #495057; background-color: transparent; border: 1px solid transparent; transition: all 0.2s ease-in-out; }
+    .custom-pills-inea .nav-link:hover { background-color: #f8f9fa; color: #9D2449; }
+    .custom-pills-inea .nav-link.active { color: #fff !important; background-color: #9D2449 !important; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+    .custom-pills-inea .nav-link.active .icon-box { background-color: rgba(255,255,255,0.2) !important; color: #fff !important; }
+    .btn-outline-guinda { color: #9D2449; border-color: #9D2449; }
+    .btn-outline-guinda:hover { color: #fff; background-color: #9D2449; }
 </style>
