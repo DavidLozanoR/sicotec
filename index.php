@@ -24,6 +24,7 @@
 	$accion = isset($peticion[1]) ? $peticion[1] : "";
 	$id_submod = isset($peticion[2]) ? $peticion[2] : "";
 	$id_usrop = isset($peticion[3]) ? $peticion[3] : "";
+	$id_disp = isset($peticion[3]) ? $peticion[3] : "";
 	 $id_user = $_SESSION["usuario"]["id_usuar"];
 	 $id_rol=$_SESSION["usuario"]["id_rol"]; //TODO: Verificar logica con requerimientos
 	 $nom_user = $_SESSION["usuario"]["nom_usuar"]; //TODO: verificar logia con requerimientos
@@ -52,7 +53,18 @@
 				require_once "_controller/PersonalOPFormController.php";
 				$ctrl = new PersonalOPFormController($slug,$id_submod,$id_usrop);//pasamos el Id del personal O y del submodulo Para saber en qué submodulo estamos
 			}
-		
+		break;
+		case "dispositivos":
+            if($accion == ""){
+                require_once "_controller/DispositivosController.php";
+                $ctrl = new DispositivosController($slug);
+            }
+            if ($accion == "formulario") {
+                require_once "_controller/DispositivosFormController.php";
+                // Ahora $id_disp sí existe y tiene el valor correcto
+                $ctrl = new DispositivosFormController($slug, $id_submod, $id_disp); 
+            }
+        break;
         default:
             
 		break;
