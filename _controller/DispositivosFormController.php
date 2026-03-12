@@ -61,7 +61,7 @@ class DispositivosFormController {
         
         // Catálogos para los dropdowns dinámicos
         $servicios = $model->seleccionaRegistros("servicios", ["id_serv", "nom", "id_ver"]);
-        $versiones = $model->seleccionaRegistros("versiones", ["id_ver", "ver"]);
+        $versiones = $model->seleccionaRegistros("versiones", ["id_ver", "ver", "id_serv"]);
 
         if (!empty($this->id_disp)) {
             $joins = [
