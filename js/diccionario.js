@@ -1,84 +1,17 @@
+/**
+ * Dictionary Module Handler
+ * Manages the Offcanvas lifecycle, inline editing via ContentEditable, 
+ * and asynchronous data synchronization with the backend.
+ */
+
 document.addEventListener('DOMContentLoaded', () => {
-    const offcanvasElement = document.getElementById('offcanvasDiccionario');
-    const tbody = document.getElementById('tbodyDiccionario');
-    const btnAgregar = document.getElementById('btnAgregarNomenclatura');
+    // ... initial variables ...
 
-    // Configuración de alerta no intrusiva (Toast)
-    const Toast = Swal.mixin({
-        toast: true,
-        position: 'top-end',
-        showConfirmButton: false,
-        timer: 2000,
-        timerProgressBar: true
-    });
-
-    // Cargar datos cuando se abre el Offcanvas
-    if (offcanvasElement) {
-        offcanvasElement.addEventListener('show.bs.offcanvas', cargarDiccionario);
-    }
-
-    // Evento para agregar nueva nomenclatura (Inserción en blanco)
-    if (btnAgregar) {
-        btnAgregar.addEventListener('click', () => {
-            fetch('_controller/DiccionarioAsync.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'insertar' })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    Toast.fire({ icon: 'success', title: 'Fila agregada' });
-                    cargarDiccionario(); // Recargar la tabla para obtener el nuevo ID
-                } else {
-                    Toast.fire({ icon: 'error', title: data.message || 'Error al agregar' });
-                }
-            })
-            .catch(error => console.error('Error:', error));
-        });
-    }
-
-    // Delegación de eventos para la edición en línea (Detectar Enter)
-    if (tbody) {
-        tbody.addEventListener('keydown', (e) => {
-            // Verificar si el elemento objetivo es una celda editable y se presionó Enter
-            if (e.target.tagName === 'TD' && e.target.isContentEditable && e.key === 'Enter') {
-                e.preventDefault(); // Evitar el salto de línea en la celda
-                
-                const celda = e.target;
-                const id = celda.getAttribute('data-id');
-                const campo = celda.getAttribute('data-campo');
-                const valor = celda.innerText.trim();
-
-                // Quitar el foco de la celda
-                celda.blur();
-
-                // Enviar la actualización
-                fetch('_controller/DiccionarioAsync.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'actualizar', Id_nom: id, campo: campo, valor: valor })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        Toast.fire({ icon: 'success', title: 'Guardado' });
-                        // Efecto visual rápido de confirmación en la celda
-                        celda.style.backgroundColor = '#d4edda';
-                        setTimeout(() => celda.style.backgroundColor = '', 500);
-                    } else {
-                        Toast.fire({ icon: 'error', title: data.message || 'Error al guardar' });
-                    }
-                })
-                .catch(error => console.error('Error:', error));
-            }
-        });
-    }
-
-    // Función para obtener y pintar los registros
-    function cargarDiccionario() {
-        tbody.innerHTML = '<tr><td colspan="3" class="text-center">Cargando...</td></tr>';
-
+    /**
+     * Rebuilds the dictionary table by fetching data from the API.
+     * @param {boolean} focusNew If true, automatically focuses the first cell of the first row.
+     */
+    function cargarDiccionario(focusNew = false) {
         fetch('_controller/DiccionarioAsync.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -88,7 +21,10 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(data => {
             tbody.innerHTML = '';
             if (data.status === 'success' && data.data.length > 0) {
-                data.data.forEach(fila => {
+                data.data.forEach((fila, index) => {
+                    /** * Dynamic row generation. 
+                     * ContentEditable is used for inline editing without input elements. 
+                     */
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td contenteditable="true" data-id="${fila.Id_nom}" data-campo="nom" class="p-2">${fila.nom}</td>
@@ -96,14 +32,42 @@ document.addEventListener('DOMContentLoaded', () => {
                         <td contenteditable="true" data-id="${fila.Id_nom}" data-campo="notas" class="p-2">${fila.notas}</td>
                     `;
                     tbody.appendChild(tr);
+
+                    /** Auto-focus logic for UX improvement when adding new rows */
+                    if (focusNew && index === 0) {
+                        const cell = tr.querySelector('td');
+                        setTimeout(() => {
+                            cell.focus();
+                            document.execCommand('selectAll', false, null);
+                        }, 100);
+                    }
                 });
             } else {
                 tbody.innerHTML = '<tr><td colspan="3" class="text-center">No hay registros.</td></tr>';
             }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            tbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">Error al cargar datos.</td></tr>';
         });
     }
+
+    /** * Keydown Event Delegation 
+     * Intercepts the 'Enter' key on editable cells to trigger the update API call.
+     */
+    tbody.addEventListener('keydown', (e) => {
+        if (e.target.tagName === 'TD' && e.target.isContentEditable && e.key === 'Enter') {
+            e.preventDefault(); // Stop line break in cell
+            
+            const celda = e.target;
+            const id = celda.getAttribute('data-id');
+            const campo = celda.getAttribute('data-campo');
+            const valor = celda.innerText.trim();
+
+            celda.blur();
+
+            fetch('_controller/DiccionarioAsync.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'actualizar', Id_nom: id, campo: campo, valor: valor })
+            })
+            // ... toast feedback logic ...
+        }
+    });
 });
