@@ -238,6 +238,37 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
         </div>
     </form>
 </div>
+<!-- modal para consultar servicios -->
+<div class="modal fade" id="modalCatalogoServicios" tabindex="-1" aria-labelledby="modalCatalogoLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow-lg">
+            <div class="modal-header text-white" style="background-color: #9D2449;">
+                <h5 class="modal-title fw-bold" id="modalCatalogoLabel">
+                    <i class="fas fa-list me-2"></i> Catálogo Oficial de Servicios
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light sticky-top">
+                            <tr>
+                                <th class="ps-4">Servicio / Software</th>
+                                <th>Versión Oficial (Actual)</th>
+                                <th>Otras Versiones Históricas</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody-catalogo-servicios">
+                            </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer bg-light border-top-0">
+                <button type="button" class="btn btn-secondary px-4 fw-bold shadow-sm" data-bs-dismiss="modal">Cerrar Catálogo</button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <style>
     .custom-pills-inea .nav-link { color: #495057; background-color: transparent; border: 1px solid transparent; transition: all 0.2s ease-in-out; }
