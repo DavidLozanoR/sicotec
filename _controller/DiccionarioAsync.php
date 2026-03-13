@@ -17,9 +17,9 @@ $modelo = new MainModel();
 
 switch ($action) {
     case 'leer':
-        $datos = $modelo->seleccionaRegistros('Diccionario_Nomenclaturas', ['Id_nom', 'nom', 'signif', 'notas']);
-        echo json_encode(['status' => 'success', 'data' => $datos]);
-        break;
+    $datos = $modelo->seleccionaRegistros('Diccionario_Nomenclaturas', ['Id_nom', 'nom', 'signif', 'notas'], '1=1 ORDER BY Id_nom DESC');
+    echo json_encode(['status' => 'success', 'data' => $datos]);
+    break;
 
     case 'insertar':
         // Insertar valores por defecto (Opción A solicitada)

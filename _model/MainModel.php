@@ -91,4 +91,51 @@ class MainModel {
         
         return false;
     }
+    /**
+ * Executes an INSERT operation and automatically logs the action in the Bitacora.
+ * * @param string $tabla The target table name.
+ * @param array|string $campos Columns to be populated.
+ * @param array $params Values to insert (mapped to placeholders).
+ * @param int $id_sub Submodule ID for permission/audit tracking.
+ * @param string $detalle Human-readable description for the audit log.
+ * @return int|bool Returns the newly generated Primary Key ID, or false on failure.
+ */
+public function agregaRegistroConBitacora($tabla, $campos, $params, $id_sub, $detalle) {
+    $id_generado = $this->bd->insertRow($tabla, $campos, $params);
+    if ($id_generado > 0) {
+        $this->registrarBitacora($id_sub, 'INSERT', "$detalle (ID Asignado: $id_generado)");
+        return $id_generado;
+    }
+    return false;
+}
+
+/**
+ * Executes an UPDATE operation and automatically logs the action in the Bitacora.
+ * * @param string $tabla The target table name.
+ * @param string $campos The SET clause (e.g., "column = ?").
+ * @param string $condicion The WHERE clause (e.g., "id = ?").
+ * @param array $params Ordered array of values for the SET and WHERE clauses.
+ * @param int $id_sub Submodule ID for permission/audit tracking.
+ * @param string $detalle Human-readable description for the audit log.
+ * @return bool True if the record was updated successfully.
+ */
+public function actualizaRegistroConBitacora($tabla, $campos, $condicion, $params, $id_sub, $detalle) {
+    $exito = $this->bd->updateRow($tabla, $campos, $condicion, $params);
+    if ($exito) {
+        $this->registrarBitacora($id_sub, 'UPDATE', $detalle);
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Dynamically resolves a submodule primary key using its unique slug.
+ * Used to avoid hardcoding IDs in controllers.
+ * * @param string $slug The unique identifier defined in the 'submodulos' table.
+ * @return int|null The id_sub or null if not found.
+ */
+public function obtenerIdSubmoduloPorSlug($slug) {
+    $res = $this->seleccionaRegistros("Submodulos", ["id_sub"], "slug = ?", [$slug]);
+    return ($res && count($res) > 0) ? $res[0]['id_sub'] : null;
+}
 }
