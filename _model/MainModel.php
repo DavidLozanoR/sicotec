@@ -1,141 +1,154 @@
 <?php
 require_once __DIR__ . "/../config/Global.php";
 require_once "MariaDBAux.php";
+
+/**
+ * MainModel Class
+ * Centralizes database operations and integrates the automated Audit Log (Bitacora) system.
+ */
 class MainModel {
     private $bd;
+
     public function __construct() {
-        // Se instancia una sola vez para ser reutilizada en todos los métodos
+        /** Initialize the database abstraction layer once per instance */
         $this->bd = new MariaDBAux(DB_HOST, DB_PORT, DB_BASE, DB_USR, DB_PASS);
     }
-    
+
+    /* ==========================================================================
+       CORE DATABASE METHODS
+       ========================================================================== */
+
     public function seleccionaRegistros($tabla, $campos, $condicion = null, $params = null) {
         return $this->bd->selectRows($tabla, $campos, $condicion, $params);
     }
-    
-    public function agregaRegistro($tabla, $campos, $params) {
-        // Devuelve true si el ID generado es mayor a 0
-        return $this->bd->insertRow($tabla, $campos, $params) > 0;
-    }
-    public function actualizaRegistro($tabla, $campos, $condicion, $params) {
-        return $this->bd->updateRow($tabla, $campos, $condicion, $params);
-    }
-    
+
     public function seleccionaRegistrosJoin($tablaPrincipal, $joins, $campos, $condicion = null, $params = null) {
         return $this->bd->selectJoin($tablaPrincipal, $joins, $campos, $condicion, $params);
     }
-    public function borraRegistro($tabla, $condicion, $params) {
-		return $this->bd->deleteRow($tabla, $condicion, $params);
-	}
 
-    // FUNCIÓN PARA REGISTRAR ACCIONES EN LA BITÁCORA
+    public function agregaRegistro($tabla, $campos, $params) {
+        return $this->bd->insertRow($tabla, $campos, $params) > 0;
+    }
+
+    public function actualizaRegistro($tabla, $campos, $condicion, $params) {
+        return $this->bd->updateRow($tabla, $campos, $condicion, $params);
+    }
+
+    public function borraRegistro($tabla, $condicion, $params) {
+        return $this->bd->deleteRow($tabla, $condicion, $params);
+    }
+
+    /* ==========================================================================
+       AUDIT LOG (BITACORA) INTEGRATION
+       ========================================================================== */
+
     /**
-     * @param int $id_sub El ID del submódulo donde ocurre la acción (Obligatorio).
-     * @param string $accion El tipo de acción ('INSERT', 'UPDATE', 'DELETE', 'REACTIVATE').
-     * @param string $detalle Descripción detallada de los datos afectados.
-     * @return bool|string Devuelve true en caso de éxito, o un string con el mensaje de error.
+     * Registers a system action in the Bitacora table.
+     * @param int $id_sub The submodule ID where the action occurred.
+     * @param string $accion The operation type ('INSERT', 'UPDATE', 'DELETE', etc.).
+     * @param string $detalle Specific description of the change.
+     * @return bool|string True on success, or a detailed error message.
      */
     public function registrarBitacora($id_sub, $accion, $detalle) {
-        // Obtenemos el ID del usuario actual de la sesión
         $id_usuar = $_SESSION['usuario']['id_usuar'] ?? null;
 
-        // Validamos que exista una sesión activa y que se haya especificado el submódulo
         if (!$id_usuar || empty($id_sub)) {
-            return "ATENCIÓN: Hubo un error de sesión y no pudo guardarse en la Bitácora. Por favor, contacte al Administrador del sistema.";
+            return "ATENCIÓN: Error de sesión. La acción no pudo ser registrada en Bitácora.";
         }
 
-        // Generamos la fecha y hora desde PHP
-        date_default_timezone_set('America/Mexico_City'); // Aseguramos la zona horaria correcta
+        date_default_timezone_set('America/Mexico_City');
         $fecha = date('Y-m-d');
         $hora = date('H:i:s');
         
         try {
-            // Utilizamos tu propio método agregaRegistro
             $exito = $this->agregaRegistro(
                 "Bitacora", 
                 ["id_usuar", "id_sub", "accion", "detalle", "fecha", "hora"], 
                 [$id_usuar, $id_sub, $accion, $detalle, $fecha, $hora]
             );
-            
-            if ($exito) {
-                return true; // Se guardó correctamente
-            } else {
-                return "ATENCIÓN: La acción principal se completó, pero el sistema falló al intentar registrarla en la Bitácora. Por favor, contacte al Administrador del sistema.";
-            }
+            return $exito ?: "ATENCIÓN: Fallo al registrar entrada en Bitácora.";
         } catch (Exception $e) {
-            // Capturamos la excepción y enviamos la alerta
-            return "ATENCIÓN: Ocurrió un fallo en la base de datos al guardar la auditoría. Por favor, contacte al Administrador del sistema."; 
+            return "ATENCIÓN: Excepción de base de datos durante el registro de auditoría."; 
         }
     }
 
- /**
-     * Inserts a record, retrieves its auto-generated ID, and logs the action in Bitacora.
-     * Designed for parent-child inserts where the parent ID is required immediately 
-     * for related tables (e.g., creating a device, then needing its ID for services).
-     *  @param string $tabla Target table.
-     * @param string|array $campos Columns to insert.
-     * @param array $params Values mapped to columns (prevents SQL injection).
-     * @param int $id_sub Module ID for audit logging.
-     * @param string $detalle Base description for the audit log.
-     * @return int|bool Returns the new ID on success, or false on failure.
+    /**
+     * Wraps an INSERT operation with automatic Bitacora logging.
+     * @param string $tabla Target table.
+     * @param array|string $campos Columns to populate.
+     * @param array $params Values for the insertion.
+     * @param int $id_sub Submodule ID for audit association.
+     * @param string $detalle Human-readable log description.
+     * @return int|bool The new Primary Key ID on success, false otherwise.
      */
-    public function agregaRegistroYBitacora($tabla, $campos, $params, $id_sub, $detalle) {
-        // Execute insert and grab the auto-increment ID directly from the DB layer
-        $id_generado = $this->bd->insertRow($tabla, $campos, $params);
+    public function agregaRegistroConBitacora($tabla, $campos, $params, $id_sub, $detalle) {
+        $camposArray = is_string($campos) ? explode(',', $campos) : $campos;
+        // Clean spaces if it was a string like 'nom, signif'
+        $camposArray = array_map('trim', $camposArray);
+
+        $id_generado = $this->bd->insertRow($tabla, $camposArray, $params);
         
-        // If successful, register the action automatically
         if ($id_generado > 0) {
-            $detalleCompleto = $detalle . " (Assigned ID: " . $id_generado . ")";
-            $this->registrarBitacora($id_sub, 'INSERT', $detalleCompleto);
+            $this->registrarBitacora($id_sub, 'INSERT', "$detalle (ID Asignado: $id_generado)");
             return $id_generado;
         }
-        
         return false;
     }
+
     /**
- * Executes an INSERT operation and automatically logs the action in the Bitacora.
- * * @param string $tabla The target table name.
- * @param array|string $campos Columns to be populated.
- * @param array $params Values to insert (mapped to placeholders).
- * @param int $id_sub Submodule ID for permission/audit tracking.
- * @param string $detalle Human-readable description for the audit log.
- * @return int|bool Returns the newly generated Primary Key ID, or false on failure.
- */
-public function agregaRegistroConBitacora($tabla, $campos, $params, $id_sub, $detalle) {
-    $id_generado = $this->bd->insertRow($tabla, $campos, $params);
-    if ($id_generado > 0) {
-        $this->registrarBitacora($id_sub, 'INSERT', "$detalle (ID Asignado: $id_generado)");
-        return $id_generado;
-    }
-    return false;
-}
+     * Wraps an UPDATE operation with automatic Bitacora logging.
+     * @param string $tabla Target table.
+     * @param array|string $campos The column names to update.
+     * @param string $condicion The WHERE clause (e.g., "id = ?").
+     * @param array $params Values for SET and WHERE clauses.
+     * @param int $id_sub Submodule ID for audit association.
+     * @param string $detalle Human-readable log description.
+     * @return bool True if update was successful.
+     */
+    public function actualizaRegistroConBitacora($tabla, $campos, $condicion, $params, $id_sub, $detalle) {
+        // FIX: Ensure $campos is an array for MariaDBAux->updateRow compatibility
+        $camposArray = is_string($campos) ? explode(',', $campos) : $campos;
+        $camposArray = array_map('trim', $camposArray);
 
-/**
- * Executes an UPDATE operation and automatically logs the action in the Bitacora.
- * * @param string $tabla The target table name.
- * @param string $campos The SET clause (e.g., "column = ?").
- * @param string $condicion The WHERE clause (e.g., "id = ?").
- * @param array $params Ordered array of values for the SET and WHERE clauses.
- * @param int $id_sub Submodule ID for permission/audit tracking.
- * @param string $detalle Human-readable description for the audit log.
- * @return bool True if the record was updated successfully.
- */
-public function actualizaRegistroConBitacora($tabla, $campos, $condicion, $params, $id_sub, $detalle) {
-    $exito = $this->bd->updateRow($tabla, $campos, $condicion, $params);
-    if ($exito) {
-        $this->registrarBitacora($id_sub, 'UPDATE', $detalle);
-        return true;
+        $exito = $this->bd->updateRow($tabla, $camposArray, $condicion, $params);
+        
+        if ($exito) {
+            $this->registrarBitacora($id_sub, 'UPDATE', $detalle);
+            return true;
+        }
+        return false;
     }
-    return false;
-}
 
-/**
- * Dynamically resolves a submodule primary key using its unique slug.
- * Used to avoid hardcoding IDs in controllers.
- * * @param string $slug The unique identifier defined in the 'submodulos' table.
- * @return int|null The id_sub or null if not found.
- */
-public function obtenerIdSubmoduloPorSlug($slug) {
-    $res = $this->seleccionaRegistros("Submodulos", ["id_sub"], "slug = ?", [$slug]);
-    return ($res && count($res) > 0) ? $res[0]['id_sub'] : null;
-}
+    /**
+     * Wraps a DELETE operation with automatic Bitacora logging.
+     * @param string $tabla Target table.
+     * @param string $condicion The WHERE clause.
+     * @param array $params Values for the WHERE clause.
+     * @param int $id_sub Submodule ID for audit association.
+     * @param string $detalle Human-readable log description.
+     * @return bool True if deletion was successful.
+     */
+    public function borraRegistroConBitacora($tabla, $condicion, $params, $id_sub, $detalle) {
+        $exito = $this->bd->deleteRow($tabla, $condicion, $params);
+        if ($exito) {
+            $this->registrarBitacora($id_sub, 'DELETE', $detalle);
+            return true;
+        }
+        return false;
+    }
+
+    /* ==========================================================================
+       UTILITY METHODS
+       ========================================================================== */
+
+    /**
+     * Resolves a submodule primary key by its unique slug identifier.
+     * Avoids hardcoding IDs in controllers to maintain system portability.
+     * @param string $slug Unique slug defined in the 'Submodulos' table.
+     * @return int|null The id_sub if found, otherwise null.
+     */
+    public function obtenerIdSubmoduloPorSlug($slug) {
+        $res = $this->seleccionaRegistros("Submodulos", ["id_sub"], "slug = ?", [$slug]);
+        return ($res && count($res) > 0) ? (int)$res[0]['id_sub'] : null;
+    }
 }

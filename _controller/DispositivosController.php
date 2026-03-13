@@ -52,8 +52,8 @@ class DispositivosController {
             "d.modelo", 
             "d.num_ser", 
             "d.num_inv",
-            "r.ip", 
-            "r.mac",
+            "d.mac",
+            "r.ip",
             "TRIM(CONCAT(po.nombres, ' ', po.ape_pa, ' ', COALESCE(po.ape_ma, ''))) AS responsable"
         ];
         
