@@ -3,10 +3,19 @@ $id_disp = $id_disp ?? null;
 $dispositivo = $dispositivo ?? null;
 $redes_disponibles = $redes_disponibles ?? [];
 $personal_operativo = $personal_operativo ?? [];
+$servicios = $servicios ?? [];
+$versiones = $versiones ?? [];
+$servicios_asignados = $servicios_asignados ?? [];
 $id_sub_actual = $id_sub_actual ?? 1;
 
 $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
 ?>
+
+<script>
+    const catalogoServicios = <?php echo json_encode($servicios); ?>;
+    const catalogoVersiones = <?php echo json_encode($versiones); ?>;
+    const serviciosAsignadosIniciales = <?php echo json_encode($servicios_asignados); ?>;
+</script>
 
 <div class="container-fluid px-4 py-3">
     
@@ -47,11 +56,18 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                                 Red y Conexión
                             </button>
                             
-                            <button class="nav-link text-start px-3 py-3 fw-bold rounded-3 d-flex align-items-center" id="v-pills-asig-tab" data-bs-toggle="pill" data-bs-target="#v-pills-asig" type="button" role="tab" aria-selected="false">
+                            <button class="nav-link text-start px-3 py-3 fw-bold mb-1 rounded-3 d-flex align-items-center" id="v-pills-asig-tab" data-bs-toggle="pill" data-bs-target="#v-pills-asig" type="button" role="tab" aria-selected="false">
                                 <div class="bg-light rounded-circle d-flex justify-content-center align-items-center me-3 icon-box" style="width: 35px; height: 35px;">
                                     <i class="fas fa-user-tie"></i>
                                 </div>
                                 Asignación de Personal
+                            </button>
+
+                            <button class="nav-link text-start px-3 py-3 fw-bold rounded-3 d-flex align-items-center" id="v-pills-serv-tab" data-bs-toggle="pill" data-bs-target="#v-pills-serv" type="button" role="tab" aria-selected="false">
+                                <div class="bg-light rounded-circle d-flex justify-content-center align-items-center me-3 icon-box" style="width: 35px; height: 35px;">
+                                    <i class="fas fa-cogs"></i>
+                                </div>
+                                Servicios Instalados
                             </button>
 
                         </div>
@@ -117,7 +133,7 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
 
                             <div class="tab-pane fade" id="v-pills-asig" role="tabpanel" aria-labelledby="v-pills-asig-tab">
                                 <h5 class="fw-bold text-guinda mb-4 border-bottom border-secondary-subtle pb-3">Asignación de Personal Operativo</h5>
-                                <div class="row g-4 mb-5">
+                                <div class="row g-4">
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold small text-dark mb-1">Personal Asignado (Uso Diario)</label>
                                         <select class="form-select focus-guinda border-secondary-subtle" name="asig_po_id">
@@ -140,6 +156,70 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                                             <?php endforeach; ?>
                                         </select>
                                     </div>
+                                </div>
+                            </div>
+
+                            <div class="tab-pane fade" id="v-pills-serv" role="tabpanel" aria-labelledby="v-pills-serv-tab">
+                                <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-secondary-subtle pb-2">
+                                    <h5 class="fw-bold text-guinda mb-0"><i class="fas fa-cogs me-2"></i>Servicios Instalados</h5>
+                                    <div>
+                                        <button type="button" class="btn btn-sm btn-outline-secondary fw-bold me-2" id="btn-gestionar-catalogo">
+                                            <i class="fas fa-list me-1"></i> Catálogo
+                                        </button>
+                                        <button type="button" class="btn btn-sm btn-outline-guinda fw-bold" id="btn-add-servicio">
+                                            <i class="fas fa-plus me-1"></i> Añadir Servicio
+                                        </button>
+                                    </div>
+                                </div>
+
+                                <div class="alert alert-light border border-info border-start border-5 shadow-sm d-flex align-items-center py-2 mb-4">
+                                    <i class="fas fa-info-circle text-info fa-lg me-3"></i>
+                                    <small class="text-muted">Marque los servicios instalados en el equipo. Si un servicio aparece resaltado en <strong class="text-danger">rojo</strong>, indica que la versión instalada está obsoleta respecto al catálogo oficial.</small>
+                                </div>
+
+                                <div id="contenedor-servicios" class="list-group shadow-sm border-secondary-subtle mb-3">
+                                    <?php if (!empty($servicios_asignados)): ?>
+                                        <?php foreach ($servicios_asignados as $sa): 
+                                            $es_obsoleto = ($sa['id_ver_instalada'] != $sa['id_ver_oficial']);
+                                            $clase_bg = $es_obsoleto ? 'bg-danger bg-opacity-10 border-danger border-opacity-50' : 'bg-white';
+                                            $clase_texto = $es_obsoleto ? 'text-danger' : 'text-dark';
+                                        ?>
+                                            <label class="list-group-item d-flex justify-content-between align-items-center py-3 list-group-item-action <?php echo $clase_bg; ?>">
+                                                <div class="d-flex align-items-start gap-3">
+                                                    <input type="hidden" name="servicios_instalados[]" value="<?php echo $sa['id_serv']; ?>">
+                                                    <input type="hidden" name="versiones_instaladas[<?php echo $sa['id_serv']; ?>]" value="<?php echo $sa['id_ver_instalada']; ?>">
+                                                    <div>
+                                                        <h6 class="mb-0 fw-bold <?php echo $clase_texto; ?>">
+                                                            <?php if($es_obsoleto): ?><i class="fas fa-exclamation-triangle me-1"></i><?php endif; ?>
+                                                            <?php echo htmlspecialchars($sa['nombre_servicio']); ?>
+                                                        </h6>
+                                                        <small class="<?php echo $es_obsoleto ? 'text-danger' : 'text-muted'; ?> d-block mt-1">
+                                                            Instalado: <strong><?php echo htmlspecialchars($sa['version_instalada']); ?></strong>
+                                                        </small>
+                                                    </div>
+                                                </div>
+                                                <div class="text-end d-flex align-items-center gap-2">
+                                                    <?php if ($es_obsoleto): ?>
+                                                        <span class="badge bg-danger text-white rounded-pill px-3 py-1 shadow-sm me-2">Obsoleto</span>
+                                                        <button type="button" class="btn btn-sm btn-outline-danger btn-actualizar-serv" data-id-serv="<?php echo $sa['id_serv']; ?>" title="Actualizar a versión oficial">
+                                                            <i class="fas fa-sync-alt me-1"></i> Actualizar
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-3 py-2 shadow-sm me-2">
+                                                            <i class="fas fa-check-circle me-1"></i> Al día
+                                                        </span>
+                                                    <?php endif; ?>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-quitar-serv" data-id-serv="<?php echo $sa['id_serv']; ?>" title="Desinstalar servicio">
+                                                        <i class="fas fa-trash-alt"></i>
+                                                    </button>
+                                                </div>
+                                            </label>
+                                        <?php endforeach; ?>
+                                    <?php else: ?>
+                                        <div class="p-4 text-center text-muted" id="mensaje-sin-servicios">
+                                            No hay servicios registrados en este equipo.
+                                        </div>
+                                    <?php endif; ?>
                                 </div>
                             </div>
 
