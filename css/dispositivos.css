@@ -1,0 +1,108 @@
+/* ==========================================
+   MOBILE RESPONSIVENESS (PHONES & TABLETS)
+   ========================================== */
+@media (max-width: 767.98px) {
+    /* 1. Stack the header: Search, Titles, and Button */
+    #main-dispositivos-container .d-flex.justify-content-between.align-items-center.mb-4 {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 1.25rem;
+    }
+
+    #main-dispositivos-container .input-group {
+        max-width: 100% !important;
+        width: 100%;
+    }
+
+    #main-dispositivos-container .d-flex.justify-content-between > div:nth-child(2) {
+        text-align: center;
+    }
+
+    #main-dispositivos-container .d-flex.justify-content-between > a.btn-guinda {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+    }
+
+    /* 2. Transform the table into Cards */
+    #main-dispositivos-container .table-responsive {
+        border: none;
+        overflow-x: hidden;
+        padding-bottom: 1rem;
+    }
+
+    /* Hide the table header */
+    #main-dispositivos-container .table thead {
+        display: none;
+    }
+
+    /* Convert each row into a card block */
+    #main-dispositivos-container .table tbody tr {
+        display: block;
+        background-color: #ffffff;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075);
+        padding: 0.5rem;
+    }
+
+    /* Flexbox cells with wrap-prevention overrides */
+    #main-dispositivos-container .table tbody td {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start; /* Aligns to top if text wraps to multiple lines */
+        border-bottom: 1px solid #f8f9fa;
+        padding: 0.75rem 0.5rem;
+        text-align: right;
+        gap: 1rem; /* Safe space between label and value */
+        
+        /* RULES TO PREVENT CUT-OFF TEXT: */
+        white-space: normal !important; 
+        word-break: break-word; 
+        overflow-wrap: break-word;
+    }
+
+    /* Center and clean up the Actions cell */
+    #main-dispositivos-container .table tbody td:last-child {
+        border-bottom: none;
+        justify-content: center;
+        padding-top: 1rem;
+    }
+
+    /* 3. Inject column headers via pseudo-elements */
+    #main-dispositivos-container .table tbody td::before {
+        font-weight: 600;
+        color: #6c757d;
+        text-align: left;
+        flex-shrink: 0;
+        max-width: 40%; /* Prevents the label from pushing the value off-screen */
+    }
+
+    /* Map columns to labels */
+    #main-dispositivos-container .table tbody td:nth-child(1)::before { content: "Hostname"; }
+    #main-dispositivos-container .table tbody td:nth-child(2)::before { content: "Marca / Modelo"; }
+    #main-dispositivos-container .table tbody td:nth-child(3)::before { content: "No. Serie"; }
+    #main-dispositivos-container .table tbody td:nth-child(4)::before { content: "No. Inventario"; }
+    #main-dispositivos-container .table tbody td:nth-child(5)::before { content: "Red (IP/MAC)"; }
+    #main-dispositivos-container .table tbody td:nth-child(6)::before { content: "Responsable"; }
+    
+    /* 4. Empty state correction (No records found) */
+    #main-dispositivos-container .table tbody td[colspan="7"] {
+        display: block;
+        text-align: center;
+    }
+    
+    #main-dispositivos-container .table tbody td[colspan="7"]::before {
+        display: none;
+    }
+    /* Hide the MAC address element */
+    #main-dispositivos-container .table tbody td:nth-child(5) small {
+        display: none !important;
+    }
+
+    /* Update the column label to reflect the hidden MAC address */
+    #main-dispositivos-container .table tbody td:nth-child(5)::before { 
+        content: "Red (IP)"; 
+    }
+}

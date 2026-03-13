@@ -1,0 +1,45 @@
+.custom-pills-inea .nav-link { color: #495057; background-color: transparent; border: 1px solid transparent; transition: all 0.2s ease-in-out; }
+.custom-pills-inea .nav-link:hover { background-color: #f8f9fa; color: #9D2449; }
+.custom-pills-inea .nav-link.active { color: #fff !important; background-color: #9D2449 !important; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+.custom-pills-inea .nav-link.active .icon-box { background-color: rgba(255,255,255,0.2) !important; color: #fff !important; }
+.btn-outline-guinda { color: #9D2449; border-color: #9D2449; }
+.btn-outline-guinda:hover { color: #fff; background-color: #9D2449; }
+
+/* ==========================================
+    MOBILE RESPONSIVENESS (PHONES & TABLETS)
+    ========================================== */
+@media (max-width: 767.98px) {
+    /* Transform vertical sidebar into a horizontal, swipeable menu */
+    .custom-pills-inea {
+        flex-direction: row !important;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding-bottom: 5px; 
+        -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+    }
+    
+    .custom-pills-inea .nav-link {
+        white-space: nowrap;
+        margin-bottom: 0 !important;
+        margin-right: 0.5rem;
+        flex: 0 0 auto;
+    }
+
+    /* Disable sticky-top on mobile to recover vertical screen space */
+    .sticky-top {
+        position: static !important;
+    }
+
+    /* Fix the top header spacing for smaller screens */
+    .container-fluid .d-flex.align-items-center.mb-4.gap-3 {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 1rem !important;
+    }
+    
+    /* Ensure the back button stays aligned correctly when stacked */
+    .container-fluid .d-flex.align-items-center.mb-4.gap-3 > a {
+        align-self: flex-start;
+    }
+}

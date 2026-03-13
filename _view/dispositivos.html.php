@@ -1,3 +1,5 @@
+<link rel="stylesheet" href="css/dispositivos.css">
+
 <div class="container-fluid px-4 py-3" id="main-dispositivos-container" data-id-sub="<?php echo $id_sub_actual ?? ''; ?>">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div class="input-group" style="max-width: 400px;">

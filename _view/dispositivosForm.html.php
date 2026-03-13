@@ -1,3 +1,4 @@
+<link rel="stylesheet" href="css/dispositivosForm.css">
 <?php
 $id_disp = $id_disp ?? null;
 $dispositivo = $dispositivo ?? null;
@@ -269,12 +270,3 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
         </div>
     </div>
 </div>
-
-<style>
-    .custom-pills-inea .nav-link { color: #495057; background-color: transparent; border: 1px solid transparent; transition: all 0.2s ease-in-out; }
-    .custom-pills-inea .nav-link:hover { background-color: #f8f9fa; color: #9D2449; }
-    .custom-pills-inea .nav-link.active { color: #fff !important; background-color: #9D2449 !important; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
-    .custom-pills-inea .nav-link.active .icon-box { background-color: rgba(255,255,255,0.2) !important; color: #fff !important; }
-    .btn-outline-guinda { color: #9D2449; border-color: #9D2449; }
-    .btn-outline-guinda:hover { color: #fff; background-color: #9D2449; }
-</style>
