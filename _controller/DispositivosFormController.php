@@ -19,9 +19,9 @@ class DispositivosFormController {
             die("Error: Su sesión ha expirado o no tiene acceso a este módulo");
         }
 
-        $this->id_disp = $id;
-        $this->id_submod = $id_submod;
         $this->slug = $slug;
+        $this->id_submod = $id_submod;
+        $this->id_disp = $id;
     }
 
     public function renderContent() {
@@ -29,7 +29,7 @@ class DispositivosFormController {
 
         $url_buscar = $this->slug; 
         
-        $consultaSub = $model->seleccionaRegistros("Submodulos", ["id_sub"], "slug = ?", [$url_buscar]);
+        $consultaSub = $model->seleccionaRegistros("submodulos", ["id_sub"], "slug = ?", [$url_buscar]);
         $id_sub_real = (!empty($consultaSub)) ? $consultaSub[0]['id_sub'] : null;
 
         if (!$id_sub_real || $this->id_submod != $id_sub_real) {
@@ -59,9 +59,9 @@ class DispositivosFormController {
         
         $redes_disponibles = $model->seleccionaRegistros("infraestructura_red", ["id_red", "ip", "mac"], $condicionRed, $paramsRed);
         
-        // Catálogos para los dropdowns dinámicos
-        $servicios = $model->seleccionaRegistros("servicios", ["id_serv", "nom", "id_ver"]);
-        $versiones = $model->seleccionaRegistros("versiones", ["id_ver", "ver", "id_serv"]);
+        // Consultar personal operativo para los dropdowns
+        $campos_po = ["id_po", "TRIM(CONCAT(nombres, ' ', ape_pa, ' ', COALESCE(ape_ma, ''))) AS nombre_completo"];
+        $personal_operativo = $model->seleccionaRegistros("personal_operativo", $campos_po, "1=1 ORDER BY nombres ASC");
 
         if (!empty($this->id_disp)) {
             $joins = [
@@ -75,8 +75,6 @@ class DispositivosFormController {
             
             if (!empty($resultado)) {
                 $dispositivo = $resultado[0];
-                // Extraer servicios instalados en el equipo
-                $servicios_asignados = $model->seleccionaRegistros("dispositivo_servicio", ["id_serv", "id_ver_instalada"], "id_disp = ?", [$this->id_disp]);
             } else {
                 die("<div class='alert alert-warning m-4 fw-bold'>El dispositivo no existe.</div>");
             }
@@ -84,9 +82,7 @@ class DispositivosFormController {
 
         return [
             'redes_disponibles'   => $redes_disponibles,
-            'servicios'           => $servicios ?: [],
-            'versiones'           => $versiones ?: [],
-            'servicios_asignados' => $servicios_asignados ?: [],
+            'personal_operativo'  => $personal_operativo ?: [],
             'dispositivo'         => $dispositivo,
             'id_sub_actual'       => $this->id_submod,
             'id_disp'             => $this->id_disp

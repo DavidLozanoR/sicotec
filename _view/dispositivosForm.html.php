@@ -2,19 +2,11 @@
 $id_disp = $id_disp ?? null;
 $dispositivo = $dispositivo ?? null;
 $redes_disponibles = $redes_disponibles ?? [];
-$servicios = $servicios ?? [];
-$versiones = $versiones ?? [];
-$servicios_asignados = $servicios_asignados ?? [];
+$personal_operativo = $personal_operativo ?? [];
 $id_sub_actual = $id_sub_actual ?? 1;
 
 $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
 ?>
-
-<script>
-    const catalogoServicios = <?php echo json_encode($servicios); ?>;
-    const catalogoVersiones = <?php echo json_encode($versiones); ?>;
-    const serviciosAsignadosIniciales = <?php echo json_encode($servicios_asignados); ?>;
-</script>
 
 <div class="container-fluid px-4 py-3">
     
@@ -57,9 +49,9 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                             
                             <button class="nav-link text-start px-3 py-3 fw-bold rounded-3 d-flex align-items-center" id="v-pills-asig-tab" data-bs-toggle="pill" data-bs-target="#v-pills-asig" type="button" role="tab" aria-selected="false">
                                 <div class="bg-light rounded-circle d-flex justify-content-center align-items-center me-3 icon-box" style="width: 35px; height: 35px;">
-                                    <i class="fas fa-cogs"></i>
+                                    <i class="fas fa-user-tie"></i>
                                 </div>
-                                Asignación y Servicios
+                                Asignación de Personal
                             </button>
 
                         </div>
@@ -124,27 +116,31 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                             </div>
 
                             <div class="tab-pane fade" id="v-pills-asig" role="tabpanel" aria-labelledby="v-pills-asig-tab">
-                                <h5 class="fw-bold text-guinda mb-4 border-bottom border-secondary-subtle pb-3">Asignación de Personal</h5>
+                                <h5 class="fw-bold text-guinda mb-4 border-bottom border-secondary-subtle pb-3">Asignación de Personal Operativo</h5>
                                 <div class="row g-4 mb-5">
                                     <div class="col-md-6">
-                                        <label class="form-label fw-bold small text-dark mb-1">ID PO Asignado (Uso Diario)</label>
-                                        <input type="number" class="form-control focus-guinda border-secondary-subtle" name="asig_po_id" value="<?php echo htmlspecialchars($dispositivo['asig_po_id'] ?? ''); ?>">
+                                        <label class="form-label fw-bold small text-dark mb-1">Personal Asignado (Uso Diario)</label>
+                                        <select class="form-select focus-guinda border-secondary-subtle" name="asig_po_id">
+                                            <option value="">-- Sin asignar --</option>
+                                            <?php foreach($personal_operativo as $po): ?>
+                                                <option value="<?php echo $po['id_po']; ?>" <?php echo (isset($dispositivo) && $dispositivo['asig_po_id'] == $po['id_po']) ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($po['nombre_completo']); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label fw-bold small text-dark mb-1">ID PO Responsable (Resguardo Legal)</label>
-                                        <input type="number" class="form-control focus-guinda border-secondary-subtle" name="resp_po_id" value="<?php echo htmlspecialchars($dispositivo['resp_po_id'] ?? ''); ?>">
+                                        <label class="form-label fw-bold small text-dark mb-1">Personal Responsable (Resguardo Legal)</label>
+                                        <select class="form-select focus-guinda border-secondary-subtle" name="resp_po_id">
+                                            <option value="">-- Sin asignar --</option>
+                                            <?php foreach($personal_operativo as $po): ?>
+                                                <option value="<?php echo $po['id_po']; ?>" <?php echo (isset($dispositivo) && $dispositivo['resp_po_id'] == $po['id_po']) ? 'selected' : ''; ?>>
+                                                    <?php echo htmlspecialchars($po['nombre_completo']); ?>
+                                                </option>
+                                            <?php endforeach; ?>
+                                        </select>
                                     </div>
                                 </div>
-
-                                <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-secondary-subtle pb-2">
-                                    <h5 class="fw-bold text-guinda mb-0"><i class="fas fa-cogs me-2"></i>Servicios Instalados</h5>
-                                    <button type="button" class="btn btn-sm btn-outline-guinda fw-bold" id="btn-add-servicio">
-                                        <i class="fas fa-plus me-1"></i> Añadir Servicio
-                                    </button>
-                                </div>
-                                
-                                <div id="contenedor-servicios" class="d-flex flex-column gap-3">
-                                    </div>
                             </div>
 
                         </div>

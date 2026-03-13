@@ -26,8 +26,9 @@
                             <th>Hostname</th>
                             <th>Marca / Modelo</th>
                             <th>No. Serie</th>
-                            <th>Red (IP)</th>
-                            <th>Servicio Asignado</th>
+                            <th>No. Inventario</th>
+                            <th>Red (IP / MAC)</th>
+                            <th>Responsable</th>
                             <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
@@ -38,41 +39,42 @@
                                     <td class="fw-bold text-dark"><?php echo htmlspecialchars($disp['nom_host']); ?></td>
                                     <td><?php echo htmlspecialchars($disp['marca'] . ' / ' . $disp['modelo']); ?></td>
                                     <td><?php echo htmlspecialchars($disp['num_ser']); ?></td>
+                                    <td><?php echo htmlspecialchars($disp['num_inv']); ?></td>
                                     <td>
                                         <?php if($disp['ip']): ?>
-                                            <span class="badge bg-info text-dark">
+                                            <span class="badge bg-info text-dark d-block mb-1">
                                                 <i class="fas fa-network-wired me-1"></i><?php echo htmlspecialchars($disp['ip']); ?>
                                             </span>
+                                            <?php if($disp['mac']): ?>
+                                                <small class="text-muted d-block" style="font-size: 0.75rem;">
+                                                    <i class="fas fa-microchip me-1"></i><?php echo htmlspecialchars($disp['mac']); ?>
+                                                </small>
+                                            <?php endif; ?>
                                         <?php else: ?>
                                             <span class="text-muted small">Sin red asignada</span>
                                         <?php endif; ?>
                                     </td>
                                     <td>
-                                        <?php if($disp['nom_servicio']): ?>
-                                            <span class="badge bg-secondary">
-                                                <i class="fas fa-cogs me-1"></i><?php echo htmlspecialchars($disp['nom_servicio']); ?>
+                                        <?php if(!empty($disp['responsable'])): ?>
+                                            <span class="text-dark">
+                                                <i class="fas fa-user-tie me-1 text-secondary"></i><?php echo htmlspecialchars($disp['responsable']); ?>
                                             </span>
                                         <?php else: ?>
-                                            <span class="text-muted small">Ninguno</span>
+                                            <span class="text-muted small">Sin asignar</span>
                                         <?php endif; ?>
                                     </td>
                                     <td class="text-center">
                                         <a href="dispositivos/formulario/<?php echo $id_sub_actual; ?>/<?php echo $disp['id_disp']; ?>" 
-                                            class="btn btn-sm btn-outline-primary me-1"
+                                            class="btn btn-sm btn-outline-primary"
                                             title="Editar Detalles">
                                             <i class="fas fa-edit"></i>
                                         </a>
-                                        <button type="button" class="btn btn-sm btn-outline-danger btn-eliminar-disp"
-                                            data-id="<?php echo $disp['id_disp']; ?>"
-                                            title="Eliminar Dispositivo">
-                                            <i class="fas fa-trash-alt" style="pointer-events: none;"></i>
-                                        </button>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="6" class="text-center py-5 text-muted">
+                                <td colspan="7" class="text-center py-5 text-muted">
                                     <i class="fas fa-laptop fa-3x mb-3" style="color: #e0e0e0;"></i><br>
                                     No se encontraron dispositivos en el catálogo.
                                 </td>
