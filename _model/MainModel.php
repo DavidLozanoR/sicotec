@@ -82,7 +82,12 @@ class MainModel {
      * @return int|bool The new Primary Key ID on success, false otherwise.
      */
     public function agregaRegistroConBitacora($tabla, $campos, $params, $id_sub, $detalle) {
-        $id_generado = $this->bd->insertRow($tabla, $campos, $params);
+        $camposArray = is_string($campos) ? explode(',', $campos) : $campos;
+        // Clean spaces if it was a string like 'nom, signif'
+        $camposArray = array_map('trim', $camposArray);
+
+        $id_generado = $this->bd->insertRow($tabla, $camposArray, $params);
+        
         if ($id_generado > 0) {
             $this->registrarBitacora($id_sub, 'INSERT', "$detalle (ID Asignado: $id_generado)");
             return $id_generado;
@@ -93,7 +98,7 @@ class MainModel {
     /**
      * Wraps an UPDATE operation with automatic Bitacora logging.
      * @param string $tabla Target table.
-     * @param string $campos The SET clause (e.g., "name = ?").
+     * @param array|string $campos The column names to update.
      * @param string $condicion The WHERE clause (e.g., "id = ?").
      * @param array $params Values for SET and WHERE clauses.
      * @param int $id_sub Submodule ID for audit association.
@@ -101,7 +106,12 @@ class MainModel {
      * @return bool True if update was successful.
      */
     public function actualizaRegistroConBitacora($tabla, $campos, $condicion, $params, $id_sub, $detalle) {
-        $exito = $this->bd->updateRow($tabla, $campos, $condicion, $params);
+        // FIX: Ensure $campos is an array for MariaDBAux->updateRow compatibility
+        $camposArray = is_string($campos) ? explode(',', $campos) : $campos;
+        $camposArray = array_map('trim', $camposArray);
+
+        $exito = $this->bd->updateRow($tabla, $camposArray, $condicion, $params);
+        
         if ($exito) {
             $this->registrarBitacora($id_sub, 'UPDATE', $detalle);
             return true;

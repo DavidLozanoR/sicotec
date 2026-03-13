@@ -1,9 +1,11 @@
 <?php
-/**
- * DiccionarioAsync Controller
- * Handles asynchronous CRUD operations for the Nomenclature Dictionary.
- * Integrates with the global Audit System (Bitacora) via MainModel.
- */
+// Add this at the top to debug silent failures
+ini_set('display_errors', 1);
+error_reporting(E_ALL);
+
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 
 require_once __DIR__ . "/../config/Global.php";
 require_once "MainModel.php";
@@ -14,58 +16,61 @@ $input = json_decode(file_get_contents('php://input'), true);
 $action = $input['action'] ?? '';
 
 $modelo = new MainModel();
-
-/**
- * Resolve context: Fetch the submodule ID dynamically using the module slug.
- * This ensures audit logs are correctly attributed without hardcoded IDs.
- */
 $id_sub_diccionario = $modelo->obtenerIdSubmoduloPorSlug('diccionario');
 
+// If this triggers, the server won't be empty anymore; it will tell you the problem.
 if (!$id_sub_diccionario) {
-    echo json_encode(['status' => 'error', 'message' => 'Contexto de submódulo no encontrado.']);
+    echo json_encode(['status' => 'error', 'message' => 'Submodule slug "diccionario" not found in database.']);
     exit;
 }
 
 switch ($action) {
     case 'leer':
-        /** Fetch records ordered by ID descending to show newest entries at the top of the UI */
         $datos = $modelo->seleccionaRegistros('Diccionario_Nomenclaturas', ['Id_nom', 'nom', 'signif', 'notas'], '1=1 ORDER BY Id_nom DESC');
         echo json_encode(['status' => 'success', 'data' => $datos]);
         break;
 
     case 'insertar':
-        /** Creates a template record and logs the event */
         $exito = $modelo->agregaRegistroConBitacora(
             'Diccionario_Nomenclaturas', 
-            'nom, signif, notas', 
+            ['nom', 'signif', 'notas'], // Array of column names
             ['Nueva', 'Significado', 'Notas'],
             $id_sub_diccionario,
-            "Creación de nueva entrada en el diccionario"
+            "Nueva nomenclatura"
         );
         echo json_encode(['status' => $exito ? 'success' : 'error']);
-        break;
-
+    break;
+    
     case 'actualizar':
-        /** * Partial update logic: Updates a specific column for a given ID.
-         * Validates column names against a whitelist to prevent SQL injection.
-         */
         $id = $input['Id_nom'] ?? null;
         $campo = $input['campo'] ?? '';
         $valor = $input['valor'] ?? '';
 
         $camposPermitidos = ['nom', 'signif', 'notas'];
         if (!$id || !in_array($campo, $camposPermitidos)) {
-            echo json_encode(['status' => 'error', 'message' => 'Atributos de actualización inválidos.']);
+            echo json_encode(['status' => 'error', 'message' => 'Parámetros inválidos.']);
             exit;
         }
 
         $exito = $modelo->actualizaRegistroConBitacora(
             'Diccionario_Nomenclaturas', 
-            "$campo = ?", 
+            [$campo], // Array containing only the column name to update
             "Id_nom = ?", 
             [$valor, $id],
             $id_sub_diccionario,
-            "Modificó campo [$campo] en la nomenclatura ID: $id"
+            "Actualizó $campo"
+        );
+        echo json_encode(['status' => $exito ? 'success' : 'error']);
+        break;
+
+    case 'borrar':
+        $id = $input['Id_nom'] ?? null;
+        $exito = $modelo->borraRegistroConBitacora(
+            'Diccionario_Nomenclaturas', 
+            'Id_nom = ?', 
+            [$id],
+            $id_sub_diccionario,
+            "Eliminó ID: $id"
         );
         echo json_encode(['status' => $exito ? 'success' : 'error']);
         break;
