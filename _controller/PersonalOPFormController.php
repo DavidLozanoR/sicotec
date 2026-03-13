@@ -65,7 +65,11 @@ public function renderContent(){
     private function traerContenido($model) {
         // Catálogos necesarios para los <select> del formulario
         $departamentos = $model->seleccionaRegistros("Departamentos", ["id_dep", "nom_dep"]);
-        
+        $consultaDisp = $model->seleccionaRegistros("Submodulos", ["id_sub"], "slug = ?", ["dispositivos"]);
+        // Si lo encuentra, guarda el ID, de lo contrario guarda 8 como medida de seguridad temporal
+        $id_sub_dispositivos = (!empty($consultaDisp)) ? $consultaDisp[0]['id_sub'] : 8;
+
+
         $personal = null;
         $equipos_asignados = [];
         $equipos_responsables = [];
@@ -82,6 +86,7 @@ public function renderContent(){
                 
                 // 2. Equipos que firmó (Resguardos/Responsivas)
                 $equipos_responsables = $model->seleccionaRegistros("Dispositivos", ["*"], "resp_po_id = ?", [$this->id_op]);
+                
             } else {
                 die("<div class='alert alert-warning m-4 fw-bold'>El empleado no existe.</div>");
             }
@@ -93,6 +98,7 @@ public function renderContent(){
             'equipos_asignados'    => $equipos_asignados,     // <--- Arreglo 1
             'equipos_responsables' => $equipos_responsables,  // <--- Arreglo 2
             'id_sub_actual' => $this->id_submod,
+            'id_sub_dispositivos'  => $id_sub_dispositivos,
             'id_po'         => $this->id_op
         ];
 

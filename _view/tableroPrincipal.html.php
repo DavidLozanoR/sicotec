@@ -1,12 +1,15 @@
 <?php
 // Asegurarnos de tener las variables de sesión listas
-$nombre_usuario = $_SESSION['usuario']['nombres'] ?? $_SESSION['usuario']['nom_usuar'] ?? 'Usuario';
+$nombres = $_SESSION['usuario']['nombres'] ?? "";
+$ape_pa  = $_SESSION['usuario']['ape_pa']  ?? '';
+$ape_ma  = $_SESSION['usuario']['ape_ma']  ?? '';
+$nombre_completo = trim("$nombres $ape_pa $ape_ma");
 $menu_dinamico = $_SESSION['menu'] ?? [];
 ?>
 
 <div class="mb-4">
-    <h2 class="fw-bold text-dark mb-1">Dashboard</h2>
-    <p class="text-muted" style="text-transform: capitalize;">Bienvenido, <?php echo htmlspecialchars($nombre_usuario); ?></p>
+    <h2 class="fw-bold text-dark mb-1">Tablero Principal:</h2>
+    <p class="text-muted" style="text-transform: capitalize;">Bienvenido, <?php echo htmlspecialchars($nombre_completo); ?></p>
 </div>
 
 <div class="row g-4">
