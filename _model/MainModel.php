@@ -69,4 +69,29 @@ class MainModel {
             return "ATENCIÓN: Ocurrió un fallo en la base de datos al guardar la auditoría. Por favor, contacte al Administrador del sistema."; 
         }
     }
+
+ /**
+     * Inserts a record, retrieves its auto-generated ID, and logs the action in Bitacora.
+     * Designed for parent-child inserts where the parent ID is required immediately 
+     * for related tables (e.g., creating a device, then needing its ID for services).
+     *  @param string $tabla Target table.
+     * @param string|array $campos Columns to insert.
+     * @param array $params Values mapped to columns (prevents SQL injection).
+     * @param int $id_sub Module ID for audit logging.
+     * @param string $detalle Base description for the audit log.
+     * @return int|bool Returns the new ID on success, or false on failure.
+     */
+    public function agregaRegistroYBitacora($tabla, $campos, $params, $id_sub, $detalle) {
+        // Execute insert and grab the auto-increment ID directly from the DB layer
+        $id_generado = $this->bd->insertRow($tabla, $campos, $params);
+        
+        // If successful, register the action automatically
+        if ($id_generado > 0) {
+            $detalleCompleto = $detalle . " (Assigned ID: " . $id_generado . ")";
+            $this->registrarBitacora($id_sub, 'INSERT', $detalleCompleto);
+            return $id_generado;
+        }
+        
+        return false;
+    }
 }
