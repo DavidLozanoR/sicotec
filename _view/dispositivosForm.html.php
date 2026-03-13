@@ -118,13 +118,18 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                                         <label class="form-label fw-bold small text-dark mb-1">Dominio</label>
                                         <input type="text" class="form-control focus-guinda border-secondary-subtle" name="dom" value="<?php echo htmlspecialchars($dispositivo['dom'] ?? ''); ?>" maxlength="100">
                                     </div>
-                                    <div class="col-md-12">
-                                        <label class="form-label fw-bold small text-dark mb-1">Asignación de IP y Red</label>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold small text-dark mb-1">Dirección MAC del Equipo</label>
+                                        <input type="text" class="form-control focus-guinda border-secondary-subtle font-monospace" name="mac" value="<?php echo htmlspecialchars($dispositivo['mac'] ?? ''); ?>" maxlength="17" placeholder="Ej: 00:1A:2B:3C:4D:5E">
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold small text-dark mb-1">Asignación de IP (Red)</label>
                                         <select class="form-select focus-guinda border-secondary-subtle font-monospace" name="id_red">
                                             <option value="" selected>Sin red asignada (Equipo en almacén / Offline)</option>
                                             <?php foreach($redes_disponibles as $red): ?>
                                                 <option value="<?php echo $red['id_red']; ?>" <?php echo (isset($dispositivo) && $dispositivo['id_red'] == $red['id_red']) ? 'selected' : ''; ?>>
-                                                    IP: <?php echo htmlspecialchars($red['ip']); ?> - MAC: <?php echo htmlspecialchars($red['mac']); ?>
+                                                    IP: <?php echo htmlspecialchars($red['ip']); ?>
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>

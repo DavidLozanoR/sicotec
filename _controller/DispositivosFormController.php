@@ -50,14 +50,14 @@ class DispositivosFormController {
         $dispositivo = null;
         $servicios_asignados = [];
 
-        // Redes
+        // Redes (Se removió 'mac' de esta consulta porque ya no pertenece a la tabla infraestructura_red)
         $condicionRed = "id_disp IS NULL OR id_disp = 0";
         $paramsRed = [];
         if (!empty($this->id_disp)) {
             $condicionRed = "id_disp IS NULL OR id_disp = 0 OR id_disp = ?";
             $paramsRed = [$this->id_disp];
         }
-        $redes_disponibles = $model->seleccionaRegistros("infraestructura_red", ["id_red", "ip", "mac"], $condicionRed, $paramsRed);
+        $redes_disponibles = $model->seleccionaRegistros("infraestructura_red", ["id_red", "ip"], $condicionRed, $paramsRed);
         
         // Personal Operativo
         $campos_po = ["id_po", "TRIM(CONCAT(nombres, ' ', ape_pa, ' ', COALESCE(ape_ma, ''))) AS nombre_completo"];
@@ -71,8 +71,10 @@ class DispositivosFormController {
             $joins = [
                 "LEFT JOIN infraestructura_red r ON d.id_disp = r.id_disp"
             ];
+            // Se removió 'r.mac' de los campos solicitados. 
+            // La nueva columna 'mac' de la tabla dispositivos ya viene incluida en 'd.*'
             $campos = [
-                "d.*", "r.id_red", "r.ip", "r.mac"
+                "d.*", "r.id_red", "r.ip"
             ];
             
             $resultado = $model->seleccionaRegistrosJoin("dispositivos d", $joins, $campos, "d.id_disp = ?", [$this->id_disp]);
