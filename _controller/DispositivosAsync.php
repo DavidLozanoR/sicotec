@@ -30,11 +30,13 @@ $id_u_int = $_SESSION['usuario']['id_usuar'] ?? null;
 date_default_timezone_set('America/Mexico_City');
 $fec_u_int = date('Y-m-d H:i:s');
 
+// Sanitización de llaves foráneas para evitar cadenas vacías
 $asig_po_id = !empty($input['asig_po_id']) ? $input['asig_po_id'] : null;
 $resp_po_id = !empty($input['resp_po_id']) ? $input['resp_po_id'] : null;
 
+// Arreglo puro compatible con MariaDBAux (sin "?")
 $camposDispositivo = [
-    "nom_host", "marca", "modelo", "num_ser", "num_inv", "dom", 
+    "nom_host", "marca", "modelo", "num_ser", "num_inv", "mac", "dom", 
     "especs_hw", "resp_po_id", "asig_po_id", "id_u_int", "fec_u_int"
 ];
 
@@ -44,6 +46,7 @@ $paramsDispositivo = [
     trim($input['modelo'] ?? ''),
     trim($input['num_ser'] ?? ''),
     trim($input['num_inv'] ?? ''),
+    trim($input['mac'] ?? ''),
     trim($input['dom'] ?? ''),
     trim($input['especs_hw'] ?? ''),
     $resp_po_id,
@@ -54,7 +57,7 @@ $paramsDispositivo = [
 
 try {
     // ==============================================================
-    // A. TABLA PRINCIPAL (dispositivos) CON BITÁCORA INTEGRADA
+    // A. TABLA PRINCIPAL (dispositivos)
     // ==============================================================
     if ($peticion === 'INSERT') {
         $detalle = "Registro de nuevo dispositivo. Host: " . ($input['nom_host'] ?? 'N/A');
@@ -86,6 +89,7 @@ try {
     // B. GESTIÓN DE RED (infraestructura_red)
     // ==============================================================
     $id_red = !empty($input['id_red']) ? $input['id_red'] : null;
+    
     $modelo->actualizaRegistro("infraestructura_red", ["id_disp"], "id_disp = ?", [null, $id_disp]);
 
     if ($id_red) {
