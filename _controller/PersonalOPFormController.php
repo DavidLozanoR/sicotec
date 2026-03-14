@@ -62,13 +62,12 @@ public function renderContent(){
     }
 
 
-    private function traerContenido($model) {
+   private function traerContenido($model) {
         // Catálogos necesarios para los <select> del formulario
         $departamentos = $model->seleccionaRegistros("Departamentos", ["id_dep", "nom_dep"]);
         $consultaDisp = $model->seleccionaRegistros("Submodulos", ["id_sub"], "slug = ?", ["dispositivos"]);
         // Si lo encuentra, guarda el ID, de lo contrario guarda 8 como medida de seguridad temporal
         $id_sub_dispositivos = (!empty($consultaDisp)) ? $consultaDisp[0]['id_sub'] : 8;
-
 
         $personal = null;
         $equipos_asignados = [];
@@ -81,11 +80,24 @@ public function renderContent(){
             if (!empty($resultado)) {
                 $personal = $resultado[0];
                 
+                // =================================================================
+                // OBTENER DISPOSITIVOS + RED (Igual que en DispositivosController)
+                // =================================================================
+                $tablaDisp = "dispositivos d";
+                $joinsDisp = [
+                    "LEFT JOIN infraestructura_red r ON d.id_disp = r.id_disp"
+                ];
+                $camposDisp = [
+                    "d.*",               // Trae todo (incluyendo nom_host, marca, modelo, etc.)
+                    "d.mac as dir_mac",  // Asignamos alias a la MAC del equipo
+                    "r.ip as dir_ip"     // Asignamos alias a la IP de la tabla red
+                ];
+
                 // 1. Equipos que usa (Asignados)
-                $equipos_asignados = $model->seleccionaRegistros("Dispositivos", ["*"], "asig_po_id = ?", [$this->id_op]);
+                $equipos_asignados = $model->seleccionaRegistrosJoin($tablaDisp, $joinsDisp, $camposDisp, "d.asig_po_id = ?", [$this->id_op]);
                 
                 // 2. Equipos que firmó (Resguardos/Responsivas)
-                $equipos_responsables = $model->seleccionaRegistros("Dispositivos", ["*"], "resp_po_id = ?", [$this->id_op]);
+                $equipos_responsables = $model->seleccionaRegistrosJoin($tablaDisp, $joinsDisp, $camposDisp, "d.resp_po_id = ?", [$this->id_op]);
                 
             } else {
                 die("<div class='alert alert-warning m-4 fw-bold'>El empleado no existe.</div>");
@@ -93,15 +105,14 @@ public function renderContent(){
         }
 
         return [
-            'departamentos' => $departamentos,
-            'personal'      => $personal,
-            'equipos_asignados'    => $equipos_asignados,     // <--- Arreglo 1
-            'equipos_responsables' => $equipos_responsables,  // <--- Arreglo 2
-            'id_sub_actual' => $this->id_submod,
+            'departamentos'        => $departamentos,
+            'personal'             => $personal,
+            'equipos_asignados'    => $equipos_asignados,     // <--- Arreglo 1 (con IP y MAC)
+            'equipos_responsables' => $equipos_responsables,  // <--- Arreglo 2 (con IP y MAC)
+            'id_sub_actual'        => $this->id_submod,
             'id_sub_dispositivos'  => $id_sub_dispositivos,
-            'id_po'         => $this->id_op
+            'id_po'                => $this->id_op
         ];
-
     }
 
 public function renderJS(){
