@@ -8,7 +8,7 @@ class ServiciosController {
 
     private $slug;
     
-    // Mapeo estándar de permisos (Ajusta los números si en tu BD son diferentes)
+    // Permisos
     const PERMISO_EDITAR = 1;
     const PERMISO_AGREGAR = 2;
     const PERMISO_ELIMINAR = 3;
@@ -22,11 +22,9 @@ class ServiciosController {
 
     public function renderContent() {
         $model = new MainModel();
-        
-        // Obtenemos el ID del submódulo actual (Asumiendo que lo guardas en sesión al navegar)
         $id_sub = $_SESSION['submodulo_actual'] ?? 2; 
 
-        // VALIDACIÓN DE PERMISO DE CONSULTA ANTES DE RENDERIZAR LA VISTA
+        // Candado de Vista
         if (!$this->verificarPermiso($id_sub, self::PERMISO_CONSULTAR)) {
             echo '<div class="container mt-5">
                     <div class="alert alert-danger shadow-sm border-0 border-start border-5 border-danger">
@@ -34,7 +32,7 @@ class ServiciosController {
                         <p>No cuenta con los privilegios necesarios para consultar el Catálogo de Servicios.</p>
                     </div>
                   </div>';
-            return; // Detenemos la ejecución aquí, la vista no se carga
+            return; 
         }
 
         $datos = $this->traerContenido($model);
@@ -59,25 +57,28 @@ class ServiciosController {
     }
 
     private function traerContenido($model) {
-        // Traemos solo los servicios ACTIVOS (estatus = 1) junto con su versión desplegada
         $tabla = "servicios s";
-        $joins = ["LEFT JOIN versiones v ON s.id_ver = v.id_ver"];
+        
+        // DOBLE CANDADO + OBS: Solo cruzamos con la versión que le pertenece (id_serv) y que no es obsoleta (obs = 0)
+        $joins = ["LEFT JOIN versiones v ON s.id_serv = v.id_serv AND v.obs = 0"];
         $campos = ["s.*", "v.ver AS version_actual"];
         
-        // Filtramos por borrado lógico
         $servicios = $model->seleccionaRegistrosJoin($tabla, $joins, $campos, "s.estatus = 1", []);
 
         $lista_servicios = [];
 
         if ($servicios) {
             foreach ($servicios as $serv) {
-                // Contamos cuántos dispositivos lo tienen asignado actualmente
+                // Instalaciones actuales
                 $uso = $model->seleccionaRegistros("dispositivo_servicio", ["id_disp"], "id_serv = ?", [$serv['id_serv']]);
                 $serv['total_instalaciones'] = $uso ? count($uso) : 0;
                 
-                // Contamos su historial de versiones
+                // Total de versiones históricas
                 $versiones = $model->seleccionaRegistros("versiones", ["id_ver"], "id_serv = ?", [$serv['id_serv']]);
                 $serv['total_versiones'] = $versiones ? count($versiones) : 0;
+
+                // Control de N/A si la versión no existe
+                $serv['version_actual'] = !empty($serv['version_actual']) ? $serv['version_actual'] : 'N/A';
 
                 $lista_servicios[] = $serv;
             }
@@ -91,14 +92,13 @@ class ServiciosController {
     public function insertarServicio($id_sub, $tipo_serv, $nom, $especs, $version_inicial) {
         $model = new MainModel();
         
-        // 1. Validamos Permiso de Agregar
         if (!$this->verificarPermiso($id_sub, self::PERMISO_AGREGAR)) {
             return ["result" => 0, "msg" => "Permiso denegado para agregar registros."];
         }
 
         $fecha_actual = date('Y-m-d H:i:s');
 
-        // Insertamos el Servicio como Activo (estatus = 1) y con id_ver en NULL temporalmente
+        // 1. Insertamos el Servicio Maestro (Sin id_ver porque ya no existe)
         $id_serv_nuevo = $model->agregaRegistroConBitacora(
             "servicios", 
             ["tipo_serv", "nom", "especs", "u_act", "estatus"], 
@@ -107,15 +107,13 @@ class ServiciosController {
         );
 
         if ($id_serv_nuevo) {
-            // Insertamos la versión inicial en la tabla versiones
-            $id_ver_nueva = $model->agregaRegistro(
-                "versiones", ["ver", "id_serv", "obs"], [$version_inicial, $id_serv_nuevo, 0]
+            // 2. Insertamos la versión inicial apuntando al servicio y con obs = 0 (Activa)
+            $model->agregaRegistro(
+                "versiones", 
+                ["ver", "id_serv", "obs"], 
+                [$version_inicial, $id_serv_nuevo, 0]
             );
 
-            // Cerramos el ciclo actualizando el servicio para que apunte a esta versión
-            if ($id_ver_nueva) {
-                $model->actualizaRegistro("servicios", ["id_ver"], "id_serv = ?", [$id_ver_nueva, $id_serv_nuevo]);
-            }
             return ["result" => 1, "msg" => "Servicio y versión inicial registrados correctamente."];
         }
         return ["result" => 0, "msg" => "Error al guardar el servicio en la base de datos."];
@@ -124,9 +122,8 @@ class ServiciosController {
     public function actualizarServicio($id_sub, $id_serv, $tipo_serv, $nom, $especs) {
         $model = new MainModel();
 
-        // 1. Validamos Permiso de Edición
         if (!$this->verificarPermiso($id_sub, self::PERMISO_EDITAR)) {
-            return ["result" => 0, "msg" => "Permiso denegado para modificar registros."];
+            return ["result" => 0, "msg" => "Permiso denegado."];
         }
 
         $res = $model->actualizaRegistro(
@@ -140,61 +137,53 @@ class ServiciosController {
             $model->registrarBitacora($id_sub, 'UPDATE', "Actualizó detalles del servicio ID: {$id_serv}");
             return ["result" => 1, "msg" => "Datos del servicio actualizados exitosamente."];
         }
-        return ["result" => 0, "msg" => "Error al intentar actualizar el servicio."];
+        return ["result" => 0, "msg" => "Error al intentar actualizar."];
     }
 
     public function eliminarServicio($id_sub, $id_serv) {
         $model = new MainModel();
         
-        // 1. Validamos Permiso de Eliminar
         if (!$this->verificarPermiso($id_sub, self::PERMISO_ELIMINAR)) {
-            return ["result" => 0, "msg" => "Permiso denegado para desactivar registros."];
+            return ["result" => 0, "msg" => "Permiso denegado."];
         }
 
-        // 2. Candado de Integridad: Revisamos si hay equipos usándolo
         $uso = $model->seleccionaRegistros("dispositivo_servicio", ["id_disp"], "id_serv = ?", [$id_serv]);
         if ($uso && count($uso) > 0) {
-            $cantidad = count($uso);
-            return ["result" => 0, "msg" => "Operación bloqueada. Existen {$cantidad} equipos que tienen asignado este software. Desvincúlelos primero."];
+            return ["result" => 0, "msg" => "Operación bloqueada. Existen " . count($uso) . " equipos usando este software."];
         }
 
-        // 3. Procedemos al Borrado Lógico (Ocultarlo)
+        // Borrado lógico del catálogo
         $res = $model->actualizaRegistro("servicios", ["estatus"], "id_serv = ?", [0, $id_serv]);
 
         if ($res) {
             $model->registrarBitacora($id_sub, 'DELETE', "Desactivó (borrado lógico) el servicio ID: {$id_serv}");
-            return ["result" => 1, "msg" => "Servicio desactivado correctamente. Se mantendrá el historial."];
+            return ["result" => 1, "msg" => "Servicio desactivado correctamente."];
         }
         return ["result" => 0, "msg" => "Error al intentar desactivar el servicio."];
     }
 
-  // ==========================================================
+    // ==========================================================
     // HISTORIAL DE VERSIONES
     // ==========================================================
     public function obtenerVersiones($id_sub, $id_serv) {
         $model = new MainModel();
 
-        // Aunque es una consulta, verificamos permiso por seguridad
         if (!$this->verificarPermiso($id_sub, self::PERMISO_CONSULTAR)) {
-            return ["result" => 0, "msg" => "Permiso denegado para consultar historial."];
+            return ["result" => 0, "msg" => "Permiso denegado."];
         }
 
-        // Armamos la consulta usando los métodos nativos de tu modelo
         $tabla = "versiones v";
-        $joins = ["LEFT JOIN servicios s ON v.id_serv = s.id_serv"];
         $campos = [
             "v.id_ver", 
             "v.ver", 
             "v.obs", 
-            "IF(s.id_ver = v.id_ver, 1, 0) AS es_actual"
+            "IF(v.obs = 0, 1, 0) AS es_actual" // Transformamos obs a un booleano para el Frontend
         ];
-        // Añadimos el ORDER BY directamente en la condición
         $condicion = "v.id_serv = ? ORDER BY v.id_ver DESC";
-        $params = [$id_serv];
-
-        $versiones = $model->seleccionaRegistrosJoin($tabla, $joins, $campos, $condicion, $params);
         
-        // Retornamos los datos o un arreglo vacío si no hay registros
+        // Ejecución limpia a través de tu MainModel
+        $versiones = $model->seleccionaRegistrosJoin($tabla, [], $campos, $condicion, [$id_serv]);
+        
         return ["result" => 1, "data" => $versiones ? $versiones : []];
     }
 
@@ -205,17 +194,26 @@ class ServiciosController {
             return ["result" => 0, "msg" => "Permiso denegado para agregar versiones."];
         }
 
+        // Si la marcarán como actual (1), entra con obs = 0. Si no, entra con obs = 1.
+        $estado_obs = ($marcar_actual == '1') ? 0 : 1;
+
+        // Si será la actual, apagamos las demás primero
+        if ($marcar_actual == '1') {
+            $model->actualizaRegistro("versiones", ["obs"], "id_serv = ?", [1, $id_serv]);
+        }
+
         $id_ver_nueva = $model->agregaRegistro(
-            "versiones", ["ver", "id_serv", "obs"], [$nueva_version, $id_serv, 0]
+            "versiones", ["ver", "id_serv", "obs"], [$nueva_version, $id_serv, $estado_obs]
         );
 
         if ($id_ver_nueva) {
             $model->registrarBitacora($id_sub, 'INSERT', "Agregó la versión '{$nueva_version}' al servicio ID: {$id_serv}");
             
             if ($marcar_actual == '1') {
-                $this->marcarVersionActual($id_sub, $id_serv, $id_ver_nueva);
+                $model->actualizaRegistro("servicios", ["u_act"], "id_serv = ?", [date('Y-m-d H:i:s'), $id_serv]);
             }
-            return ["result" => 1, "msg" => "Versión agregada al historial."];
+            
+            return ["result" => 1, "msg" => "Versión agregada al historial exitosamente."];
         }
         return ["result" => 0, "msg" => "Error al guardar la nueva versión."];
     }
@@ -224,18 +222,21 @@ class ServiciosController {
         $model = new MainModel();
         
         if (!$this->verificarPermiso($id_sub, self::PERMISO_EDITAR)) {
-            return ["result" => 0, "msg" => "Permiso denegado para modificar la versión actual."];
+            return ["result" => 0, "msg" => "Permiso denegado."];
         }
 
-        $res = $model->actualizaRegistro(
-            "servicios", ["id_ver", "u_act"], "id_serv = ?", [$id_ver, date('Y-m-d H:i:s'), $id_serv]
-        );
+        // 1. Apagamos todas las versiones (obs = 1)
+        $model->actualizaRegistro("versiones", ["obs"], "id_serv = ?", [1, $id_serv]);
+
+        // 2. Encendemos únicamente la seleccionada (obs = 0)
+        $res = $model->actualizaRegistro("versiones", ["obs"], "id_ver = ?", [0, $id_ver]);
 
         if ($res) {
+            $model->actualizaRegistro("servicios", ["u_act"], "id_serv = ?", [date('Y-m-d H:i:s'), $id_serv]);
             $model->registrarBitacora($id_sub, 'UPDATE', "Actualizó la versión desplegada del servicio ID: {$id_serv}");
-            return ["result" => 1, "msg" => "Versión establecida como la actual exitosamente."];
+            return ["result" => 1, "msg" => "La versión seleccionada ahora es la actual."];
         }
-        return ["result" => 0, "msg" => "Error al actualizar el registro."];
+        return ["result" => 0, "msg" => "Error al actualizar la versión."];
     }
 }
 ?>
