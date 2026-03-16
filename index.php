@@ -65,6 +65,12 @@
                 $ctrl = new DispositivosFormController($slug, $id_submod, $id_disp); 
             }
         break;
+		case "red":
+			if($accion == ""){
+                require_once "_controller/RedController.php";
+                $ctrl = new RedController($slug);
+            }
+		break;
         default:
             
 		break;
