@@ -71,6 +71,12 @@
                 $ctrl = new RedController($slug);
             }
 		break;
+		case "servicios":
+			if($accion == ""){
+                require_once "_controller/ServiciosController.php";
+                $ctrl = new ServiciosController($slug);
+            }
+		break;
         default:
             
 		break;
