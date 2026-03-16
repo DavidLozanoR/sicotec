@@ -129,13 +129,13 @@ $id_sub_actual = $id_sub_actual ?? 1; // ID del submódulo (por defecto 1 si no 
                                             <i class="fas fa-edit"></i>
                                         </a>
                                         
-                                        <a href="personal/eliminar/<?php echo $id_sub_actual; ?>/<?php echo $po['id_po']; ?>" 
-                                           class="btn btn-sm btn-light text-danger btn-baja shadow-sm" 
-                                           data-nombre="<?php echo htmlspecialchars($po['nombres'].' '.$po['ape_pa']); ?>"
-                                           data-equipos="<?php echo $po['total_equipos'] ?? 0; ?>"
-                                           title="Dar de Baja">
+                                        <button type="button" class="btn btn-sm btn-outline-danger btn-baja-po" 
+                                                data-id="<?php echo $po['id_po']; ?>" 
+                                                data-sub="<?php echo $id_sub_actual; ?>" 
+                                                data-nombre="<?php echo htmlspecialchars($po['nombres'] . ' ' . $po['ape_pa']); ?>" 
+                                                title="Dar de Baja">
                                             <i class="fas fa-trash-alt"></i>
-                                        </a>
+                                        </button>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -150,7 +150,6 @@ $id_sub_actual = $id_sub_actual ?? 1; // ID del submódulo (por defecto 1 si no 
                     </tbody>
                 </table>
             </div>
-
         </div>
     </div>
 </div>

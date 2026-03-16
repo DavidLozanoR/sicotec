@@ -76,7 +76,7 @@ if ($personal) {
                                 <div class="bg-light rounded-circle d-flex justify-content-center align-items-center me-3 icon-box" style="width: 35px; height: 35px;">
                                     <i class="fas fa-laptop"></i>
                                 </div>
-                                Equipos Asignados
+                                Dispositivos Asignados
                             </button>
 
                         </div>
@@ -97,32 +97,40 @@ if ($personal) {
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold small text-dark mb-1">Nombres *</label>
                                         <input type="text" class="form-control focus-guinda border-secondary-subtle" name="nombres" value="<?php echo $personal['nombres'] ?? ''; ?>" required>
+                                        <div class="invalid-feedback">Por favor, ingrese el nombre(s).</div>
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label fw-bold small text-dark mb-1">Apellido Paterno</label>
-                                        <input type="text" class="form-control focus-guinda border-secondary-subtle" name="ape_pa" value="<?php echo $personal['ape_pa'] ?? ''; ?>">
+                                        <label class="form-label fw-bold small text-dark mb-1">Apellido Paterno *</label>
+                                        <input type="text" class="form-control focus-guinda border-secondary-subtle" name="ape_pa" value="<?php echo $personal['ape_pa'] ?? ''; ?>" required>
+                                        <div class="invalid-feedback">El apellido paterno es obligatorio.</div>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold small text-dark mb-1">Apellido Materno</label>
-                                        <input type="text" class="form-control focus-guinda border-secondary-subtle" name="ape_ma" value="<?php echo $personal['ape_ma'] ?? ''; ?>">
+                                        <input type="text" class="form-control focus-guinda border-secondary-subtle" name="ape_ma" value="<?php echo $personal['ape_ma'] ?? ''; ?>" required>
+                                        <div class="invalid-feedback">El apellido materno es obligatorio.</div>
+
                                     </div>
                                     
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold small text-dark mb-1">No. de Cobro *</label>
                                         <input type="number" class="form-control focus-guinda border-secondary-subtle" name="num_cobro" value="<?php echo $personal['num_cobro'] ?? ''; ?>" required>
+                                        <div class="invalid-feedback">El número de cobro es obligatorio.</div>
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label fw-bold small text-dark mb-1">Extensión</label>
-                                        <input type="number" class="form-control focus-guinda border-secondary-subtle" name="ext" value="<?php echo $personal['ext'] ?? ''; ?>">
+                                        <label class="form-label fw-bold small text-dark mb-1">Extensión *</label>
+                                        <input type="number" class="form-control focus-guinda border-secondary-subtle" name="ext" value="<?php echo $personal['ext'] ?? ''; ?>" required>
+                                        <div class="invalid-feedback">La extensión es obligatoria y debe ser numérica.</div>
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label fw-bold small text-dark mb-1">No. Cuenta Dom.</label>
-                                        <input type="text" class="form-control focus-guinda border-secondary-subtle" name="cta_dom" value="<?php echo $personal['cta_dom'] ?? ''; ?>">
+                                        <label class="form-label fw-bold small text-dark mb-1">No. Cuenta Dom. *</label>
+                                        <input type="text" class="form-control focus-guinda border-secondary-subtle" name="cta_dom" value="<?php echo $personal['cta_dom'] ?? ''; ?>" required>
+                                        <div class="invalid-feedback">El No. de cuenta de dominio es obligatorio.</div>
                                     </div>
 
                                     <div class="col-12">
-                                        <label class="form-label fw-bold small text-dark mb-1">Dirección Completa</label>
-                                        <textarea class="form-control focus-guinda border-secondary-subtle" name="dir" rows="3"><?php echo $personal['dir'] ?? ''; ?></textarea>
+                                        <label class="form-label fw-bold small text-dark mb-1">Dirección Completa *</label>
+                                        <textarea class="form-control focus-guinda border-secondary-subtle" name="dir" rows="3" required><?php echo $personal['dir'] ?? ''; ?></textarea>
+                                        <div class="invalid-feedback">Por favor, proporcione la dirección completa.</div>
                                     </div>
                                 </div>
                             </div>
@@ -142,21 +150,24 @@ if ($personal) {
                                                 </option>
                                             <?php endforeach; ?>
                                         </select>
+                                        <div class="invalid-feedback">Debe asignar un área o departamento.</div>
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label fw-bold small text-dark mb-1">Puesto Operativo</label>
-                                        <input type="text" class="form-control focus-guinda border-secondary-subtle" name="puesto" value="<?php echo $personal['puesto'] ?? ''; ?>">
+                                        <label class="form-label fw-bold small text-dark mb-1">Puesto Operativo *</label>
+                                        <input type="text" class="form-control focus-guinda border-secondary-subtle" name="puesto" value="<?php echo $personal['puesto'] ?? ''; ?>" required>
+                                        <div class="invalid-feedback">El puesto operativo es obligatorio.</div>
                                     </div>
                                     
                                     <div class="col-md-6">
-                                        <label class="form-label fw-bold small text-dark mb-1">Correo Institucional</label>
-                                        <div class="input-group">
+                                        <label class="form-label fw-bold small text-dark mb-1">Correo Institucional *</label>
+                                        <div class="input-group has-validation">
                                             <?php 
                                                 $correo_parts = isset($personal['correo']) && !empty($personal['correo']) ? explode('@', $personal['correo']) : [''];
                                                 $prefijo = $correo_parts[0];
                                             ?>
-                                            <input type="text" class="form-control focus-guinda border-end-0 border-secondary-subtle" name="correo_prefijo" value="<?php echo htmlspecialchars($prefijo); ?>" placeholder="usuario">
+                                            <input type="text" class="form-control focus-guinda border-end-0 border-secondary-subtle" name="correo_prefijo" value="<?php echo htmlspecialchars($prefijo); ?>" placeholder="usuario" required>
                                             <span class="input-group-text bg-light text-muted border-start-0 border-secondary-subtle">@inea.gob.mx</span>
+                                            <div class="invalid-feedback">Ingrese el prefijo del correo institucional.</div>
                                         </div>
                                     </div>
                                     <div class="col-md-6">
@@ -169,15 +180,15 @@ if ($personal) {
                                 </div>
                             </div>
 
-                            <div class="tab-pane fade" id="v-pills-equipos" role="tabpanel" aria-labelledby="v-pills-equipos-tab">
-                                <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary-subtle pb-3">
+                                <div class="tab-pane fade" id="v-pills-equipos" role="tabpanel" aria-labelledby="v-pills-equipos-tab" data-sub-disp="<?php echo $id_sub_dispositivos; ?>">                                
+                                    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary-subtle pb-3">
                                     <div>
                                         <h5 class="fw-bold text-guinda mb-0">Dispositivos Vinculados</h5>
-                                        <small class="text-muted">Equipos asignados para uso diario o bajo resguardo legal.</small>
+                                        <small class="text-muted">Dispositivos asignados para uso diario o bajo resguardo legal.</small>
                                     </div>
                                     <?php if($personal): ?>
-                                        <a href="dispositivos/formulario/<?php echo $id_sub_dispositivos; ?>/0?po_id=<?php echo $id_po; ?>" class="btn btn-sm btn-guinda shadow-sm">
-                                            <i class="fas fa-plus me-1"></i> Añadir Equipo
+                                        <a href="dispositivos/" class="btn btn-sm btn-guinda shadow-sm" id="btnVincularDispositivo">
+                                            <i class="fas fa-plus me-1"></i> Añadir Dispositivo
                                         </a>
                                     <?php endif; ?>
                                 </div>
@@ -205,7 +216,7 @@ if ($personal) {
                                                                     <i class="fas fa-desktop fa-lg"></i>
                                                                 </div>
                                                                 <div>
-                                                                    <h6 class="fw-bold text-dark mb-1 text-truncate" style="max-width: 150px;" title="<?php echo htmlspecialchars($disp['nom_host'] ?? 'Equipo'); ?>">
+                                                                    <h6 class="fw-bold text-dark mb-1 text-truncate" style="max-width: 150px;" title="<?php echo htmlspecialchars($disp['nom_host'] ?? 'Dispositivo'); ?>">
                                                                         <?php echo htmlspecialchars($disp['nom_host'] ?? 'Equipo General'); ?>
                                                                     </h6>
                                                                     <span class="badge border <?php echo $disp['color_badge']; ?>" style="font-size: 0.70rem;">
@@ -259,7 +270,7 @@ if ($personal) {
                                                             <div class="col-6">
                                                                 <div class="text-muted" style="font-size: 0.70rem;">Dir. IP</div>
                                                                 <div class="fw-bold text-dark text-truncate font-monospace">
-                                                                    <?php echo htmlspecialchars($disp['dir_ip'] ?? '192.168.x.x'); ?>
+                                                                    <?php echo htmlspecialchars($disp['dir_ip'] ?? 'N/A'); ?>
                                                                 </div>
                                                             </div>
                                                             <div class="col-6">

@@ -10,6 +10,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalCatalogoElement = document.getElementById('modalCatalogoServicios');
     const tbodyCatalogo = document.getElementById('tbody-catalogo-servicios');
 
+    // ====================================================================
+    // AUTO-COMPLETADO AMBICIOSO DESDE JS STORAGE (UX)
+    // ====================================================================
+    const selectAsignado = document.querySelector('select[name="asig_po_id"]');
+    const selectResponsable = document.querySelector('select[name="resp_po_id"]');
+    const idPoEnMemoria = sessionStorage.getItem('po_preselect_asignado');
+
+    if (idPoEnMemoria && selectAsignado) {
+        // 1. Validamos estrictamente que la opción activa sea "Sin asignar" (value="")
+        if (selectAsignado.value === "") {
+            
+            // Inyectamos el ID de la memoria
+            selectAsignado.value = idPoEnMemoria;
+            
+            // Quitamos bordes neutrales y aplicamos resaltado de éxito
+            selectAsignado.classList.remove('border-secondary-subtle');
+            selectAsignado.classList.add('border-success', 'bg-success', 'bg-opacity-10', 'text-success', 'fw-bold');
+            
+            // Repetimos para el Responsable Legal si está vacío
+            if (selectResponsable && selectResponsable.value === "") {
+                selectResponsable.value = idPoEnMemoria;
+                selectResponsable.classList.remove('border-secondary-subtle');
+                selectResponsable.classList.add('border-success', 'bg-success', 'bg-opacity-10', 'text-success', 'fw-bold');
+            }
+        }
+        // 2. Limpieza obligatoria para no afectar navegaciones futuras
+        sessionStorage.removeItem('po_preselect_asignado');
+    }
+
     // ==========================================
     // LÓGICA DE CONSULTA DE CATÁLOGO (MODAL)
     // ==========================================
