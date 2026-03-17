@@ -1,6 +1,6 @@
 <?php
 $servicios = $servicios ?? [];
-$id_sub_actual = $_SESSION['submodulo_actual'] ?? 2; // ID del submodulo servicios
+$id_sub_actual = $_SESSION['submodulo_actual'] ?? 2; 
 ?>
 
 <div class="container-fluid px-4 py-3">
@@ -24,12 +24,7 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 2; // ID del submodulo servici
             </div>
         <?php else: ?>
             <?php foreach($servicios as $serv): 
-                // Icono dinámico según el tipo
-                $icono = 'fas fa-cube';
-                $tipo = strtolower($serv['tipo_serv']);
-                if(strpos($tipo, 'sistema') !== false) $icono = 'fab fa-windows text-primary';
-                if(strpos($tipo, 'antivirus') !== false) $icono = 'fas fa-shield-alt text-success';
-                if(strpos($tipo, 'ofim') !== false || strpos($tipo, 'office') !== false) $icono = 'fas fa-file-word text-info';
+                $icono = !empty($serv['icono']) ? $serv['icono'] : 'fas fa-cube text-dark';
             ?>
             <div class="col-12 col-md-6 col-xl-4">
                 <div class="card h-100 shadow-sm border-0 ring-1 ring-secondary-subtle">
@@ -37,7 +32,9 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 2; // ID del submodulo servici
                         
                         <div class="d-flex justify-content-between align-items-start mb-3">
                             <div class="d-flex align-items-center">
-                                <div class="bg-light rounded p-2 me-3 fs-4"><i class="<?php echo $icono; ?>"></i></div>
+                                <div class="bg-light rounded p-2 me-3 fs-4">
+                                    <i class="<?php echo htmlspecialchars($icono); ?>"></i>
+                                </div>
                                 <div>
                                     <h5 class="fw-bold text-dark mb-0"><?php echo htmlspecialchars($serv['nom']); ?></h5>
                                     <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle mt-1">
@@ -47,10 +44,12 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 2; // ID del submodulo servici
                             </div>
                             
                             <div class="dropdown">
-                                <button class="btn btn-sm btn-light border-0 text-muted" data-bs-toggle="dropdown"><i class="fas fa-ellipsis-v"></i></button>
+                                <button class="btn btn-sm btn-light border-0 text-muted" data-bs-toggle="dropdown">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                                     <li><a class="dropdown-item py-2 btn-versiones" href="#" data-id="<?php echo $serv['id_serv']; ?>" data-nom="<?php echo htmlspecialchars($serv['nom']); ?>"><i class="fas fa-code-branch me-2 text-primary"></i> Historial de Versiones</a></li>
-                                    <li><a class="dropdown-item py-2 btn-editar-serv" href="#" data-id="<?php echo $serv['id_serv']; ?>" data-tipo="<?php echo htmlspecialchars($serv['tipo_serv']); ?>" data-nom="<?php echo htmlspecialchars($serv['nom']); ?>" data-especs="<?php echo htmlspecialchars($serv['especs']); ?>"><i class="fas fa-edit me-2 text-secondary"></i> Editar Datos</a></li>
+                                    <li><a class="dropdown-item py-2 btn-editar-serv" href="#" data-id="<?php echo $serv['id_serv']; ?>" data-tipo="<?php echo htmlspecialchars($serv['tipo_serv']); ?>" data-nom="<?php echo htmlspecialchars($serv['nom']); ?>" data-especs="<?php echo htmlspecialchars($serv['especs']); ?>" data-icono="<?php echo htmlspecialchars($icono); ?>"><i class="fas fa-edit me-2 text-secondary"></i> Editar Datos</a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item py-2 text-danger btn-eliminar-serv" href="#" data-id="<?php echo $serv['id_serv']; ?>"><i class="fas fa-trash-alt me-2"></i> Eliminar Catálogo</a></li>
                                 </ul>
@@ -60,7 +59,7 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 2; // ID del submodulo servici
                         <div class="bg-light rounded-3 p-3 mb-3 border">
                             <div class="d-flex justify-content-between mb-1 small">
                                 <span class="text-muted">Versión Desplegada:</span>
-                                <span class="fw-bold text-success"><i class="fas fa-check-circle me-1"></i><?php echo $serv['version_actual'] ?? 'Sin asignar'; ?></span>
+                                <span class="fw-bold text-success"><i class="fas fa-check-circle me-1"></i><?php echo ($serv['version_actual'] !== 'N/A') ? $serv['version_actual'] : 'N/A'; ?></span>
                             </div>
                             <div class="small text-muted mt-2 border-top pt-2" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
                                 <?php echo htmlspecialchars($serv['especs']); ?>
@@ -107,6 +106,17 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 2; // ID del submodulo servici
                         <input type="text" class="form-control focus-guinda border-primary-subtle" name="version_inicial" id="serv_ver_ini" placeholder="Ej. 22H2 Pro">
                         <small class="text-muted">Se registrará como la versión actual por defecto.</small>
                     </div>
+                    
+                    <div class="mb-3">
+                        <label class="form-label fw-bold small">Icono Representativo *</label>
+                        <div class="input-group shadow-sm">
+                            <span class="input-group-text bg-light text-center justify-content-center" style="width: 50px;" id="preview-icono">
+                                <i class="fas fa-cube fs-5"></i>
+                            </span>
+                            <select class="form-select focus-guinda" name="icono" id="serv_icono" required>
+                            </select>
+                        </div>
+                    </div>
 
                     <div class="mb-3">
                         <label class="form-label fw-bold small">Especificaciones / Licencia</label>
@@ -130,7 +140,6 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 2; // ID del submodulo servici
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-0 bg-light">
-                
                 <div class="p-3 bg-white border-bottom">
                     <form id="formNuevaVersion" class="row g-2 align-items-center">
                         <input type="hidden" id="ver_id_serv" name="id_serv">
@@ -148,7 +157,6 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 2; // ID del submodulo servici
                         </div>
                     </form>
                 </div>
-
                 <div class="table-responsive" style="max-height: 40vh;">
                     <table class="table table-hover align-middle mb-0 bg-white">
                         <thead class="table-light sticky-top">
@@ -158,8 +166,7 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 2; // ID del submodulo servici
                                 <th class="text-end pe-4">Acción</th>
                             </tr>
                         </thead>
-                        <tbody id="tbodyVersiones">
-                            </tbody>
+                        <tbody id="tbodyVersiones"></tbody>
                     </table>
                 </div>
             </div>

@@ -20,13 +20,14 @@ switch ($peticion) {
         $nom = trim($_POST['nom'] ?? '');
         $especs = trim($_POST['especs'] ?? '');
         $version_inicial = trim($_POST['version_inicial'] ?? '');
+        $icono = trim($_POST['icono'] ?? 'fas fa-cube'); // Se captura el icono
 
         if (empty($nom) || empty($tipo_serv) || empty($version_inicial)) {
             echo json_encode(["result" => 0, "msg" => "Faltan datos obligatorios para crear el servicio."]); 
             exit;
         }
 
-        echo json_encode($controller->insertarServicio($id_sub, $tipo_serv, $nom, $especs, $version_inicial));
+        echo json_encode($controller->insertarServicio($id_sub, $tipo_serv, $nom, $especs, $version_inicial, $icono));
         break;
 
     case 'UPDATE_SERV':
@@ -34,15 +35,15 @@ switch ($peticion) {
         $tipo_serv = trim($_POST['tipo_serv'] ?? '');
         $nom = trim($_POST['nom'] ?? '');
         $especs = trim($_POST['especs'] ?? '');
+        $icono = trim($_POST['icono'] ?? 'fas fa-cube'); // Se captura el icono
 
         if (empty($id_serv) || empty($nom) || empty($tipo_serv)) {
             echo json_encode(["result" => 0, "msg" => "Faltan datos obligatorios para la actualización."]); 
             exit;
         }
 
-        echo json_encode($controller->actualizarServicio($id_sub, $id_serv, $tipo_serv, $nom, $especs));
+        echo json_encode($controller->actualizarServicio($id_sub, $id_serv, $tipo_serv, $nom, $especs, $icono));
         break;
-
     case 'DELETE_SERV':
         $id_serv = $_POST['id_serv'] ?? '';
         

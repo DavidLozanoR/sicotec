@@ -86,10 +86,10 @@ class ServiciosController {
         return ['servicios' => $lista_servicios];
     }
 
-    // ==========================================================
+// ==========================================================
     // LÓGICA DE SERVICIOS (CRUD)
     // ==========================================================
-    public function insertarServicio($id_sub, $tipo_serv, $nom, $especs, $version_inicial) {
+    public function insertarServicio($id_sub, $tipo_serv, $nom, $especs, $version_inicial, $icono) {
         $model = new MainModel();
         
         if (!$this->verificarPermiso($id_sub, self::PERMISO_AGREGAR)) {
@@ -97,12 +97,15 @@ class ServiciosController {
         }
 
         $fecha_actual = date('Y-m-d H:i:s');
+        
+        // Si viene vacío, asignamos el cubo por defecto
+        $icono = empty($icono) ? 'fas fa-cube' : $icono;
 
-        // 1. Insertamos el Servicio Maestro (Sin id_ver porque ya no existe)
+        // 1. Insertamos el Servicio Maestro
         $id_serv_nuevo = $model->agregaRegistroConBitacora(
             "servicios", 
-            ["tipo_serv", "nom", "especs", "u_act", "estatus"], 
-            [$tipo_serv, $nom, $especs, $fecha_actual, 1],
+            ["tipo_serv", "nom", "especs", "u_act", "estatus", "icono"], 
+            [$tipo_serv, $nom, $especs, $fecha_actual, 1, $icono],
             $id_sub, "Registró el catálogo de servicio: {$nom}"
         );
 
@@ -119,25 +122,29 @@ class ServiciosController {
         return ["result" => 0, "msg" => "Error al guardar el servicio en la base de datos."];
     }
 
-    public function actualizarServicio($id_sub, $id_serv, $tipo_serv, $nom, $especs) {
+public function actualizarServicio($id_sub, $id_serv, $tipo_serv, $nom, $especs, $icono) {
         $model = new MainModel();
 
         if (!$this->verificarPermiso($id_sub, self::PERMISO_EDITAR)) {
             return ["result" => 0, "msg" => "Permiso denegado."];
         }
+        
+        $icono = empty($icono) ? 'fas fa-cube' : $icono;
 
-        $res = $model->actualizaRegistro(
+        // Usamos la función unificada con bitácora
+        $res = $model->actualizaRegistroConBitacora(
             "servicios", 
-            ["tipo_serv", "nom", "especs", "u_act"], 
+            ["tipo_serv", "nom", "especs", "u_act", "icono"], 
             "id_serv = ?", 
-            [$tipo_serv, $nom, $especs, date('Y-m-d H:i:s'), $id_serv]
+            [$tipo_serv, $nom, $especs, date('Y-m-d H:i:s'), $icono, $id_serv],
+            $id_sub,
+            "Actualizó detalles del servicio ID: {$id_serv} | {$nom}"
         );
 
         if ($res) {
-            $model->registrarBitacora($id_sub, 'UPDATE', "Actualizó detalles del servicio ID: {$id_serv}");
             return ["result" => 1, "msg" => "Datos del servicio actualizados exitosamente."];
         }
-        return ["result" => 0, "msg" => "Error al intentar actualizar."];
+        return ["result" => 0, "msg" => "Error al intentar actualizar o no hubo cambios detectados."];
     }
 
     public function eliminarServicio($id_sub, $id_serv) {
@@ -152,15 +159,22 @@ class ServiciosController {
             return ["result" => 0, "msg" => "Operación bloqueada. Existen " . count($uso) . " equipos usando este software."];
         }
 
-        // Borrado lógico del catálogo
-        $res = $model->actualizaRegistro("servicios", ["estatus"], "id_serv = ?", [0, $id_serv]);
+        // Borrado lógico del catálogo usando la función unificada
+        $res = $model->actualizaRegistroConBitacora(
+            "servicios", 
+            ["estatus"], 
+            "id_serv = ?", 
+            [0, $id_serv],
+            $id_sub,
+            "Desactivó (borrado lógico) el servicio ID: {$id_serv}"
+        );
 
         if ($res) {
-            $model->registrarBitacora($id_sub, 'DELETE', "Desactivó (borrado lógico) el servicio ID: {$id_serv}");
             return ["result" => 1, "msg" => "Servicio desactivado correctamente."];
         }
         return ["result" => 0, "msg" => "Error al intentar desactivar el servicio."];
     }
+
 
     // ==========================================================
     // HISTORIAL DE VERSIONES
