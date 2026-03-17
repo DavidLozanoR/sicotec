@@ -27,6 +27,7 @@ if (!$id_sub_diccionario) {
 switch ($action) {
     case 'leer':
         $datos = $modelo->seleccionaRegistros('Diccionario_Nomenclaturas', ['Id_nom', 'nom', 'signif', 'notas'], '1=1 ORDER BY Id_nom DESC');
+        $datos = $datos ? $datos : ['error'];
         echo json_encode(['status' => 'success', 'data' => $datos]);
         break;
 

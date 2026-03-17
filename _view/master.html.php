@@ -166,7 +166,7 @@ $controlador = $controlador ?? '';
                 }
             ?>
         </div>
-
+        <!-- diccionario -->
         <div class="offcanvas offcanvas-end shadow" tabindex="-1" id="offcanvasDiccionario" aria-labelledby="offcanvasDiccionarioLabel" style="width: 500px;">
             <div class="offcanvas-header border-bottom bg-light">
                 <h5 class="offcanvas-title fw-bold" id="offcanvasDiccionarioLabel">
@@ -175,7 +175,10 @@ $controlador = $controlador ?? '';
                 <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
             </div>
             <div class="offcanvas-body d-flex flex-column">
-                <div class="d-flex justify-content-end mb-3">
+                <div class="d-flex justify-content-end mb-3 gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnRecargarDiccionario" title="Recargar tabla">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
                     <button type="button" class="btn btn-sm btn-outline-secondary" id="btnAgregarNomenclatura">
                         <i class="fas fa-plus me-1"></i> Agregar Nomenclatura
                     </button>
