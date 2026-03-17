@@ -50,7 +50,7 @@ class DispositivosFormController {
         $dispositivo = null;
         $servicios_asignados = [];
 
-        // Redes (Se removió 'mac' de esta consulta porque ya no pertenece a la tabla infraestructura_red)
+        // Redes
         $condicionRed = "id_disp IS NULL OR id_disp = 0";
         $paramsRed = [];
         if (!empty($this->id_disp)) {
@@ -63,36 +63,35 @@ class DispositivosFormController {
         $campos_po = ["id_po", "TRIM(CONCAT(nombres, ' ', ape_pa, ' ', COALESCE(ape_ma, ''))) AS nombre_completo"];
         $personal_operativo = $model->seleccionaRegistros("personal_operativo", $campos_po, "1=1 ORDER BY nombres ASC");
 
-        // Catálogos de Servicios
-        $servicios = $model->seleccionaRegistros("servicios", ["id_serv", "nom", "id_ver"]);
-        $versiones = $model->seleccionaRegistros("versiones", ["id_ver", "ver", "id_serv"]);
+        // Catálogos de Servicios (SIN id_ver, y solo traemos los activos)
+        $servicios = $model->seleccionaRegistros("servicios", ["id_serv", "nom"], "estatus = 1");
+        
+        // Versiones (Agregamos la columna 'obs' para que JS sepa cuál es la actual)
+        $versiones = $model->seleccionaRegistros("versiones", ["id_ver", "ver", "id_serv", "obs"]);
 
         if (!empty($this->id_disp)) {
             $joins = [
                 "LEFT JOIN infraestructura_red r ON d.id_disp = r.id_disp"
             ];
-            // Se removió 'r.mac' de los campos solicitados. 
-            // La nueva columna 'mac' de la tabla dispositivos ya viene incluida en 'd.*'
-            $campos = [
-                "d.*", "r.id_red", "r.ip"
-            ];
+            
+            $campos = ["d.*", "r.id_red", "r.ip"];
             
             $resultado = $model->seleccionaRegistrosJoin("dispositivos d", $joins, $campos, "d.id_disp = ?", [$this->id_disp]);
             
             if (!empty($resultado)) {
                 $dispositivo = $resultado[0];
                 
-                // Extraer servicios instalados con verificación de versión
+                // LA MAGIA ESTÁ AQUÍ: Simplificamos el JOIN y traemos la bandera de obsolescencia (obs) directamente
                 $joins_serv = [
                     "JOIN servicios s ON ds.id_serv = s.id_serv",
-                    "JOIN versiones v ON ds.id_ver_instalada = v.id_ver"
+                    "JOIN versiones v_inst ON ds.id_ver_instalada = v_inst.id_ver"
                 ];
                 $campos_serv = [
                     "ds.id_serv", 
                     "ds.id_ver_instalada", 
                     "s.nom AS nombre_servicio", 
-                    "s.id_ver AS id_ver_oficial", 
-                    "v.ver AS version_instalada"
+                    "v_inst.ver AS version_instalada",
+                    "v_inst.obs AS es_obsoleta"
                 ];
                 $servicios_asignados = $model->seleccionaRegistrosJoin("dispositivo_servicio ds", $joins_serv, $campos_serv, "ds.id_disp = ?", [$this->id_disp]);
 

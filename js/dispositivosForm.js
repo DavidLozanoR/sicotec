@@ -10,32 +10,25 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalCatalogoElement = document.getElementById('modalCatalogoServicios');
     const tbodyCatalogo = document.getElementById('tbody-catalogo-servicios');
 
-    // ====================================================================
+    // ==========================================
     // AUTO-COMPLETADO AMBICIOSO DESDE JS STORAGE (UX)
-    // ====================================================================
+    // ==========================================
     const selectAsignado = document.querySelector('select[name="asig_po_id"]');
     const selectResponsable = document.querySelector('select[name="resp_po_id"]');
     const idPoEnMemoria = sessionStorage.getItem('po_preselect_asignado');
 
     if (idPoEnMemoria && selectAsignado) {
-        // 1. Validamos estrictamente que la opción activa sea "Sin asignar" (value="")
         if (selectAsignado.value === "") {
-            
-            // Inyectamos el ID de la memoria
             selectAsignado.value = idPoEnMemoria;
-            
-            // Quitamos bordes neutrales y aplicamos resaltado de éxito
             selectAsignado.classList.remove('border-secondary-subtle');
             selectAsignado.classList.add('border-success', 'bg-success', 'bg-opacity-10', 'text-success', 'fw-bold');
             
-            // Repetimos para el Responsable Legal si está vacío
             if (selectResponsable && selectResponsable.value === "") {
                 selectResponsable.value = idPoEnMemoria;
                 selectResponsable.classList.remove('border-secondary-subtle');
                 selectResponsable.classList.add('border-success', 'bg-success', 'bg-opacity-10', 'text-success', 'fw-bold');
             }
         }
-        // 2. Limpieza obligatoria para no afectar navegaciones futuras
         sessionStorage.removeItem('po_preselect_asignado');
     }
 
@@ -47,16 +40,16 @@ document.addEventListener('DOMContentLoaded', () => {
             tbodyCatalogo.innerHTML = '';
             
             if (catalogoServicios.length === 0) {
-                tbodyCatalogo.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted">No hay servicios registrados en el catálogo del sistema.</td></tr>';
+                tbodyCatalogo.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted">No hay servicios registrados en el catálogo.</td></tr>';
             } else {
                 catalogoServicios.forEach(servicio => {
-                    // Identificar la versión oficial (la que coincide con id_ver del servicio)
-                    const versionOficial = catalogoVersiones.find(v => v.id_ver == servicio.id_ver);
-                    const nombreVersionOficial = versionOficial ? versionOficial.ver : 'Indefinida';
+                    // Buscar versión oficial usando obs == 0 (0 es numérico o string dependiendo de cómo lo traiga PHP)
+                    const versionOficial = catalogoVersiones.find(v => v.id_serv == servicio.id_serv && String(v.obs) === "0");
+                    const nombreVersionOficial = versionOficial ? versionOficial.ver : 'Sin versión oficial';
                     
-                    // Filtrar las demás versiones asociadas a este servicio que no son la oficial
+                    // Filtrar versiones históricas usando obs == 1
                     const otrasVersiones = catalogoVersiones
-                        .filter(v => v.id_serv == servicio.id_serv && v.id_ver != servicio.id_ver)
+                        .filter(v => v.id_serv == servicio.id_serv && String(v.obs) === "1")
                         .map(v => `<span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle mb-1 me-1">${v.ver}</span>`)
                         .join('');
 
@@ -74,15 +67,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
-            // Instanciar y mostrar el modal de Bootstrap
             const modalCatalogo = new bootstrap.Modal(modalCatalogoElement);
             modalCatalogo.show();
         });
     }
+
     // ==========================================
     // LÓGICA DE MÚLTIPLES SERVICIOS Y VERSIONES
     // ==========================================
-
     function crearFilaServicio(idServicioSelec = '', idVersionSelec = '') {
         const fila = document.createElement('label');
         fila.className = 'list-group-item d-flex justify-content-between align-items-center py-3 list-group-item-action bg-white';
@@ -115,7 +107,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const statusVer = fila.querySelector('.status-version');
         const btnRemove = fila.querySelector('.btn-remove-row');
 
-        // Configurar el nombre del input de versión para que el array sea asociativo si es necesario en PHP
         selectServ.addEventListener('change', function() {
             selectVer.name = `versiones_instaladas[${this.value}]`;
         });
@@ -125,14 +116,16 @@ document.addEventListener('DOMContentLoaded', () => {
             const option = document.createElement('option');
             option.value = s.id_serv;
             option.textContent = s.nom;
-            option.dataset.oficial = s.id_ver;
+            
+            // Buscar la versión oficial (obs = 0) para adjuntarla al data-attribute
+            const versionOficial = catalogoVersiones.find(v => v.id_serv == s.id_serv && String(v.obs) === "0");
+            option.dataset.oficial = versionOficial ? versionOficial.id_ver : '';
+            
             selectServ.appendChild(option);
         });
 
-        // Función para cargar las versiones filtradas
         const cargarVersiones = (idServicioActual, versionSeleccionada = '') => {
             selectVer.innerHTML = '<option value="" disabled selected>Seleccione versión...</option>';
-            
             const versionesFiltradas = catalogoVersiones.filter(v => v.id_serv == idServicioActual);
             
             versionesFiltradas.forEach(v => {
@@ -149,19 +142,16 @@ document.addEventListener('DOMContentLoaded', () => {
             validarVersion(selectServ, selectVer, statusVer, fila);
         };
 
-        // Eventos
         selectServ.addEventListener('change', () => cargarVersiones(selectServ.value));
         selectVer.addEventListener('change', () => validarVersion(selectServ, selectVer, statusVer, fila));
         btnRemove.addEventListener('click', () => fila.remove());
 
-        // Carga inicial
         if (idServicioSelec) {
             selectServ.value = idServicioSelec;
             selectVer.name = `versiones_instaladas[${idServicioSelec}]`;
             cargarVersiones(idServicioSelec, idVersionSelec);
         }
 
-        // Eliminar el mensaje de "No hay servicios" si existe
         const msjVacio = document.getElementById('mensaje-sin-servicios');
         if(msjVacio) msjVacio.remove();
 
@@ -178,6 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const optionServ = selectServ.options[selectServ.selectedIndex];
         const idVerOficial = optionServ.dataset.oficial;
 
+        // Validamos si la seleccionada coincide con la oficial extraída de la BD
         if (selectVer.value === idVerOficial) {
             selectVer.classList.add('is-valid');
             containerStatus.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i> Oficial (Al día)</span>';
@@ -188,51 +179,49 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Inicializar añadir nuevo
     if(btnAddServicio) {
         btnAddServicio.addEventListener('click', () => crearFilaServicio());
     }
 
-    // Manejar eliminación de servicios cargados desde la base de datos
+    // ==========================================
+    // ACTUALIZAR SERVICIO CARGADO (BOTÓN RÁPIDO)
+    // ==========================================
     document.querySelectorAll('.btn-quitar-serv').forEach(btn => {
         btn.addEventListener('click', function() {
             this.closest('.list-group-item').remove();
         });
     });
 
-    // Manejar actualización rápida de servicios cargados desde la base de datos
     document.querySelectorAll('.btn-actualizar-serv').forEach(btn => {
         btn.addEventListener('click', function() {
             const row = this.closest('.list-group-item');
             const idServ = this.dataset.idServ;
             const inputVersion = row.querySelector(`input[name="versiones_instaladas[${idServ}]"]`);
             
-            // Buscar la versión oficial en el catálogo de servicios
-            const servicioCat = catalogoServicios.find(s => s.id_serv == idServ);
-            if(servicioCat && inputVersion) {
-                // Actualizar el input hidden con la ID de la versión oficial
-                inputVersion.value = servicioCat.id_ver;
+            // Buscar la versión oficial (obs = 0) para este servicio
+            const versionOficial = catalogoVersiones.find(v => v.id_serv == idServ && String(v.obs) === "0");
+            
+            if(versionOficial && inputVersion) {
+                // Actualizar el input
+                inputVersion.value = versionOficial.id_ver;
                 
-                // Buscar el texto de la versión en el catálogo de versiones
-                const versionOficialText = catalogoVersiones.find(v => v.id_ver == servicioCat.id_ver)?.ver || 'Desconocida';
-                
-                // Actualizar UI
+                // Actualizar visualmente la fila (quitar lo rojo)
                 row.classList.remove('bg-danger', 'bg-opacity-10', 'border-danger', 'border-opacity-50');
                 row.classList.add('bg-white');
                 
                 const titleH6 = row.querySelector('h6');
                 titleH6.classList.remove('text-danger');
                 titleH6.classList.add('text-dark');
-                // Quitar icono de peligro
+                
                 const iconDanger = titleH6.querySelector('.fa-exclamation-triangle');
                 if(iconDanger) iconDanger.remove();
 
                 const textSmall = row.querySelector('small');
                 textSmall.classList.remove('text-danger');
                 textSmall.classList.add('text-muted');
-                textSmall.innerHTML = `Instalado: <strong>${versionOficialText}</strong>`;
+                textSmall.innerHTML = `Instalado: <strong>${versionOficial.ver}</strong>`;
 
-                // Reemplazar botones de la derecha por el badge de "Al día"
+                // Reemplazar botones
                 const textEndDiv = this.parentElement;
                 textEndDiv.innerHTML = `
                     <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-3 py-2 shadow-sm me-2">
@@ -243,20 +232,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     </button>
                 `;
 
-                // Re-asociar evento de eliminar al nuevo botón
                 textEndDiv.querySelector('.btn-quitar-serv').addEventListener('click', function() {
                     this.closest('.list-group-item').remove();
                 });
 
-                Toast.fire({ icon: 'success', title: 'Versión actualizada en el formulario. Guarde para aplicar.' });
+                Toast.fire({ icon: 'success', title: 'Versión actualizada. Guarde los cambios.' });
+            } else {
+                Toast.fire({ icon: 'warning', title: 'Este servicio no tiene una versión oficial.' });
             }
         });
     });
 
     // ==========================================
-    // VALIDACIÓN Y ENVÍO DEL FORMULARIO
+    // ENVÍO DEL FORMULARIO
     // ==========================================
-
     if (formDispositivo) {
         formDispositivo.addEventListener('submit', function (e) {
             e.preventDefault();
@@ -281,16 +270,29 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Preparar el envío
             const formData = new FormData(this);
             const dataObj = Object.fromEntries(formData.entries());
             
-            // Reconstruir los arreglos de software desde los inputs (tanto selects nuevos como hiddens viejos)
             const serviciosInputArray = formData.getAll('servicios_instalados[]');
+            
+            // ==========================================
+            // ESCUDO: PREVENIR SERVICIOS DUPLICADOS
+            // ==========================================
+            const uniqueServs = new Set(serviciosInputArray);
+            if (uniqueServs.size !== serviciosInputArray.length) {
+                Swal.fire({ 
+                    icon: 'warning', 
+                    title: 'Servicios Duplicados', 
+                    text: 'Ha seleccionado el mismo software más de una vez. Quite los duplicados de la lista antes de guardar.', 
+                    confirmButtonColor: '#9D2449' 
+                });
+                return; // Detenemos el guardado
+            }
+            // ==========================================
+
             const asignacionesSoftware = [];
 
             serviciosInputArray.forEach(id_serv => {
-                // Buscar en el form data el valor asociado a esa llave
                 const id_ver_instalada = formData.get(`versiones_instaladas[${id_serv}]`);
                 if(id_serv && id_ver_instalada) {
                     asignacionesSoftware.push({
@@ -300,9 +302,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             });
 
-            // Limpiar FormData suelto y asignar el array de objetos
             dataObj.asignaciones_software = asignacionesSoftware;
-            // Eliminar propiedades basura que Object.fromEntries agarró de los arrays
             for(let key in dataObj) {
                 if(key.includes('versiones_instaladas') || key.includes('servicios_instalados')) {
                     delete dataObj[key];

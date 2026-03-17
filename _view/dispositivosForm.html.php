@@ -186,7 +186,9 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                                 <div id="contenedor-servicios" class="list-group shadow-sm border-secondary-subtle mb-3">
                                     <?php if (!empty($servicios_asignados)): ?>
                                         <?php foreach ($servicios_asignados as $sa): 
-                                            $es_obsoleto = ($sa['id_ver_instalada'] != $sa['id_ver_oficial']);
+                                            // NUEVA LÓGICA: Evaluamos la bandera de la base de datos directamente
+                                            $es_obsoleto = ($sa['es_obsoleta'] == 1);
+                                            
                                             $clase_bg = $es_obsoleto ? 'bg-danger bg-opacity-10 border-danger border-opacity-50' : 'bg-white';
                                             $clase_texto = $es_obsoleto ? 'text-danger' : 'text-dark';
                                         ?>
@@ -244,7 +246,6 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
         </div>
     </form>
 </div>
-<!-- modal para consultar servicios -->
 <div class="modal fade" id="modalCatalogoServicios" tabindex="-1" aria-labelledby="modalCatalogoLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 shadow-lg">
