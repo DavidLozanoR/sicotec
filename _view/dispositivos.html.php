@@ -1,11 +1,8 @@
 <link rel="stylesheet" href="css/dispositivos.css">
 
 <div class="container-fluid px-4 py-3" id="main-dispositivos-container" data-id-sub="<?php echo $id_sub_actual ?? ''; ?>">
+    
     <div class="d-flex justify-content-between align-items-center mb-4">
-        <div class="input-group" style="max-width: 400px;">
-            <span class="input-group-text bg-white border-secondary-subtle"><i class="fas fa-search text-muted"></i></span>
-            <input type="text" id="buscarDispositivo" class="form-control border-secondary-subtle focus-guinda" placeholder="Buscar por hostname, serie, marca o IP...">
-        </div>
         <div>
             <h3 class="fw-bold mb-0" style="color: #333;">Catálogo de Dispositivos</h3>
             <p class="text-secondary mb-0">Consulta y gestión de equipos autorizados</p>
@@ -17,14 +14,45 @@
 
     <div class="card shadow-sm border-0 rounded-3 mb-4">
         <div class="card-body p-4">
-            <h6 class="fw-bold text-dark mb-4">
-                <i class="fas fa-laptop text-guinda me-2"></i> Lista de Dispositivos
-            </h6>
+            
+            <div class="d-flex justify-content-between align-items-end mb-4 border-bottom pb-3">
+                <h6 class="fw-bold text-dark mb-0">
+                    <i class="fas fa-laptop text-guinda me-2"></i> Lista de Dispositivos
+                </h6>
+                <small class="text-muted" id="contador-registros">Mostrando <?php echo count($dispositivos ?? []); ?> registros</small>
+            </div>
+
+            <div class="row g-3 mb-3 align-items-center">
+                <div class="col-12 col-md-5 col-lg-4">
+                    <div class="input-group shadow-sm">
+                        <span class="input-group-text bg-white border-secondary-subtle"><i class="fas fa-search text-muted"></i></span>
+                        <input type="text" id="buscarDispositivo" class="form-control border-secondary-subtle focus-guinda" placeholder="Buscar por hostname, serie, marca o IP...">
+                    </div>
+                </div>
+
+                <div class="col-12 col-md-7 col-lg-8 d-flex justify-content-md-end align-items-center gap-3">
+                    <div class="d-flex align-items-center gap-2">
+                        <label class="small text-muted mb-0">Mostrar</label>
+                        <select class="form-select form-select-sm shadow-sm focus-guinda" id="selectorRegistros" style="width: 80px;">
+                            <option value="10" selected>10</option>
+                            <option value="25">25</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="all">Todos</option>
+                        </select>
+                        <label class="small text-muted mb-0 d-none d-sm-block">registros</label>
+                    </div>
+
+                    <nav aria-label="Navegación de registros">
+                        <ul class="pagination pagination-sm mb-0 shadow-sm" id="paginacionTabla">
+                            </ul>
+                    </nav>
+                </div>
+            </div>
 
             <div class="table-responsive" style="max-height: 500px; overflow-y: auto;">
                 <table class="table table-hover align-middle mb-0">
-                    <thead class="table-light sticky-top">
-                        <tr>
+                    <thead class="table-light sticky-top">                        <tr>
                             <th>Hostname</th>
                             <th>Marca / Modelo</th>
                             <th>No. Serie</th>
