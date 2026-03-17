@@ -11,13 +11,72 @@ document.addEventListener('DOMContentLoaded', () => {
     const tbodyCatalogo = document.getElementById('tbody-catalogo-servicios');
 
     // ==========================================
+    // 0. VALIDACIONES VISUALES Y WIZARD (PESTAÑAS)
+    // ==========================================
+    function validarCampoUI(campo) {
+        if (campo.required && campo.value.trim() === '') {
+            campo.classList.remove('is-valid');
+            campo.classList.add('is-invalid');
+        } else {
+            if (campo.value.trim() !== '') {
+                campo.classList.remove('is-invalid');
+                campo.classList.add('is-valid');
+            } else {
+                campo.classList.remove('is-invalid', 'is-valid');
+            }
+        }
+    }
+
+    if (formDispositivo) {
+        // Feedback visual en tiempo real
+        const formInputs = formDispositivo.querySelectorAll('input[required], select[required], textarea[required]');
+        formInputs.forEach(input => {
+            input.addEventListener('blur', () => validarCampoUI(input));
+            input.addEventListener('change', () => validarCampoUI(input));
+            input.addEventListener('input', () => validarCampoUI(input));
+        });
+
+        // Lógica de los botones "Siguiente"
+        document.querySelectorAll('.btn-siguiente').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const pestanaActual = this.closest('.tab-pane');
+                const nextTabId = this.getAttribute('data-next');
+                let isValid = true;
+
+                // Forzar validación solo en la pestaña actual
+                const inputsActuales = pestanaActual.querySelectorAll('input[required], select[required], textarea[required]');
+                inputsActuales.forEach(input => {
+                    validarCampoUI(input);
+                    if (input.classList.contains('is-invalid') || input.value.trim() === '') {
+                        isValid = false;
+                    }
+                });
+
+                if (isValid) {
+                    const tabTarget = document.getElementById(nextTabId);
+                    if(tabTarget) {
+                        const nextTab = new bootstrap.Tab(tabTarget);
+                        nextTab.show();
+                    }
+                } else {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: 'Información Incompleta',
+                        text: 'Por favor, llene correctamente todos los campos obligatorios de esta sección antes de avanzar.',
+                        confirmButtonColor: '#9D2449'
+                    });
+                }
+            });
+        });
+    }
+
+    // ==========================================
     // 1. LÓGICA DINÁMICA DE REDES (DEPARTAMENTO -> IP)
     // ==========================================
     const selectRedDep = document.getElementById('select-red-dep');
     const selectRedIp = document.getElementById('select-red-ip');
 
     if (selectRedDep && selectRedIp && typeof redesDisponibles !== 'undefined') {
-        // 1A. Extraer Departamentos Únicos (Ignorando los que no tienen nombre)
         const departamentosRed = [];
         const mapDeps = new Map();
         
@@ -30,10 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Ordenar alfabéticamente
         departamentosRed.sort((a, b) => a.nom_dep.localeCompare(b.nom_dep));
 
-        // Llenar el Select de Departamentos
         departamentosRed.forEach(dep => {
             const option = document.createElement('option');
             option.value = dep.id_dep;
@@ -41,11 +98,9 @@ document.addEventListener('DOMContentLoaded', () => {
             selectRedDep.appendChild(option);
         });
 
-        // 1B. Función para filtrar las IPs según el departamento
         const cargarIPs = (idDep, ipSeleccionada = null) => {
             selectRedIp.innerHTML = '';
             
-            // Si elige "En resguardo", apagamos el selector de IP
             if (idDep === 'resguardo') {
                 selectRedIp.innerHTML = '<option value="">-- Sin IP (En resguardo) --</option>';
                 selectRedIp.disabled = true;
@@ -53,7 +108,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Si elige un departamento, activamos el selector
             selectRedIp.disabled = false;
             selectRedIp.classList.remove('bg-light');
             
@@ -66,7 +120,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Llenar las IPs disponibles
             redesFiltradas.forEach(red => {
                 const opt = document.createElement('option');
                 opt.value = red.id_red;
@@ -74,20 +127,66 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectRedIp.appendChild(opt);
             });
 
-            // Preseleccionar IP si estamos editando, o la primera de la lista si es nuevo
             if (ipSeleccionada && redesFiltradas.some(r => r.id_red == ipSeleccionada)) {
                 selectRedIp.value = ipSeleccionada;
             } else {
-                selectRedIp.selectedIndex = 0; // Preselección automática de la primera IP
+                selectRedIp.selectedIndex = 0; 
             }
         };
 
-        // 1C. Evento cuando el usuario cambia el departamento
+        // ==========================================
+    // 1.5. VALIDACIÓN DINÁMICA DE MAC vs IP
+    // ==========================================
+    const inputMac = document.querySelector('input[name="mac"]');
+    
+    function actualizarRequisitoMac() {
+        if (!inputMac || !selectRedIp) return;
+        
+        const labelMac = inputMac.previousElementSibling;
+        
+        if (selectRedIp.value && selectRedIp.value !== "") {
+            // Si hay IP asignada, la MAC es obligatoria
+            inputMac.setAttribute('required', 'required');
+            if (labelMac && !labelMac.innerHTML.includes('*')) {
+                labelMac.innerHTML += ' <span class="text-danger req-asterisk">*</span>';
+            }
+        } else {
+            // Si no hay IP (resguardo), la MAC es opcional
+            inputMac.removeAttribute('required');
+            inputMac.classList.remove('is-invalid', 'is-valid'); 
+            if (labelMac) {
+                const asterisk = labelMac.querySelector('.req-asterisk');
+                if (asterisk) asterisk.remove();
+            }
+        }
+    }
+
+    if (selectRedIp) {
+        // Escuchar cambios manuales en el selector de IP
+        selectRedIp.addEventListener('change', () => {
+            actualizarRequisitoMac();
+            validarCampoUI(inputMac); // Re-evaluar visualmente al instante
+        });
+    }
+
+    // Interceptar la función original cargarIPs para que también evalúe la MAC
+    // cuando cambia el departamento o cuando se carga la página por primera vez
+    if (selectRedDep) {
+        selectRedDep.addEventListener('change', () => {
+            setTimeout(() => { 
+                actualizarRequisitoMac(); 
+                validarCampoUI(inputMac);
+            }, 50); // Pequeño delay para asegurar que el selectRedIp ya se actualizó
+        });
+    }
+
+    // Ejecución inicial al abrir el formulario
+    setTimeout(() => actualizarRequisitoMac(), 100);
+    
         selectRedDep.addEventListener('change', function() {
             cargarIPs(this.value);
         });
 
-        // 1D. Carga inicial (Para cuando el form abre en modo Edición)
         let idDepInicial = 'resguardo';
         let idRedInicial = null;
 
@@ -197,6 +296,10 @@ document.addEventListener('DOMContentLoaded', () => {
         const selectVer = fila.querySelector('.select-version');
         const statusVer = fila.querySelector('.status-version');
         const btnRemove = fila.querySelector('.btn-remove-row');
+
+        // Agregar validación UI en tiempo real a los nuevos selects
+        selectServ.addEventListener('change', () => validarCampoUI(selectServ));
+        selectVer.addEventListener('change', () => validarCampoUI(selectVer));
 
         selectServ.addEventListener('change', function() {
             selectVer.name = `versiones_instaladas[${this.value}]`;
@@ -328,29 +431,48 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ==========================================
-    // ENVÍO DEL FORMULARIO
+    // ENVÍO DEL FORMULARIO Y NAVEGACIÓN A ERRORES
     // ==========================================
     if (formDispositivo) {
         formDispositivo.addEventListener('submit', function (e) {
             e.preventDefault();
 
-            if (!this.checkValidity()) {
+            let formularioValido = true;
+            
+            // Forzar validación visual en todo el formulario antes de enviar
+            const allRequired = this.querySelectorAll('input[required], select[required], textarea[required]');
+            allRequired.forEach(input => {
+                validarCampoUI(input);
+                if (input.value.trim() === '') {
+                    formularioValido = false;
+                }
+            });
+
+            if (!this.checkValidity() || !formularioValido) {
                 e.stopPropagation();
-                const firstInvalid = this.querySelector(':invalid');
-                if (firstInvalid) {
-                    const tabPane = firstInvalid.closest('.tab-pane');
+                this.classList.add('was-validated');
+                
+                // Buscar la primera pestaña con error y redirigir
+                const primerError = this.querySelector('.is-invalid, :invalid');
+                if (primerError) {
+                    const tabPane = primerError.closest('.tab-pane');
                     if (tabPane) {
                         const tabId = tabPane.getAttribute('id');
                         const tabButton = document.querySelector(`[data-bs-target="#${tabId}"]`);
                         if (tabButton) {
                             const tab = new bootstrap.Tab(tabButton);
                             tab.show();
-                            setTimeout(() => firstInvalid.focus(), 200);
+                            setTimeout(() => primerError.focus(), 200);
                         }
                     }
                 }
-                this.classList.add('was-validated');
-                Toast.fire({ icon: 'warning', title: 'Complete los campos obligatorios.' });
+                
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Campos incompletos',
+                    text: 'Por favor, revise los campos marcados en rojo antes de guardar.',
+                    confirmButtonColor: '#9D2449'
+                });
                 return;
             }
 

@@ -110,6 +110,11 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                                         <textarea class="form-control focus-guinda border-secondary-subtle" name="especs_hw" rows="4"><?php echo htmlspecialchars($dispositivo['especs_hw'] ?? ''); ?></textarea>
                                     </div>
                                 </div>
+                                <div class="col-12 mt-4 text-end border-top border-secondary-subtle pt-4">
+                                        <button type="button" class="btn btn-outline-secondary fw-bold px-4 btn-siguiente" data-next="v-pills-net-tab">
+                                            Siguiente: Red y Conexión <i class="fas fa-arrow-right ms-2"></i>
+                                        </button>
+                                </div>
                             </div>
 
                             <div class="tab-pane fade" id="v-pills-net" role="tabpanel" aria-labelledby="v-pills-net-tab">
@@ -142,6 +147,11 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                                         </select>
                                     </div>
                                 </div>
+                                <div class="col-12 mt-4 text-end border-top border-secondary-subtle pt-4">
+                                        <button type="button" class="btn btn-outline-secondary fw-bold px-4 btn-siguiente" data-next="v-pills-asig-tab">
+                                            Siguiente: Asignación de Personal <i class="fas fa-arrow-right ms-2"></i>
+                                        </button>
+                                </div>
                             </div>
 
                             <div class="tab-pane fade" id="v-pills-asig" role="tabpanel" aria-labelledby="v-pills-asig-tab">
@@ -169,6 +179,11 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                                             <?php endforeach; ?>
                                         </select>
                                     </div>
+                                </div>
+                                <div class="col-12 mt-4 text-end border-top border-secondary-subtle pt-4">
+                                        <button type="button" class="btn btn-outline-secondary fw-bold px-4 btn-siguiente" data-next="v-pills-serv-tab">
+                                            Siguiente: Servicios Instalados <i class="fas fa-arrow-right ms-2"></i>
+                                        </button>
                                 </div>
                             </div>
 
