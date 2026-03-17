@@ -157,28 +157,89 @@ $(document).ready(function() {
         actualizarTabla();
     }
 
+// ==========================================
+    // 2. ELIMINAR DISPOSITIVO (Baja Definitiva)
     // ==========================================
-    // 2. ELIMINAR DISPOSITIVO (Confirmación)
-    // ==========================================
-    $('.btn-eliminar-disp').on('click', function(e) {
+    $(document).on('click', '.btn-eliminar-disp', async function(e) {
         e.preventDefault();
         const idDisp = $(this).data('id');
+        const idSub = $('#main-dispositivos-container').data('id-sub');
 
-        Swal.fire({
-            title: '¿Estás seguro?',
-            text: "El dispositivo será dado de baja del sistema.",
+        // VERIFICACIÓN 1: Advertencia Inicial
+        const paso1 = await Swal.fire({
+            title: '¿Iniciar baja del dispositivo?',
+            text: "Esta acción liberará la IP asignada, eliminará el registro de software instalado y desvinculará a los responsables.",
             icon: 'warning',
             showCancelButton: true,
             confirmButtonColor: '#9D2449',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Sí, eliminar',
+            confirmButtonText: 'Paso 1: Entendido, continuar',
             cancelButtonText: 'Cancelar'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                console.log("Eliminar ID:", idDisp);
-                // Aquí la lógica de borrado con fetch/ajax
+        });
+
+        if (!paso1.isConfirmed) return;
+
+        // VERIFICACIÓN 2: Re-confirmación de Impacto
+        const paso2 = await Swal.fire({
+            title: 'Revisión de Impacto',
+            text: "Se generará un respaldo en la bitácora con los datos actuales para posible recuperación. La eliminación del registro físico es irreversible.",
+            icon: 'info',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Paso 2: Estoy seguro',
+            cancelButtonText: 'Cancelar'
+        });
+
+        if (!paso2.isConfirmed) return;
+
+        // VERIFICACIÓN 3: Confirmación por Escritura
+        const paso3 = await Swal.fire({
+            title: 'Confirmación Final',
+            text: "Escriba 'ELIMINAR' para proceder con la baja definitiva:",
+            input: 'text',
+            icon: 'error',
+            showCancelButton: true,
+            confirmButtonText: '¡Dar de Baja!',
+            cancelButtonText: 'Cancelar',
+            confirmButtonColor: '#000',
+            inputValidator: (value) => {
+                if (value !== 'ELIMINAR') {
+                    return 'Debe escribir ELIMINAR con mayúsculas para confirmar';
+                }
             }
         });
-    });
 
+        if (paso3.isConfirmed) {
+            Swal.fire({
+                title: 'Procesando Baja...',
+                text: 'Liberando recursos y registrando bitácora.',
+                allowOutsideClick: false,
+                didOpen: () => { Swal.showLoading(); }
+            });
+
+            fetch('_controller/DispositivosAsync.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    peticion: 'BAJA_DISP',
+                    id_disp: idDisp,
+                    id_sub: idSub
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    Swal.fire({ icon: 'success', title: 'Baja Exitosa', text: data.msg, confirmButtonColor: '#285C4D' })
+                    .then(() => location.reload());
+                } else {
+                    Swal.fire({ icon: 'error', title: 'Error', text: data.msg, confirmButtonColor: '#9D2449' });
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                Swal.fire({ icon: 'error', title: 'Error de servidor', text: 'Ocurrió un problema de comunicación.', confirmButtonColor: '#9D2449' });
+            });
+        }
+    });
 });

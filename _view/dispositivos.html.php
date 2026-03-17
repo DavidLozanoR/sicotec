@@ -93,12 +93,25 @@
                                             <span class="text-muted small">Sin asignar</span>
                                         <?php endif; ?>
                                     </td>
-                                    <td class="text-center">
+                                    <td class="text-center text-nowrap">
                                         <a href="dispositivos/formulario/<?php echo $id_sub_actual; ?>/<?php echo $disp['id_disp']; ?>" 
-                                            class="btn btn-sm btn-outline-primary"
+                                            class="btn btn-sm btn-light text-primary shadow-sm me-1"
                                             title="Editar Detalles">
                                             <i class="fas fa-edit"></i>
                                         </a>
+                                        
+                                        <div class="dropdown d-inline-block">
+                                            <button class="btn btn-sm btn-light text-muted shadow-sm" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Más opciones">
+                                                <i class="fas fa-ellipsis-v"></i>
+                                            </button>
+                                            <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 ring-1 ring-secondary-subtle">
+                                                <li>
+                                                    <button type="button" class="dropdown-item text-danger py-2 btn-eliminar-disp" data-id="<?php echo $disp['id_disp']; ?>">
+                                                        <i class="fas fa-trash-alt me-2"></i> Dar de Baja
+                                                    </button>
+                                                </li>
+                                            </ul>
+                                        </div>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
