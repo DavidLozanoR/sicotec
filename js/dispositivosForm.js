@@ -11,6 +11,99 @@ document.addEventListener('DOMContentLoaded', () => {
     const tbodyCatalogo = document.getElementById('tbody-catalogo-servicios');
 
     // ==========================================
+    // 1. LÓGICA DINÁMICA DE REDES (DEPARTAMENTO -> IP)
+    // ==========================================
+    const selectRedDep = document.getElementById('select-red-dep');
+    const selectRedIp = document.getElementById('select-red-ip');
+
+    if (selectRedDep && selectRedIp && typeof redesDisponibles !== 'undefined') {
+        // 1A. Extraer Departamentos Únicos (Ignorando los que no tienen nombre)
+        const departamentosRed = [];
+        const mapDeps = new Map();
+        
+        redesDisponibles.forEach(red => {
+            const idDep = red.id_dep || 'general';
+            const nomDep = red.nom_dep || 'General / Sin Departamento';
+            if (!mapDeps.has(idDep)) {
+                mapDeps.set(idDep, nomDep);
+                departamentosRed.push({ id_dep: idDep, nom_dep: nomDep });
+            }
+        });
+
+        // Ordenar alfabéticamente
+        departamentosRed.sort((a, b) => a.nom_dep.localeCompare(b.nom_dep));
+
+        // Llenar el Select de Departamentos
+        departamentosRed.forEach(dep => {
+            const option = document.createElement('option');
+            option.value = dep.id_dep;
+            option.textContent = dep.nom_dep;
+            selectRedDep.appendChild(option);
+        });
+
+        // 1B. Función para filtrar las IPs según el departamento
+        const cargarIPs = (idDep, ipSeleccionada = null) => {
+            selectRedIp.innerHTML = '';
+            
+            // Si elige "En resguardo", apagamos el selector de IP
+            if (idDep === 'resguardo') {
+                selectRedIp.innerHTML = '<option value="">-- Sin IP (En resguardo) --</option>';
+                selectRedIp.disabled = true;
+                selectRedIp.classList.add('bg-light');
+                return;
+            }
+
+            // Si elige un departamento, activamos el selector
+            selectRedIp.disabled = false;
+            selectRedIp.classList.remove('bg-light');
+            
+            const redesFiltradas = redesDisponibles.filter(r => (r.id_dep || 'general') == idDep);
+            
+            if (redesFiltradas.length === 0) {
+                selectRedIp.innerHTML = '<option value="">-- No hay IPs disponibles --</option>';
+                selectRedIp.disabled = true;
+                selectRedIp.classList.add('bg-light');
+                return;
+            }
+
+            // Llenar las IPs disponibles
+            redesFiltradas.forEach(red => {
+                const opt = document.createElement('option');
+                opt.value = red.id_red;
+                opt.textContent = `IP: ${red.ip}`;
+                selectRedIp.appendChild(opt);
+            });
+
+            // Preseleccionar IP si estamos editando, o la primera de la lista si es nuevo
+            if (ipSeleccionada && redesFiltradas.some(r => r.id_red == ipSeleccionada)) {
+                selectRedIp.value = ipSeleccionada;
+            } else {
+                selectRedIp.selectedIndex = 0; // Preselección automática de la primera IP
+            }
+        };
+
+        // 1C. Evento cuando el usuario cambia el departamento
+        selectRedDep.addEventListener('change', function() {
+            cargarIPs(this.value);
+        });
+
+        // 1D. Carga inicial (Para cuando el form abre en modo Edición)
+        let idDepInicial = 'resguardo';
+        let idRedInicial = null;
+
+        if (typeof dispositivoActual !== 'undefined' && dispositivoActual && dispositivoActual.id_red) {
+            idRedInicial = dispositivoActual.id_red;
+            const redEncontrada = redesDisponibles.find(r => r.id_red == idRedInicial);
+            if (redEncontrada) {
+                idDepInicial = redEncontrada.id_dep || 'general';
+            }
+        }
+
+        selectRedDep.value = idDepInicial;
+        cargarIPs(idDepInicial, idRedInicial);
+    }
+
+    // ==========================================
     // AUTO-COMPLETADO AMBICIOSO DESDE JS STORAGE (UX)
     // ==========================================
     const selectAsignado = document.querySelector('select[name="asig_po_id"]');
@@ -43,11 +136,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 tbodyCatalogo.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted">No hay servicios registrados en el catálogo.</td></tr>';
             } else {
                 catalogoServicios.forEach(servicio => {
-                    // Buscar versión oficial usando obs == 0 (0 es numérico o string dependiendo de cómo lo traiga PHP)
                     const versionOficial = catalogoVersiones.find(v => v.id_serv == servicio.id_serv && String(v.obs) === "0");
                     const nombreVersionOficial = versionOficial ? versionOficial.ver : 'Sin versión oficial';
                     
-                    // Filtrar versiones históricas usando obs == 1
                     const otrasVersiones = catalogoVersiones
                         .filter(v => v.id_serv == servicio.id_serv && String(v.obs) === "1")
                         .map(v => `<span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle mb-1 me-1">${v.ver}</span>`)
@@ -111,13 +202,11 @@ document.addEventListener('DOMContentLoaded', () => {
             selectVer.name = `versiones_instaladas[${this.value}]`;
         });
 
-        // Poblar select de servicios
         catalogoServicios.forEach(s => {
             const option = document.createElement('option');
             option.value = s.id_serv;
             option.textContent = s.nom;
             
-            // Buscar la versión oficial (obs = 0) para adjuntarla al data-attribute
             const versionOficial = catalogoVersiones.find(v => v.id_serv == s.id_serv && String(v.obs) === "0");
             option.dataset.oficial = versionOficial ? versionOficial.id_ver : '';
             
@@ -168,7 +257,6 @@ document.addEventListener('DOMContentLoaded', () => {
         const optionServ = selectServ.options[selectServ.selectedIndex];
         const idVerOficial = optionServ.dataset.oficial;
 
-        // Validamos si la seleccionada coincide con la oficial extraída de la BD
         if (selectVer.value === idVerOficial) {
             selectVer.classList.add('is-valid');
             containerStatus.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i> Oficial (Al día)</span>';
@@ -198,14 +286,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const idServ = this.dataset.idServ;
             const inputVersion = row.querySelector(`input[name="versiones_instaladas[${idServ}]"]`);
             
-            // Buscar la versión oficial (obs = 0) para este servicio
             const versionOficial = catalogoVersiones.find(v => v.id_serv == idServ && String(v.obs) === "0");
             
             if(versionOficial && inputVersion) {
-                // Actualizar el input
                 inputVersion.value = versionOficial.id_ver;
                 
-                // Actualizar visualmente la fila (quitar lo rojo)
                 row.classList.remove('bg-danger', 'bg-opacity-10', 'border-danger', 'border-opacity-50');
                 row.classList.add('bg-white');
                 
@@ -221,7 +306,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 textSmall.classList.add('text-muted');
                 textSmall.innerHTML = `Instalado: <strong>${versionOficial.ver}</strong>`;
 
-                // Reemplazar botones
                 const textEndDiv = this.parentElement;
                 textEndDiv.innerHTML = `
                     <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-3 py-2 shadow-sm me-2">
@@ -275,9 +359,7 @@ document.addEventListener('DOMContentLoaded', () => {
             
             const serviciosInputArray = formData.getAll('servicios_instalados[]');
             
-            // ==========================================
             // ESCUDO: PREVENIR SERVICIOS DUPLICADOS
-            // ==========================================
             const uniqueServs = new Set(serviciosInputArray);
             if (uniqueServs.size !== serviciosInputArray.length) {
                 Swal.fire({ 
@@ -286,9 +368,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     text: 'Ha seleccionado el mismo software más de una vez. Quite los duplicados de la lista antes de guardar.', 
                     confirmButtonColor: '#9D2449' 
                 });
-                return; // Detenemos el guardado
+                return; 
             }
-            // ==========================================
 
             const asignacionesSoftware = [];
 

@@ -13,9 +13,14 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
 ?>
 
 <script>
+    // Variables para Servicios
     const catalogoServicios = <?php echo json_encode($servicios); ?>;
     const catalogoVersiones = <?php echo json_encode($versiones); ?>;
     const serviciosAsignadosIniciales = <?php echo json_encode($servicios_asignados); ?>;
+    
+    // NUEVAS: Variables para el control dinámico de Redes
+    const redesDisponibles = <?php echo json_encode($redes_disponibles); ?>;
+    const dispositivoActual = <?php echo json_encode($dispositivo); ?>;
 </script>
 
 <div class="container-fluid px-4 py-3">
@@ -118,20 +123,22 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                                         <label class="form-label fw-bold small text-dark mb-1">Dominio</label>
                                         <input type="text" class="form-control focus-guinda border-secondary-subtle" name="dom" value="<?php echo htmlspecialchars($dispositivo['dom'] ?? ''); ?>" maxlength="100">
                                     </div>
-                                    <div class="col-md-6">
+                                    <div class="col-12">
                                         <label class="form-label fw-bold small text-dark mb-1">Dirección MAC del Equipo</label>
                                         <input type="text" class="form-control focus-guinda border-secondary-subtle font-monospace" name="mac" value="<?php echo htmlspecialchars($dispositivo['mac'] ?? ''); ?>" maxlength="17" placeholder="Ej: 00:1A:2B:3C:4D:5E">
                                     </div>
 
                                     <div class="col-md-6">
-                                        <label class="form-label fw-bold small text-dark mb-1">Asignación de IP (Red)</label>
-                                        <select class="form-select focus-guinda border-secondary-subtle font-monospace" name="id_red">
-                                            <option value="" selected>Sin red asignada (Equipo en almacén / Offline)</option>
-                                            <?php foreach($redes_disponibles as $red): ?>
-                                                <option value="<?php echo $red['id_red']; ?>" <?php echo (isset($dispositivo) && $dispositivo['id_red'] == $red['id_red']) ? 'selected' : ''; ?>>
-                                                    IP: <?php echo htmlspecialchars($red['ip']); ?>
-                                                </option>
-                                            <?php endforeach; ?>
+                                        <label class="form-label fw-bold small text-dark mb-1"><i class="fas fa-map-marker-alt text-guinda me-1"></i> Ubicación / Departamento</label>
+                                        <select class="form-select focus-guinda border-secondary-subtle" id="select-red-dep">
+                                            <option value="resguardo" selected>En resguardo (Almacén)</option>
+                                            </select>
+                                    </div>
+
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold small text-dark mb-1"><i class="fas fa-network-wired text-guinda me-1"></i> Asignación de IP</label>
+                                        <select class="form-select focus-guinda border-secondary-subtle font-monospace bg-light" name="id_red" id="select-red-ip" disabled>
+                                            <option value="">-- Sin IP (En resguardo) --</option>
                                         </select>
                                     </div>
                                 </div>
@@ -186,7 +193,6 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                                 <div id="contenedor-servicios" class="list-group shadow-sm border-secondary-subtle mb-3">
                                     <?php if (!empty($servicios_asignados)): ?>
                                         <?php foreach ($servicios_asignados as $sa): 
-                                            // NUEVA LÓGICA: Evaluamos la bandera de la base de datos directamente
                                             $es_obsoleto = ($sa['es_obsoleta'] == 1);
                                             
                                             $clase_bg = $es_obsoleto ? 'bg-danger bg-opacity-10 border-danger border-opacity-50' : 'bg-white';
@@ -246,6 +252,7 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
         </div>
     </form>
 </div>
+
 <div class="modal fade" id="modalCatalogoServicios" tabindex="-1" aria-labelledby="modalCatalogoLabel" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 shadow-lg">
