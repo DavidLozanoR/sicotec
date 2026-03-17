@@ -108,7 +108,6 @@ if ($personal) {
                                         <label class="form-label fw-bold small text-dark mb-1">Apellido Materno</label>
                                         <input type="text" class="form-control focus-guinda border-secondary-subtle" name="ape_ma" value="<?php echo $personal['ape_ma'] ?? ''; ?>" required>
                                         <div class="invalid-feedback">El apellido materno es obligatorio.</div>
-
                                     </div>
                                     
                                     <div class="col-md-4">
@@ -127,15 +126,21 @@ if ($personal) {
                                         <div class="invalid-feedback">El No. de cuenta de dominio es obligatorio.</div>
                                     </div>
 
-                                    <div class="col-12">
-                                        <label class="form-label fw-bold small text-dark mb-1">Dirección Completa *</label>
-                                        <textarea class="form-control focus-guinda border-secondary-subtle" name="dir" rows="3" required><?php echo $personal['dir'] ?? ''; ?></textarea>
-                                        <div class="invalid-feedback">Por favor, proporcione la dirección completa.</div>
-                                    </div>
+                                        <div class="col-12">
+                                            <label class="form-label fw-bold small text-dark mb-1">Dirección Completa *</label>
+                                            <textarea class="form-control focus-guinda border-secondary-subtle" name="dir" rows="3" required><?php echo $personal['dir'] ?? ''; ?></textarea>
+                                            <div class="invalid-feedback">Por favor, proporcione la dirección completa.</div>
+                                        </div>
+                                        
+                                        <div class="col-12 mt-4 text-end border-top border-secondary-subtle pt-4">
+                                            <button type="button" class="btn btn-outline-secondary fw-bold px-4 btn-siguiente" data-next="v-pills-area-tab">
+                                                Siguiente: Área y Puesto <i class="fas fa-arrow-right ms-2"></i>
+                                            </button>
+                                        </div>
+                                        </div>
                                 </div>
-                            </div>
 
-                            <div class="tab-pane fade" id="v-pills-area" role="tabpanel" aria-labelledby="v-pills-area-tab">
+                                <div class="tab-pane fade" id="v-pills-area" role="tabpanel" aria-labelledby="v-pills-area-tab">
                                 <h5 class="fw-bold text-guinda mb-4 border-bottom border-secondary-subtle pb-3">
                                     Asignación de Área y Accesos
                                 </h5>
@@ -171,16 +176,22 @@ if ($personal) {
                                         </div>
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label fw-bold small text-dark mb-1">Estatus del Empleado</label>
-                                        <select class="form-select focus-guinda border-secondary-subtle" name="estatus">
-                                            <option value="1" <?php echo (isset($personal) && $personal['estatus'] == 1) ? 'selected' : ''; ?>>Activo (Laborando)</option>
-                                            <option value="0" <?php echo (isset($personal) && $personal['estatus'] == 0) ? 'selected' : ''; ?>>Inactivo / Baja</option>
-                                        </select>
-                                    </div>
+                                            <label class="form-label fw-bold small text-dark mb-1">Estatus del Empleado</label>
+                                            <select class="form-select focus-guinda border-secondary-subtle" name="estatus">
+                                                <option value="1" <?php echo (isset($personal) && $personal['estatus'] == 1) ? 'selected' : ''; ?>>Activo (Laborando)</option>
+                                                <option value="0" <?php echo (isset($personal) && $personal['estatus'] == 0) ? 'selected' : ''; ?>>Inactivo / Baja</option>
+                                            </select>
+                                        </div>
+                                        
+                                        <div class="col-12 mt-4 text-end border-top border-secondary-subtle pt-4">
+                                            <button type="button" class="btn btn-outline-secondary fw-bold px-4 btn-siguiente" data-next="v-pills-equipos-tab">
+                                                Siguiente: Dispositivos <i class="fas fa-arrow-right ms-2"></i>
+                                            </button>
+                                        </div>
+                                        </div>
                                 </div>
-                            </div>
 
-                                <div class="tab-pane fade" id="v-pills-equipos" role="tabpanel" aria-labelledby="v-pills-equipos-tab" data-sub-disp="<?php echo $id_sub_dispositivos; ?>">                                
+                                <div class="tab-pane fade" id="v-pills-equipos" role="tabpanel" aria-labelledby="v-pills-equipos-tab" data-sub-disp="<?php echo $id_sub_dispositivos; ?>">                               
                                     <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary-subtle pb-3">
                                     <div>
                                         <h5 class="fw-bold text-guinda mb-0">Dispositivos Vinculados</h5>

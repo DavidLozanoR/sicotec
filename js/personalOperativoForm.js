@@ -6,56 +6,54 @@ $(document).ready(function() {
     // 1. VALIDACIONES REACTIVAS (EN TIEMPO REAL)
     // ====================================================================
 
-    // A) Nombres y Apellidos: Solo letras, sin espacios al inicio, sin dobles espacios
+    // A) Nombres y Apellidos
     $('input[name="nombres"], input[name="ape_pa"], input[name="ape_ma"]').on('input', function() {
         let valor = $(this).val();
-        valor = valor.replace(/^\s+/g, ''); // Bloquea espacios al inicio
-        valor = valor.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, ''); // Solo letras
-        valor = valor.replace(/\s{2,}/g, ' '); // Evita dos espacios seguidos
+        valor = valor.replace(/^\s+/g, '');
+        valor = valor.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
+        valor = valor.replace(/\s{2,}/g, ' ');
         $(this).val(valor);
     });
 
-    // B) Número de Cobro y Extensión: Solo números enteros
+    // B) Número de Cobro y Extensión
     $('input[name="num_cobro"], input[name="ext"]').on('input', function() {
         let valor = $(this).val();
-        valor = valor.replace(/[^0-9]/g, ''); // Bloquea todo lo que no sea número (incluye espacios)
+        valor = valor.replace(/[^0-9]/g, '');
         $(this).val(valor);
     });
 
-    // C) Correo Institucional y Cuenta de Dominio: Sin espacios, alfanumérico y . _ -
+    // C) Correo Institucional y Cuenta de Dominio
     $('input[name="correo_prefijo"], input[name="cta_dom"]').on('input', function() {
         let valor = $(this).val();
-        valor = valor.replace(/^\s+/g, ''); // Bloquea espacios al inicio
-        valor = valor.replace(/[^a-zA-Z0-9._-]/g, ''); // Sin espacios en el medio, solo alfanumérico
+        valor = valor.replace(/^\s+/g, '');
+        valor = valor.replace(/[^a-zA-Z0-9._-]/g, '');
         $(this).val(valor);
     });
 
-    // D) Puesto Operativo: Letras, números, sin espacios al inicio, sin dobles espacios
+    // D) Puesto Operativo
     $('input[name="puesto"]').on('input', function() {
         let valor = $(this).val();
-        valor = valor.replace(/^\s+/g, ''); // Bloquea espacios al inicio
-        valor = valor.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, ''); // Letras y números (Ej. "Analista 1")
-        valor = valor.replace(/\s{2,}/g, ' '); // Evita dos espacios seguidos
+        valor = valor.replace(/^\s+/g, '');
+        valor = valor.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '');
+        valor = valor.replace(/\s{2,}/g, ' ');
         $(this).val(valor);
     });
 
-    // E) Dirección Completa: Letras, números, espacios y signos permitidos (, . # -)
+    // E) Dirección Completa
     $('textarea[name="dir"]').on('input', function() {
         let valor = $(this).val();
-        valor = valor.replace(/^\s+/g, ''); // Bloquea espacios al inicio
-        valor = valor.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s,.#-]/g, ''); // Permite signos de direcciones
-        valor = valor.replace(/\s{2,}/g, ' '); // Evita dos espacios seguidos
+        valor = valor.replace(/^\s+/g, '');
+        valor = valor.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s,.#-]/g, '');
+        valor = valor.replace(/\s{2,}/g, ' ');
         $(this).val(valor);
     });
 
-    // F) Feedback visual al salir del campo (Blur) o al cambiar un Select (Change)
-    $formPO.find('input[required], select[required], textarea[required]').on('blur change', function() {
+    // F) Feedback visual 
+    $formPO.find('input[required], select[required], textarea[required]').on('blur change input', function() {
         validarCampoUI($(this));
     });
 
-    // Función auxiliar para pintar los campos de verde o rojo individualmente
     function validarCampoUI($campo) {
-        // Usamos .trim() para asegurar que no nos engañen con un espacio final
         if ($campo.prop('required') && $campo.val().trim() === '') {
             $campo.removeClass('is-valid').addClass('is-invalid');
         } else {
@@ -68,13 +66,42 @@ $(document).ready(function() {
     }
 
     // ====================================================================
-    // 2. LÓGICA DE ENVÍO DEL FORMULARIO (SUBMIT)
+    // 2. LÓGICA DE NAVEGACIÓN POR PESTAÑAS (WIZARD)
+    // ====================================================================
+    $('.btn-siguiente').on('click', function() {
+        let $pestanaActual = $(this).closest('.tab-pane');
+        let nextTabId = $(this).data('next');
+        let isValid = true;
+
+        // Forzar validación solo en la pestaña actual
+        $pestanaActual.find('input[required], select[required], textarea[required]').each(function() {
+            validarCampoUI($(this));
+            if ($(this).hasClass('is-invalid') || $(this).val().trim() === '') {
+                isValid = false;
+            }
+        });
+
+        if (isValid) {
+            let nextTab = new bootstrap.Tab(document.getElementById(nextTabId));
+            nextTab.show();
+        } else {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Información Incompleta',
+                text: 'Por favor, llene correctamente todos los campos obligatorios de esta sección antes de avanzar.',
+                confirmButtonColor: '#9D2449'
+            });
+        }
+    });
+
+    // ====================================================================
+    // 3. LÓGICA DE ENVÍO DEL FORMULARIO (SUBMIT)
     // ====================================================================
     $formPO.on('submit', function(e) {
         e.preventDefault();
 
-        // Forzamos la validación visual de todos los campos antes de enviar
         let formularioValido = true;
+        
         $formPO.find('input[required], select[required], textarea[required]').each(function() {
             validarCampoUI($(this));
             if ($(this).val().trim() === '') {
@@ -82,11 +109,21 @@ $(document).ready(function() {
             }
         });
 
-        // Validación nativa de HTML5/Bootstrap
         if (!this.checkValidity() || !formularioValido) {
             e.stopPropagation();
             $formPO.addClass('was-validated'); 
             
+            // Buscar la primera pestaña que contenga un error y redirigir al usuario ahí
+            let primerError = $formPO.find('.is-invalid').first();
+            if (primerError.length) {
+                let tabPane = primerError.closest('.tab-pane');
+                let tabId = tabPane.attr('id');
+                let tabButton = document.getElementById(tabId + '-tab');
+                if (tabButton) {
+                    new bootstrap.Tab(tabButton).show();
+                }
+            }
+
             Swal.fire({
                 icon: 'warning',
                 title: 'Campos incompletos',
@@ -96,23 +133,18 @@ $(document).ready(function() {
             return; 
         }
 
-        // Si pasó la validación, quitamos la clase was-validated para evitar conflictos visuales
         $formPO.removeClass('was-validated');
 
         // ====================================================================
-        // 3. PREPARACIÓN DE DATOS PARA AJAX
+        // 4. PREPARACIÓN DE DATOS PARA AJAX
         // ====================================================================
         let formData = new FormData(this);
-        
         let id_po = $('#id_po').val();
         let peticion = (id_po === '' || id_po == 0) ? 'INSERT_PO' : 'UPDATE_PO';
         formData.append('peticion', peticion);
 
         $btnGuardar.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i> Procesando...');
 
-        // ====================================================================
-        // 4. PETICIÓN AJAX AL BACKEND
-        // ====================================================================
         $.ajax({
             url: '_controller/PersonalOPAsync.php',
             type: 'POST',
@@ -130,23 +162,14 @@ $(document).ready(function() {
                         allowOutsideClick: false
                     }).then((result) => {
                         if (result.isConfirmed) {
-                            
-                            // LÓGICA DE MANTENIMIENTO EN PANTALLA:
-                            // Si acabamos de crear un nuevo empleado (INSERT_PO)
                             if (peticion === 'INSERT_PO' && response.id_nuevo) {
-                                
-                                // 1. Inyectamos el nuevo ID en el input oculto
                                 $('#id_po').val(response.id_nuevo);
-                                
-                                // 2. Cambiamos el título de la página
                                 $('h3.fw-bold').text('Editar Empleado');
                                 
-                                // 3. Modificamos la URL en el navegador (sin recargar)
                                 let url_actual = window.location.href;
                                 let base_url = url_actual.substring(0, url_actual.lastIndexOf('/') + 1);
                                 window.history.replaceState({}, '', base_url + response.id_nuevo);
 
-                                // 4. Habilitamos la pestaña de equipos y CORREGIMOS EL BOTÓN.
                                 let htmlEquipos = `
                                     <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary-subtle pb-3">
                                         <div>
@@ -162,12 +185,8 @@ $(document).ready(function() {
                                         <p class="mb-0">Este empleado no tiene dispositivos vinculados en el sistema.</p>
                                     </div>
                                 `;
-                                
                                 $('#v-pills-equipos').html(htmlEquipos);
-                                
                             }
-                            
-                            // Restauramos el botón
                             $btnGuardar.prop('disabled', false).html('<i class="fas fa-save me-2"></i> Guardar Empleado');
                         }
                     });
@@ -195,34 +214,29 @@ $(document).ready(function() {
     });
 
     // ====================================================================
-    // 5. DESVINCULAR EQUIPOS (QUITAR USO DIARIO O RESGUARDO)
+    // 5. DESVINCULAR EQUIPOS 
     // ====================================================================
     $('.dropdown-item[data-action="quitar_uso"], .dropdown-item[data-action="quitar_resguardo"]').on('click', function(e) {
         e.preventDefault();
         
-        let action = $(this).data('action'); // 'quitar_uso' o 'quitar_resguardo'
+        let action = $(this).data('action'); 
         let id_disp = $(this).data('id');
         let id_po = $('#id_po').val();
         let id_sub = $('#id_sub').val();
-
-        // Leemos la etiqueta actual de la tarjeta (Ej. "Uso Diario", "En Resguardo" o "Uso y Resguardo")
         let etiquetaActual = $(this).closest('.card-body').find('.badge').text().trim();
 
-        // Textos dinámicos dependiendo de la acción y el estado actual
         let titulo = '';
         let texto = '';
 
         if (action === 'quitar_uso') {
             titulo = '¿Quitar de Uso Diario?';
             texto = 'El equipo ya no estará asignado para el uso diario de este empleado.';
-            // Si tiene dualidad, le advertimos que el otro vínculo se mantiene
             if (etiquetaActual === 'Uso y Resguardo') {
                 texto += '<br><br><div class="alert alert-warning py-2 mb-0 small text-start"><i class="fas fa-info-circle me-1"></i> <b>Nota:</b> El empleado seguirá siendo el <b class="text-dark">Responsable Legal (Resguardo)</b> del equipo.</div>';
             }
         } else if (action === 'quitar_resguardo') {
             titulo = '¿Liberar Resguardo Legal?';
             texto = 'El empleado ya no será el responsable legal de este equipo frente a la institución.';
-            // Si tiene dualidad, le advertimos que el otro vínculo se mantiene
             if (etiquetaActual === 'Uso y Resguardo') {
                 texto += '<br><br><div class="alert alert-primary py-2 mb-0 small text-start"><i class="fas fa-info-circle me-1"></i> <b>Nota:</b> El equipo seguirá asignado para el <b class="text-dark">Uso Diario</b> del empleado.</div>';
             }
@@ -240,7 +254,6 @@ $(document).ready(function() {
         }).then((result) => {
             if (result.isConfirmed) {
                 Swal.showLoading();
-                
                 $.ajax({
                     url: '_controller/PersonalOPAsync.php',
                     type: 'POST',
@@ -275,13 +288,10 @@ $(document).ready(function() {
     });
 
     // ====================================================================
-    // 6. ALMACENAMIENTO JS (UX): GUARDAR OP EN MEMORIA PARA VINCULACIÓN
+    // 6. ALMACENAMIENTO JS (UX)
     // ====================================================================
-    // Usamos delegación de eventos por si el botón se creó dinámicamente con AJAX
     $(document).on('click', '#btnVincularDispositivo', function(e) {
         let id_po_actual = $('#id_po').val();
-        
-        // Si hay un empleado cargado en el formulario, lo guardamos en memoria
         if (id_po_actual && id_po_actual !== "" && id_po_actual != 0) {
             sessionStorage.setItem('po_preselect_asignado', id_po_actual);
         }
