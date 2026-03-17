@@ -77,6 +77,12 @@
                 $ctrl = new ServiciosController($slug);
             }
 		break;
+		case "responsables":
+			if($accion == ""){
+                require_once "_controller/ResponsivaController.php";
+                $ctrl = new ResponsivaController($slug);
+            }
+		break;
         default:
             
 		break;
