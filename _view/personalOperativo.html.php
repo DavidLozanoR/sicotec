@@ -58,6 +58,23 @@ $id_sub_actual = $id_sub_actual ?? 1; // ID del submódulo (por defecto 1 si no 
                         <i class="fas fa-eraser me-1"></i> Limpiar
                     </button>
                 </div>
+                <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+                <div class="d-flex align-items-center gap-2">
+                    <label class="small text-muted mb-0">Mostrar</label>
+                    <select class="form-select form-select-sm shadow-sm focus-guinda" id="selectorRegistros" style="width: 80px;">
+                        <option value="10" selected>10</option>
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                        <option value="all">Todos</option>
+                    </select>
+                    <label class="small text-muted mb-0">registros</label>
+                </div>
+                
+                <nav aria-label="Navegación de registros">
+                    <ul class="pagination pagination-sm mb-0 shadow-sm" id="paginacionTabla">
+                        </ul>
+                </nav>
             </div>
 
             <div class="table-responsive border rounded shadow-sm">
