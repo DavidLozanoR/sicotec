@@ -83,6 +83,12 @@
                 $ctrl = new ResponsivaController($slug);
             }
 		break;
+		case "consultas":
+			if($accion == ""){
+                require_once "_controller/ConsultasController.php";
+                $ctrl = new ConsultasController($slug);
+            }
+		break;
         default:
             
 		break;
