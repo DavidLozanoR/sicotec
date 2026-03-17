@@ -48,7 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (tbody) {
-        // DETECTAR CAMBIOS PARA MOSTRAR LA PALOMITA
+        // DETECTAR CAMBIOS PARA MOSTRAR EL DISQUETE
         tbody.addEventListener('input', (e) => {
             if (e.target.hasAttribute('contenteditable')) {
                 const tr = e.target.closest('tr');
@@ -93,7 +93,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
 
-            // GUARDAR CON PALOMITA
+            // GUARDAR CON DISQUETE
             if (e.target.classList.contains('btn-guardar-nom')) {
                 const celdaBoton = e.target;
                 const tr = celdaBoton.closest('tr');
@@ -148,7 +148,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (todoExito) {
                     Toast.fire({ icon: 'success', title: 'Fila guardada' });
                     
-                    // Ocultar la palomita tras guardar exitosamente
+                    // Ocultar el disquete tras guardar exitosamente
                     const btnGuardar = tr.querySelector('.btn-guardar-nom');
                     if (btnGuardar) btnGuardar.classList.add('d-none');
 
@@ -200,9 +200,9 @@ document.addEventListener('DOMContentLoaded', () => {
                             <td class="p-2 align-middle">
                                 <div class="d-flex align-items-start">
                                     <div contenteditable="true" data-id="${fila.Id_nom}" data-campo="notas" class="flex-grow-1" style="outline: none; min-height: 20px;">${fila.notas}</div>
-                                    <i class="fas fa-check text-success btn-guardar-nom ms-2 mt-1 d-none" 
+                                    <i class="fas fa-save text-success btn-guardar-nom ms-2 mt-1 d-none" 
                                        data-id="${fila.Id_nom}" 
-                                       style="cursor: pointer;" 
+                                       style="cursor: pointer; font-size: 1.1rem;" 
                                        title="Guardar fila"></i>
                                 </div>
                             </td>
