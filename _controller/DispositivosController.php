@@ -61,6 +61,35 @@ class DispositivosController {
 
         if (!$dispositivos) {
             $dispositivos = [];
+        } else {
+            // Evaluamos el software de cada dispositivo
+            foreach ($dispositivos as &$disp) {
+                $servicios = $model->seleccionaRegistrosJoin(
+                    "dispositivo_servicio ds",
+                    [
+                        "JOIN servicios s ON ds.id_serv = s.id_serv",
+                        "JOIN versiones v ON ds.id_ver_instalada = v.id_ver"
+                    ],
+                    ["s.nom", "v.ver", "v.obs"],
+                    "ds.id_disp = ?",
+                    [$disp['id_disp']]
+                );
+                
+                $disp['tiene_obsoleto'] = false;
+                $str_software = "";
+
+                if ($servicios) {
+                    foreach ($servicios as $s) {
+                        if ($s['obs'] == 1) {
+                            $disp['tiene_obsoleto'] = true;
+                        }
+                        // Guardamos el nombre y versión para que el JS pueda buscarlos
+                        $str_software .= $s['nom'] . " " . $s['ver'] . " ";
+                    }
+                }
+                $disp['str_software'] = trim($str_software);
+            }
+            unset($disp); // Rompemos la referencia de memoria
         }
 
         return [
