@@ -1,3 +1,4 @@
+<link rel="stylesheet" href="css/dispositivos.css">
 
 <div class="container-fluid px-4 py-3" id="main-dispositivos-container" data-id-sub="<?php echo $id_sub_actual ?? ''; ?>">
     
@@ -21,32 +22,46 @@
                 <small class="text-muted" id="contador-registros">Mostrando <?php echo count($dispositivos ?? []); ?> registros</small>
             </div>
 
-            <div class="row g-3 mb-3 align-items-center">
-                <div class="col-12 col-md-5 col-lg-4">
+            <div class="row g-2 mb-3 align-items-center">
+                <div class="col-12 col-lg-4">
                     <div class="input-group shadow-sm">
                         <span class="input-group-text bg-white border-secondary-subtle"><i class="fas fa-search text-muted"></i></span>
-                        <input type="text" id="buscarDispositivo" class="form-control border-secondary-subtle focus-guinda" placeholder="Buscar por hostname, serie o software oculto...">
+                        <input type="text" id="buscarDispositivo" class="form-control border-secondary-subtle focus-guinda" placeholder="Buscar equipo, serie o software...">
                     </div>
                 </div>
-
-                <div class="col-12 col-md-7 col-lg-8 d-flex justify-content-md-end align-items-center gap-3">
-                    <div class="d-flex align-items-center gap-2">
-                        <label class="small text-muted mb-0">Mostrar</label>
-                        <select class="form-select form-select-sm shadow-sm focus-guinda" id="selectorRegistros" style="width: 80px;">
-                            <option value="10" selected>10</option>
-                            <option value="25">25</option>
-                            <option value="50">50</option>
-                            <option value="100">100</option>
-                            <option value="all">Todos</option>
-                        </select>
-                        <label class="small text-muted mb-0 d-none d-sm-block">registros</label>
-                    </div>
-
-                    <nav aria-label="Navegación de registros" class="overflow-auto">
-                        <ul class="pagination pagination-sm mb-0 shadow-sm" id="paginacionTabla">
-                        </ul>
-                    </nav>
+                
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <select class="form-select shadow-sm focus-guinda border-secondary-subtle" id="filtroAsignacion">
+                        <option value="todos">Asignación: Todas</option>
+                        <option value="asignado">Equipos Asignados</option>
+                        <option value="sin_asignar">Sin Asignar (Almacén)</option>
+                    </select>
                 </div>
+
+                <div class="col-12 col-sm-6 col-lg-3">
+                    <select class="form-select shadow-sm focus-guinda border-secondary-subtle" id="filtroDepartamento">
+                        <option value="todos">Red: Todas</option>
+                        <option value="sin_red">Sin red / departamento</option>
+                        <?php foreach($departamentos as $dep): ?>
+                            <option value="<?php echo $dep['id_dep']; ?>">Red: <?php echo htmlspecialchars($dep['nom_dep']); ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+
+                <div class="col-12 col-lg-2 d-flex justify-content-lg-end">
+                    <select class="form-select shadow-sm focus-guinda border-secondary-subtle w-100" id="selectorRegistros">
+                        <option value="10">10 filas</option>
+                        <option value="25">25 filas</option>
+                        <option value="50">50 filas</option>
+                        <option value="all" selected>Todo</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="d-flex justify-content-end mb-3">
+                <nav aria-label="Navegación de registros" class="overflow-auto">
+                    <ul class="pagination pagination-sm mb-0 shadow-sm" id="paginacionTabla"></ul>
+                </nav>
             </div>
 
             <div class="table-responsive border rounded-3" style="max-height: 500px;">
@@ -56,7 +71,7 @@
                             <th>Hostname</th>
                             <th>Marca / Modelo</th>
                             <th>No. Serie</th>
-                            <th>Red (IP)</th>
+                            <th>Red / Ubicación</th>
                             <th>Responsable</th>
                             <th class="text-center">Acciones</th>
                         </tr>
@@ -64,7 +79,9 @@
                     <tbody>
                         <?php if ($dispositivos && count($dispositivos) > 0): ?>
                             <?php foreach ($dispositivos as $disp): ?>
-                                <tr data-software="<?php echo htmlspecialchars($disp['str_software']); ?>">
+                                <tr data-software="<?php echo htmlspecialchars($disp['str_software']); ?>" 
+                                    data-estado="<?php echo $disp['estado_asig']; ?>" 
+                                    data-dep="<?php echo $disp['id_dep'] ?: 'sin_red'; ?>">
                                     
                                     <td class="fw-bold text-dark">
                                         <?php echo htmlspecialchars($disp['nom_host']); ?>
@@ -88,9 +105,9 @@
                                             <span class="badge bg-info text-dark d-block mb-1">
                                                 <i class="fas fa-network-wired me-1"></i><?php echo htmlspecialchars($disp['ip']); ?>
                                             </span>
-                                            <?php if($disp['mac']): ?>
-                                                <small class="text-muted d-block" style="font-size: 0.75rem;">
-                                                    <i class="fas fa-microchip me-1"></i><?php echo htmlspecialchars($disp['mac']); ?>
+                                            <?php if($disp['departamento']): ?>
+                                                <small class="text-primary fw-bold d-block" style="font-size: 0.75rem;">
+                                                    <i class="fas fa-building me-1"></i><?php echo htmlspecialchars($disp['departamento']); ?>
                                                 </small>
                                             <?php endif; ?>
                                         <?php else: ?>
@@ -104,7 +121,9 @@
                                                 <i class="fas fa-user-tie me-2 text-secondary"></i><?php echo htmlspecialchars($disp['responsable']); ?>
                                             </span>
                                         <?php else: ?>
-                                            <span class="text-muted small">Sin asignar</span>
+                                            <span class="badge bg-secondary bg-opacity-25 text-dark border shadow-sm">
+                                                <i class="fas fa-box me-1"></i> En Almacén
+                                            </span>
                                         <?php endif; ?>
                                     </td>
                                     

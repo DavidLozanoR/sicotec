@@ -38,10 +38,16 @@ class DispositivosController {
         $consultaSub = $model->seleccionaRegistros("submodulos", ["id_sub"], "slug = ?", [$this->slug]);
         $id_sub_actual = (!empty($consultaSub)) ? $consultaSub[0]['id_sub'] : 1;
 
+        // Catálogo de departamentos para el Filtro
+        $departamentos = $model->seleccionaRegistros("departamentos", ["id_dep", "nom_dep"], "1=1 ORDER BY nom_dep ASC");
+
         $tablaPrincipal = "dispositivos d";
         
+        // Hacemos el Join hasta llegar a Departamentos
         $joins = [
             "LEFT JOIN infraestructura_red r ON d.id_disp = r.id_disp",
+            "LEFT JOIN segmentos seg ON r.id_seg = seg.id_seg",
+            "LEFT JOIN departamentos dep ON seg.id_dep = dep.id_dep",
             "LEFT JOIN personal_operativo po ON d.resp_po_id = po.id_po"
         ];
 
@@ -53,7 +59,11 @@ class DispositivosController {
             "d.num_ser", 
             "d.num_inv",
             "d.mac",
+            "d.resp_po_id",
+            "d.asig_po_id",
             "r.ip",
+            "dep.id_dep",
+            "dep.nom_dep AS departamento",
             "TRIM(CONCAT(po.nombres, ' ', po.ape_pa, ' ', COALESCE(po.ape_ma, ''))) AS responsable"
         ];
         
@@ -62,7 +72,6 @@ class DispositivosController {
         if (!$dispositivos) {
             $dispositivos = [];
         } else {
-            // Evaluamos el software de cada dispositivo
             foreach ($dispositivos as &$disp) {
                 $servicios = $model->seleccionaRegistrosJoin(
                     "dispositivo_servicio ds",
@@ -83,17 +92,20 @@ class DispositivosController {
                         if ($s['obs'] == 1) {
                             $disp['tiene_obsoleto'] = true;
                         }
-                        // Guardamos el nombre y versión para que el JS pueda buscarlos
                         $str_software .= $s['nom'] . " " . $s['ver'] . " ";
                     }
                 }
                 $disp['str_software'] = trim($str_software);
+
+                // LÓGICA DE ASIGNACIÓN: Si no tiene responsable ni usuario asignado, está en Almacén
+                $disp['estado_asig'] = (!empty($disp['resp_po_id']) || !empty($disp['asig_po_id'])) ? 'asignado' : 'sin_asignar';
             }
-            unset($disp); // Rompemos la referencia de memoria
+            unset($disp); 
         }
 
         return [
             'id_sub_actual' => $id_sub_actual,
+            'departamentos' => $departamentos ?: [],
             'dispositivos' => $dispositivos
         ];
     }

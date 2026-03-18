@@ -6,7 +6,10 @@ $(document).ready(function() {
     }
 
     const $inputBusqueda = $('#buscarDispositivo');
+    const $filtroAsignacion = $('#filtroAsignacion');
+    const $filtroDepartamento = $('#filtroDepartamento');
     const $selectRegistros = $('#selectorRegistros'); 
+    
     const $paginacionContenedor = $('#paginacionTabla'); 
     const $contadorRegistros = $('#contador-registros');
     
@@ -21,27 +24,40 @@ $(document).ready(function() {
 
         const textoBusqueda = quitarAcentos($inputBusqueda.val().toLowerCase().trim());
         const palabrasBusqueda = textoBusqueda.split(/\s+/); 
+        
+        const valAsignacion = $filtroAsignacion.val();
+        const valDepartamento = $filtroDepartamento.val();
         const limite = $selectRegistros.val();
 
         let filasFiltradas = [];
 
         $filasDispositivos.each(function() {
             const $fila = $(this);
-            // Extraemos la información de software oculta en el tr
-            const softwareOculto = $fila.attr('data-software') || '';
             
-            // Concatenamos el texto visible de la fila con el software oculto
+            // Extraemos la información de los atributos
+            const softwareOculto = $fila.attr('data-software') || '';
+            const estadoAsig = $fila.attr('data-estado');
+            const idDep = $fila.attr('data-dep');
+            
             const textoFila = quitarAcentos($fila.text().replace(/\s+/g, ' ') + ' ' + softwareOculto).toLowerCase();
 
-            let coincide = true;
+            // 1. Filtrado por texto libre
+            let coincideBusqueda = true;
             for (let i = 0; i < palabrasBusqueda.length; i++) {
                 if (!textoFila.includes(palabrasBusqueda[i])) {
-                    coincide = false;
+                    coincideBusqueda = false;
                     break;
                 }
             }
 
-            if (coincide) {
+            // 2. Filtrado por Asignación
+            let coincideAsignacion = (valAsignacion === 'todos' || estadoAsig === valAsignacion);
+
+            // 3. Filtrado por Departamento
+            let coincideDepartamento = (valDepartamento === 'todos' || idDep === valDepartamento);
+
+            // Si pasa las 3 pruebas, se queda en la lista visible
+            if (coincideBusqueda && coincideAsignacion && coincideDepartamento) {
                 filasFiltradas.push(this);
             } else {
                 $fila.hide();
@@ -55,8 +71,8 @@ $(document).ready(function() {
                 $('table tbody').append(`
                     <tr id="sin-resultados">
                         <td colspan="6" class="text-center py-4 text-muted">
-                            <i class="fas fa-search fa-2x mb-2 opacity-50"></i>
-                            <p class="mb-0">No se encontraron dispositivos que coincidan con "${$inputBusqueda.val()}".</p>
+                            <i class="fas fa-filter fa-2x mb-2 opacity-50"></i>
+                            <p class="mb-0">No se encontraron equipos con esa combinación de filtros.</p>
                         </td>
                     </tr>
                 `);
@@ -127,8 +143,11 @@ $(document).ready(function() {
         `);
     }
 
+    // Eventos (Listeners) que disparan el recálculo de la tabla en vivo
     $inputBusqueda.on('keyup', () => { paginaActual = 1; actualizarTabla(); });
     $selectRegistros.on('change', () => { paginaActual = 1; actualizarTabla(); });
+    $filtroAsignacion.on('change', () => { paginaActual = 1; actualizarTabla(); });
+    $filtroDepartamento.on('change', () => { paginaActual = 1; actualizarTabla(); });
 
     $(document).on('click', '.btn-paginacion', function(e) {
         e.preventDefault();
@@ -144,7 +163,7 @@ $(document).ready(function() {
     }
 
     // ==========================================
-    // 2. ELIMINAR DISPOSITIVO (Baja Definitiva)
+    // ELIMINAR DISPOSITIVO (Baja Definitiva)
     // ==========================================
     $(document).on('click', '.btn-eliminar-disp', async function(e) {
         e.preventDefault();
