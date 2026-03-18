@@ -20,7 +20,7 @@ switch ($peticion) {
         $nom = trim($_POST['nom'] ?? '');
         $especs = trim($_POST['especs'] ?? '');
         $version_inicial = trim($_POST['version_inicial'] ?? '');
-        $icono = trim($_POST['icono'] ?? 'fas fa-cube'); // Se captura el icono
+        $icono = trim($_POST['icono'] ?? 'fas fa-cube');
 
         if (empty($nom) || empty($tipo_serv) || empty($version_inicial)) {
             echo json_encode(["result" => 0, "msg" => "Faltan datos obligatorios para crear el servicio."]); 
@@ -35,7 +35,7 @@ switch ($peticion) {
         $tipo_serv = trim($_POST['tipo_serv'] ?? '');
         $nom = trim($_POST['nom'] ?? '');
         $especs = trim($_POST['especs'] ?? '');
-        $icono = trim($_POST['icono'] ?? 'fas fa-cube'); // Se captura el icono
+        $icono = trim($_POST['icono'] ?? 'fas fa-cube'); 
 
         if (empty($id_serv) || empty($nom) || empty($tipo_serv)) {
             echo json_encode(["result" => 0, "msg" => "Faltan datos obligatorios para la actualización."]); 
@@ -44,6 +44,7 @@ switch ($peticion) {
 
         echo json_encode($controller->actualizarServicio($id_sub, $id_serv, $tipo_serv, $nom, $especs, $icono));
         break;
+
     case 'DELETE_SERV':
         $id_serv = $_POST['id_serv'] ?? '';
         
@@ -57,38 +58,37 @@ switch ($peticion) {
 
     case 'GET_VERSIONS':
         $id_serv = $_POST['id_serv'] ?? '';
-        
         if (empty($id_serv)) {
             echo json_encode(["result" => 0, "msg" => "ID de servicio no válido."]); 
             exit;
         }
-
         echo json_encode($controller->obtenerVersiones($id_sub, $id_serv));
         break;
 
     case 'ADD_VERSION':
         $id_serv = $_POST['id_serv'] ?? '';
         $nueva_version = trim($_POST['nueva_version'] ?? '');
-        $marcar_actual = isset($_POST['marcar_actual']) ? $_POST['marcar_actual'] : '0';
+        $marcar_aceptada = isset($_POST['marcar_aceptada']) ? $_POST['marcar_aceptada'] : '0';
 
         if (empty($id_serv) || empty($nueva_version)) {
             echo json_encode(["result" => 0, "msg" => "Debe escribir el nombre de la nueva versión."]); 
             exit;
         }
 
-        echo json_encode($controller->agregarVersion($id_sub, $id_serv, $nueva_version, $marcar_actual));
+        echo json_encode($controller->agregarVersion($id_sub, $id_serv, $nueva_version, $marcar_aceptada));
         break;
 
-    case 'SET_CURRENT_VERSION':
-        $id_serv = $_POST['id_serv'] ?? '';
-        $id_ver = $_POST['id_ver'] ?? '';
+    case 'TOGGLE_VERSION_STATE':
+        $id_serv = (int)($_POST['id_serv'] ?? 0);
+        $id_ver = (int)($_POST['id_ver'] ?? 0);
+        $nuevo_estado = (int)($_POST['nuevo_estado'] ?? 0); // 0 = Aceptada, 1 = Obsoleta
 
         if (empty($id_serv) || empty($id_ver)) {
             echo json_encode(["result" => 0, "msg" => "Faltan identificadores para realizar el cambio."]); 
             exit;
         }
 
-        echo json_encode($controller->marcarVersionActual($id_sub, $id_serv, $id_ver));
+        echo json_encode($controller->cambiarEstadoVersion($id_sub, $id_serv, $id_ver, $nuevo_estado));
         break;
 
     default:

@@ -48,7 +48,7 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 2;
                                     <i class="fas fa-ellipsis-v"></i>
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                                    <li><a class="dropdown-item py-2 btn-versiones" href="#" data-id="<?php echo $serv['id_serv']; ?>" data-nom="<?php echo htmlspecialchars($serv['nom']); ?>"><i class="fas fa-code-branch me-2 text-primary"></i> Historial de Versiones</a></li>
+                                    <li><a class="dropdown-item py-2 btn-versiones" href="#" data-id="<?php echo $serv['id_serv']; ?>" data-nom="<?php echo htmlspecialchars($serv['nom']); ?>"><i class="fas fa-code-branch me-2 text-primary"></i> Control de Versiones</a></li>
                                     <li><a class="dropdown-item py-2 btn-editar-serv" href="#" data-id="<?php echo $serv['id_serv']; ?>" data-tipo="<?php echo htmlspecialchars($serv['tipo_serv']); ?>" data-nom="<?php echo htmlspecialchars($serv['nom']); ?>" data-especs="<?php echo htmlspecialchars($serv['especs']); ?>" data-icono="<?php echo htmlspecialchars($icono); ?>"><i class="fas fa-edit me-2 text-secondary"></i> Editar Datos</a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item py-2 text-danger btn-eliminar-serv" href="#" data-id="<?php echo $serv['id_serv']; ?>"><i class="fas fa-trash-alt me-2"></i> Eliminar Catálogo</a></li>
@@ -57,9 +57,9 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 2;
                         </div>
 
                         <div class="bg-light rounded-3 p-3 mb-3 border">
-                            <div class="d-flex justify-content-between mb-1 small">
-                                <span class="text-muted">Versión Desplegada:</span>
-                                <span class="fw-bold text-success"><i class="fas fa-check-circle me-1"></i><?php echo ($serv['version_actual'] !== 'N/A') ? $serv['version_actual'] : 'N/A'; ?></span>
+                            <div class="d-flex flex-column mb-2 small">
+                                <span class="text-muted fw-bold mb-1">Versiones Aceptadas:</span>
+                                <span class="text-success"><i class="fas fa-check-circle me-1"></i><?php echo htmlspecialchars($serv['versiones_aceptadas']); ?></span>
                             </div>
                             <div class="small text-muted mt-2 border-top pt-2" style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;">
                                 <?php echo htmlspecialchars($serv['especs']); ?>
@@ -104,7 +104,7 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 2;
                     <div class="mb-3" id="bloque_version_inicial">
                         <label class="form-label fw-bold small text-primary">Versión Inicial *</label>
                         <input type="text" class="form-control focus-guinda border-primary-subtle" name="version_inicial" id="serv_ver_ini" placeholder="Ej. 22H2 Pro">
-                        <small class="text-muted">Se registrará como la versión actual por defecto.</small>
+                        <small class="text-muted">Se registrará como Aceptada (Vigente) por defecto.</small>
                     </div>
                     
                     <div class="mb-3">
@@ -113,8 +113,7 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 2;
                             <span class="input-group-text bg-light text-center justify-content-center" style="width: 50px;" id="preview-icono">
                                 <i class="fas fa-cube fs-5"></i>
                             </span>
-                            <select class="form-select focus-guinda" name="icono" id="serv_icono" required>
-                            </select>
+                            <select class="form-select focus-guinda" name="icono" id="serv_icono" required></select>
                         </div>
                     </div>
 
@@ -144,12 +143,12 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 2;
                     <form id="formNuevaVersion" class="row g-2 align-items-center">
                         <input type="hidden" id="ver_id_serv" name="id_serv">
                         <div class="col-md-6">
-                            <input type="text" class="form-control" name="nueva_version" id="nueva_version" placeholder="Registrar nueva versión (Ej. 23H2)" required>
+                            <input type="text" class="form-control focus-guinda" name="nueva_version" id="nueva_version" placeholder="Registrar nueva versión (Ej. 23H2)" required>
                         </div>
                         <div class="col-md-4">
                             <div class="form-check form-switch mt-2">
-                                <input class="form-check-input" type="checkbox" name="marcar_actual" value="1" id="marcarActual" checked>
-                                <label class="form-check-label small" for="marcarActual">Establecer como Actual</label>
+                                <input class="form-check-input focus-guinda" type="checkbox" name="marcar_aceptada" value="1" id="marcarAceptada" checked>
+                                <label class="form-check-label small fw-bold text-success" for="marcarAceptada">Aceptada (Vigente)</label>
                             </div>
                         </div>
                         <div class="col-md-2 text-end">
