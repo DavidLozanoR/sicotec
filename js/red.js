@@ -1,202 +1,153 @@
 $(document).ready(function() {
 
-    // 1. VARIABLES GLOBALES Y REFERENCIAS UI
-    const idSub = $('#id_sub_red').val(); // Leemos el ID del submódulo por seguridad
+    const idSub = $('#id_sub_red').val(); 
     const urlAsync = '_controller/RedAsync.php';
     
-    // Modales de Bootstrap
     const modalForm = new bootstrap.Modal(document.getElementById('modalFormSegmento'));
     const modalIps = new bootstrap.Modal(document.getElementById('modalIps'));
     
     const $form = $('#formSegmento');
     const $tituloModal = $('#tituloModalSegmento');
 
-    // ====================================================================
-    // 2. ABRIR MODAL PARA "NUEVO SEGMENTO"
-    // ====================================================================
+    // 1. ABRIR MODAL PARA "NUEVO SEGMENTO"
     $('#btnNuevoSegmento').on('click', function() {
-        $form[0].reset(); // Limpiamos todos los campos
-        $('#seg_id').val(''); // Limpiamos el ID oculto
-        $tituloModal.html('<i class="fas fa-plus-circle me-2"></i>Nuevo Segmento');
-        $form.removeClass('was-validated'); // Quitamos alertas rojas previas
+        $form[0].reset(); 
+        $('#seg_id').val(''); 
+        
+        // Desbloquear campos
+        $('#seg_ini, #seg_lim').prop('readonly', false);
+        $('#seg_reservas').val(''); // Limpiamos reservas previas
+
+        $tituloModal.html('<i class="fas fa-plus-circle me-2 text-guinda"></i>Nuevo Segmento');
+        $form.removeClass('was-validated'); 
         
         modalForm.show();
     });
 
-    // ====================================================================
-    // 3. ABRIR MODAL PARA "EDITAR SEGMENTO"
-    // ====================================================================
+    // 2. ABRIR MODAL PARA "EDITAR SEGMENTO Y RESERVAS"
     $('.btn-editar-seg').on('click', function(e) {
         e.preventDefault();
         
-        // Recolectamos los datos incrustados en el botón (data-id, data-dep, etc.)
-        let id = $(this).data('id');
-        let dep = $(this).data('dep');
-        let ini = $(this).data('ini');
-        let lim = $(this).data('lim');
+        $('#seg_id').val($(this).data('id'));
+        $('#seg_dep').val($(this).data('dep'));
+        $('#seg_ini').val($(this).data('ini'));
+        $('#seg_lim').val($(this).data('lim'));
 
-        // Llenamos el formulario
-        $('#seg_id').val(id);
-        $('#seg_dep').val(dep);
-        $('#seg_ini').val(ini);
-        $('#seg_lim').val(lim);
-
-        $tituloModal.html('<i class="fas fa-edit me-2"></i>Editar Rango de Segmento');
-        $form.removeClass('was-validated');
+        $('#seg_reservas').val($(this).data('reservas'));
         
+        // FIX: Desbloqueamos los campos para poder cambiar la IP
+        $('#seg_ini, #seg_lim').prop('readonly', false);
+        $('#bloqueReservas').show();
+
+        $tituloModal.html('<i class="fas fa-edit me-2 text-secondary"></i>Editar Segmento / Reservas');
+        $form.removeClass('was-validated'); 
         modalForm.show();
     });
-
-    // ====================================================================
-    // 4. GUARDAR SEGMENTO (NUEVO O ACTUALIZADO)
-    // ====================================================================
+    // 3. ENVÍO DE FORMULARIO (INSERT / UPDATE)
     $form.on('submit', function(e) {
         e.preventDefault();
-
-        // Validación visual de Bootstrap
+        
         if (!this.checkValidity()) {
             e.stopPropagation();
             $form.addClass('was-validated');
             return;
         }
 
-        let formData = new FormData(this);
-        let id_seg = $('#seg_id').val();
-        
-        // Decidimos la petición basándonos en si hay o no un ID cargado
-        let peticion = (id_seg === '') ? 'INSERT_SEG' : 'UPDATE_SEG';
-        formData.append('peticion', peticion);
-        formData.append('id_sub', idSub);
+        let formData = $(this).serialize() + '&peticion=' + ($('#seg_id').val() === '' ? 'INSERT_SEG' : 'UPDATE_SEG') + '&id_sub=' + idSub;
 
-        // Bloqueamos el botón para evitar dobles clics
-        let $btnGuardar = $('#btnGuardarSeg');
-        let btnTextoOriginal = $btnGuardar.html();
-        $btnGuardar.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-1"></i> Procesando...');
+        const originalText = $('#btnGuardarSeg').html();
+        $('#btnGuardarSeg').html('<i class="fas fa-spinner fa-spin me-1"></i> Procesando...').prop('disabled', true);
 
         $.ajax({
             url: urlAsync,
             type: 'POST',
             data: formData,
-            processData: false,
-            contentType: false,
             dataType: 'json',
             success: function(response) {
                 if (response.result === 1) {
-                    modalForm.hide();
                     Swal.fire({
                         icon: 'success',
-                        title: '¡Éxito!',
+                        title: '¡Operación Exitosa!',
+                        text: response.msg,
+                        confirmButtonColor: '#285C4D'
+                    }).then(() => location.reload());
+                } else {
+                    Swal.fire({
+                        icon: 'error',
+                        title: 'Alerta de Validación',
                         text: response.msg,
                         confirmButtonColor: '#9D2449'
-                    }).then(() => {
-                        location.reload(); // Recargamos para actualizar las tarjetas
                     });
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Atención', text: response.msg, confirmButtonColor: '#9D2449' });
                 }
             },
             error: function() {
-                Swal.fire({ icon: 'error', title: 'Error', text: 'Problema de comunicación con el servidor.', confirmButtonColor: '#9D2449' });
+                Swal.fire('Error', 'Problema de conexión con el servidor.', 'error');
             },
             complete: function() {
-                $btnGuardar.prop('disabled', false).html(btnTextoOriginal);
+                $('#btnGuardarSeg').html(originalText).prop('disabled', false);
             }
         });
     });
 
-    // ====================================================================
-    // 5. DESACTIVAR (BORRADO LÓGICO) SEGMENTO
-    // ====================================================================
+    // 4. ELIMINAR (BAJA LÓGICA)
     $('.btn-eliminar-seg').on('click', function(e) {
         e.preventDefault();
         let id_seg = $(this).data('id');
 
         Swal.fire({
-            title: '¿Desactivar este Segmento?',
-            text: "Las IPs se ocultarán del sistema, pero no afectará a los equipos que ya las tengan asignadas.",
+            title: '¿Dar de baja este segmento?',
+            text: "Se ocultará del sistema. La operación fallará si hay dispositivos conectados.",
             icon: 'warning',
             showCancelButton: true,
-            confirmButtonColor: '#9D2449',
+            confirmButtonColor: '#d33',
             cancelButtonColor: '#6c757d',
-            confirmButtonText: 'Sí, desactivar',
-            cancelButtonText: 'Cancelar'
+            confirmButtonText: 'Sí, dar de baja'
         }).then((result) => {
             if (result.isConfirmed) {
-                Swal.showLoading();
-                
-                $.ajax({
-                    url: urlAsync,
-                    type: 'POST',
-                    dataType: 'json',
-                    data: {
-                        peticion: 'DELETE_SEG',
-                        id_seg: id_seg,
-                        id_sub: idSub
-                    },
-                    success: function(response) {
-                        if (response.result === 1) {
-                            Swal.fire({ icon: 'success', title: '¡Desactivado!', text: response.msg, confirmButtonColor: '#9D2449' })
-                            .then(() => location.reload());
-                        } else {
-                            Swal.fire({ icon: 'error', title: 'Operación denegada', text: response.msg, confirmButtonColor: '#9D2449' });
-                        }
-                    },
-                    error: function() {
-                        Swal.fire({ icon: 'error', title: 'Error', text: 'Problema con el servidor al intentar eliminar.', confirmButtonColor: '#9D2449' });
+                $.post(urlAsync, { peticion: 'DELETE_SEG', id_seg: id_seg, id_sub: idSub }, function(response) {
+                    if (response.result === 1) {
+                        Swal.fire({icon: 'success', title: 'Eliminado', text: response.msg, confirmButtonColor: '#285C4D'})
+                        .then(() => location.reload());
+                    } else {
+                        Swal.fire({icon: 'error', title: 'Bloqueo', text: response.msg, confirmButtonColor: '#9D2449'});
                     }
-                });
+                }, 'json');
             }
         });
     });
 
-    // ====================================================================
-    // 6. EXPLORADOR DE IPs (CARGAR TABLA Y MOSTRAR MODAL)
-    // ====================================================================
+    // 5. ABRIR MODAL "EXPLORADOR DE IPs"
     $('.btn-ver-ips').on('click', function(e) {
         e.preventDefault();
         let id_seg = $(this).data('id');
         let $tbody = $('#tbodyIps');
-
-        // Limpiamos la tabla y ponemos un mensaje de carga
-        $tbody.html('<tr><td colspan="3" class="text-center py-4"><i class="fas fa-spinner fa-spin text-guinda fa-2x"></i><p class="mt-2 text-muted">Cargando direcciones IP...</p></td></tr>');
         
-        // Limpiamos el buscador
-        $('#buscadorIps').val('');
-        
+        $tbody.html('<tr><td colspan="3" class="text-center py-4"><i class="fas fa-spinner fa-spin text-guinda fa-2x"></i><br>Cargando direcciones IP...</td></tr>');
+        $('#buscadorIps').val(''); // Limpiamos buscador anterior
         modalIps.show();
 
         $.ajax({
             url: urlAsync,
             type: 'POST',
+            data: { peticion: 'GET_IPS', id_seg: id_seg },
             dataType: 'json',
-            data: {
-                peticion: 'GET_IPS',
-                id_seg: id_seg,
-                id_sub: idSub
-            },
             success: function(response) {
                 if (response.result === 1) {
                     let html = '';
-                    let datos = response.data;
-
-                    if (datos.length === 0) {
-                        html = '<tr><td colspan="3" class="text-center text-muted py-3">No hay IPs disponibles para mostrar.</td></tr>';
+                    if (response.data.length === 0) {
+                        html = '<tr><td colspan="3" class="text-center text-muted py-3">No hay IPs generadas para este segmento.</td></tr>';
                     } else {
-                        // Dibujamos las filas dinámicamente
-                        datos.forEach(function(ip) {
-                            
-                            // Badges dinámicos según el estatus
+                        response.data.forEach(function(ip) {
                             let badgeClass = 'bg-secondary';
-                            let estado = ip.est.toLowerCase();
+                            let estatusLow = ip.est.toLowerCase();
                             
-                            if (estado === 'libre') badgeClass = 'bg-success';
-                            if (estado === 'ocupado') badgeClass = 'bg-primary';
-                            if (estado === 'reservado') badgeClass = 'bg-warning text-dark';
+                            if (estatusLow === 'libre') badgeClass = 'bg-success';
+                            else if (estatusLow === 'ocupado') badgeClass = 'bg-primary';
+                            else if (estatusLow === 'reservado') badgeClass = 'bg-warning text-dark';
                             
-                            // Info del dispositivo (si está ocupada)
-                            let hostInfo = (ip.nom_host) 
-                                ? `<span class="fw-bold text-dark"><i class="fas fa-desktop me-1 text-secondary"></i> ${ip.nom_host}</span><br><small class="text-muted">${ip.num_inv}</small>` 
-                                : '<span class="text-muted fst-italic">Sin asignar</span>';
+                            let hostInfo = (ip.nom_host) ? 
+                                `<span class="fw-bold text-dark">${ip.nom_host}</span><br><small class="text-muted">Inv: ${ip.num_inv}</small>` : 
+                                '<span class="text-muted fst-italic">-- Ninguno --</span>';
 
                             html += `
                                 <tr>
@@ -218,17 +169,90 @@ $(document).ready(function() {
         });
     });
 
-    // ====================================================================
-    // 7. BUSCADOR EN TIEMPO REAL (FILTRO DE TABLA EN EL MODAL)
-    // ====================================================================
+    // 6. BUSCADOR EN TIEMPO REAL (FILTRO DE TABLA EN EL MODAL)
     $('#buscadorIps').on('keyup', function() {
         let valor = $(this).val().toLowerCase();
-        
-        // Filtramos cada fila de la tabla de IPs
         $('#tbodyIps tr').filter(function() {
-            // toggle() muestra la fila si la función devuelve true, y la oculta si devuelve false
             $(this).toggle($(this).text().toLowerCase().indexOf(valor) > -1);
         });
     });
+    // ====================================================================
+    // 8. MOTOR DE FILTRADO PARA LOS SEGMENTOS (Tarjetas y Tabla)
+    // ====================================================================
+    
+    // Capturamos los controles del filtro
+    const $filtroTexto = $('#filtroTexto');
+    const $filtroDep = $('#filtroDep');
+    const $filtroEstado = $('#filtroEstado');
+    
+    function aplicarFiltrosSegmentos() {
+        let texto = $filtroTexto.val().toLowerCase().trim();
+        let valDep = $filtroDep.val();
+        let valEstado = $filtroEstado.val();
+        
+        let elementosVisibles = 0;
+
+        // Iteramos sobre todos los elementos con clase .item-segmento (Cards y Filas TR)
+        $('.item-segmento').each(function() {
+            let $el = $(this);
+            
+            // Leemos los datos inyectados en HTML
+            let dataDep = $el.attr('data-dep'); // Puede ser vacío si no tiene dep
+            let dataTexto = $el.attr('data-texto');
+            let libres = parseInt($el.attr('data-libres'));
+            let reservas = parseInt($el.attr('data-reservas'));
+
+            // 1. Condición de Texto
+            let cumpleTexto = true;
+            if (texto !== '') {
+                cumpleTexto = dataTexto.includes(texto);
+            }
+
+            // 2. Condición de Departamento
+            let cumpleDep = true;
+            if (valDep !== 'todos') {
+                if (valDep === 'sin_asignar') {
+                    cumpleDep = (dataDep === '');
+                } else {
+                    cumpleDep = (dataDep === valDep);
+                }
+            }
+
+            // 3. Condición de Estado de Ocupación
+            let cumpleEstado = true;
+            if (valEstado !== 'todos') {
+                if (valEstado === 'con_libres') {
+                    cumpleEstado = (libres > 0);
+                } else if (valEstado === 'saturados') {
+                    cumpleEstado = (libres === 0);
+                } else if (valEstado === 'con_reservas') {
+                    cumpleEstado = (reservas > 0);
+                }
+            }
+
+            // Si cumple las 3 condiciones, mostramos la tarjeta/fila
+            if (cumpleTexto && cumpleDep && cumpleEstado) {
+                $el.show();
+                elementosVisibles++;
+            } else {
+                $el.hide();
+            }
+        });
+
+        // Mostrar u ocultar el mensaje de "Sin Resultados"
+        if (elementosVisibles === 0 && $('.item-segmento').length > 0) {
+            $('#msg-sin-resultados').removeClass('d-none');
+            // Ocultamos los encabezados de la tabla móvil si no hay resultados
+            $('#contenedor-tabla').hide();
+        } else {
+            $('#msg-sin-resultados').addClass('d-none');
+            $('#contenedor-tabla').show();
+        }
+    }
+
+    // Escuchamos los eventos para que el filtro sea en vivo
+    $filtroTexto.on('keyup', aplicarFiltrosSegmentos);
+    $filtroDep.on('change', aplicarFiltrosSegmentos);
+    $filtroEstado.on('change', aplicarFiltrosSegmentos);
 
 });

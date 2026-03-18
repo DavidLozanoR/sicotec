@@ -1,8 +1,6 @@
 <?php
-// Extraemos variables enviadas desde el controlador
 $departamentos = $departamentos ?? [];
 $segmentos = $segmentos ?? [];
-// Asumimos que el ID del submódulo actual (Red) está en la sesión o se pasa por defecto (ej. 3)
 $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3; 
 ?>
 
@@ -16,24 +14,62 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
             <p class="text-secondary mb-0 small">Gestión de segmentos, IPs reservadas y asignaciones por departamento.</p>
         </div>
         <button class="btn btn-guinda shadow-sm fw-bold" id="btnNuevoSegmento">
-            <i class="fas fa-plus-circle me-1"></i> Nuevo Segmento
+            <i class="fas fa-plus-circle me-1"></i> <span class="d-none d-sm-inline">Nuevo Segmento</span>
         </button>
     </div>
 
-    <div class="row g-4">
-        <?php if(empty($segmentos)): ?>
-            <div class="col-12 text-center py-5 text-muted border border-dashed rounded-3 bg-light">
-                <i class="fas fa-network-wired fa-3x mb-3 opacity-25"></i>
-                <p class="mb-0">No hay segmentos de red activos configurados en el sistema.</p>
+    <?php if(!empty($segmentos)): ?>
+    <div class="row g-2 mb-4 align-items-center bg-light p-3 rounded-3 border">
+        <div class="col-12 col-md-4">
+            <div class="input-group shadow-sm">
+                <span class="input-group-text bg-white text-muted border-end-0"><i class="fas fa-search"></i></span>
+                <input type="text" id="filtroTexto" class="form-control border-start-0 focus-guinda" placeholder="Buscar por IP o departamento...">
             </div>
-        <?php else: ?>
+        </div>
+        <div class="col-12 col-md-4">
+            <select id="filtroDep" class="form-select shadow-sm focus-guinda">
+                <option value="todos">Todos los Departamentos</option>
+                <option value="sin_asignar">-- Sin asignar --</option>
+                <?php foreach($departamentos as $dep): ?>
+                    <option value="<?php echo $dep['id_dep']; ?>"><?php echo htmlspecialchars($dep['nom_dep']); ?></option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-12 col-md-4">
+            <select id="filtroEstado" class="form-select shadow-sm focus-guinda">
+                <option value="todos">Cualquier estado de capacidad</option>
+                <option value="con_libres">Con IPs Libres disponibles</option>
+                <option value="saturados">Redes Saturadas (0 Libres)</option>
+                <option value="con_reservas">Redes con Reservas activas</option>
+            </select>
+        </div>
+    </div>
+    
+    <div id="msg-sin-resultados" class="d-none col-12 text-center py-5 text-muted border border-dashed rounded-3 bg-light mb-4">
+        <i class="fas fa-filter fa-3x mb-3 opacity-25"></i>
+        <p class="mb-0">No se encontraron segmentos que coincidan con los filtros aplicados.</p>
+    </div>
+    <?php endif; ?>
+
+    <?php if(empty($segmentos)): ?>
+        <div class="col-12 text-center py-5 text-muted border border-dashed rounded-3 bg-light">
+            <i class="fas fa-network-wired fa-3x mb-3 opacity-25"></i>
+            <p class="mb-0">No hay segmentos de red activos configurados en el sistema.</p>
+        </div>
+    <?php else: ?>
+
+        <div class="row g-4 d-none d-md-flex" id="contenedor-tarjetas">
             <?php foreach($segmentos as $seg): 
                 $stats = $seg['estadisticas'];
             ?>
-            <div class="col-12 col-md-6 col-xl-4">
+            <div class="col-12 col-md-6 col-xl-4 item-segmento" 
+                 data-dep="<?php echo $seg['id_dep']; ?>" 
+                 data-texto="<?php echo strtolower($seg['ip_ini'].' '.$seg['ip_lim'].' '.($seg['nom_dep'] ?? 'sin asignar')); ?>"
+                 data-libres="<?php echo $stats['libres']; ?>"
+                 data-reservas="<?php echo $stats['reservadas']; ?>">
+                 
                 <div class="card h-100 shadow-sm border-0 ring-1 ring-secondary-subtle">
                     <div class="card-body p-4">
-                        
                         <div class="d-flex justify-content-between align-items-start mb-3">
                             <div>
                                 <h5 class="fw-bold text-dark mb-1">
@@ -50,9 +86,9 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 ring-1 ring-secondary-subtle">
                                     <li><a class="dropdown-item py-2 btn-ver-ips" href="#" data-id="<?php echo $seg['id_seg']; ?>"><i class="fas fa-list-ol me-2 text-primary"></i> Explorar IPs</a></li>
-                                    <li><a class="dropdown-item py-2 btn-editar-seg" href="#" data-id="<?php echo $seg['id_seg']; ?>" data-dep="<?php echo $seg['id_dep']; ?>" data-ini="<?php echo htmlspecialchars($seg['ip_ini']); ?>" data-lim="<?php echo htmlspecialchars($seg['ip_lim']); ?>"><i class="fas fa-edit me-2 text-secondary"></i> Editar Rango</a></li>
+                                    <li><a class="dropdown-item py-2 btn-editar-seg" href="#" data-id="<?php echo $seg['id_seg']; ?>" data-dep="<?php echo $seg['id_dep']; ?>" data-ini="<?php echo htmlspecialchars($seg['ip_ini']); ?>" data-lim="<?php echo htmlspecialchars($seg['ip_lim']); ?>" data-reservas="<?php echo htmlspecialchars($seg['str_reservas']); ?>"><i class="fas fa-edit me-2 text-secondary"></i> Editar Rango/Reservas</a></li>
                                     <li><hr class="dropdown-divider"></li>
-                                    <li><a class="dropdown-item py-2 text-danger btn-eliminar-seg" href="#" data-id="<?php echo $seg['id_seg']; ?>"><i class="fas fa-trash-alt me-2"></i> Desactivar Segmento</a></li>
+                                    <li><a class="dropdown-item py-2 text-danger btn-eliminar-seg" href="#" data-id="<?php echo $seg['id_seg']; ?>" data-rango="<?php echo htmlspecialchars($seg['ip_ini'].' - '.$seg['ip_lim']); ?>"><i class="fas fa-trash-alt me-2"></i> Desactivar Segmento</a></li>
                                 </ul>
                             </div>
                         </div>
@@ -83,17 +119,53 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
                                 <i class="fas fa-lock me-1"></i> <?php echo number_format($stats['reservadas']); ?> IPs Reservadas
                             </div>
                         <?php endif; ?>
-
                     </div>
                 </div>
             </div>
             <?php endforeach; ?>
-        <?php endif; ?>
-    </div>
+        </div>
+
+        <div class="d-block d-md-none table-responsive border rounded bg-white shadow-sm mt-3" id="contenedor-tabla">
+            <table class="table table-hover align-middle mb-0 text-nowrap" style="font-size: 0.85rem;">
+                <thead class="table-light">
+                    <tr>
+                        <th>Ubicación / Rango</th>
+                        <th class="text-center">Estado IPs</th>
+                        <th class="text-end">Opciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach($segmentos as $seg): 
+                        $stats = $seg['estadisticas'];
+                    ?>
+                    <tr class="item-segmento" 
+                        data-dep="<?php echo $seg['id_dep']; ?>" 
+                        data-texto="<?php echo strtolower($seg['ip_ini'].' '.$seg['ip_lim'].' '.($seg['nom_dep'] ?? 'sin asignar')); ?>"
+                        data-libres="<?php echo $stats['libres']; ?>"
+                        data-reservas="<?php echo $stats['reservadas']; ?>">
+                        
+                        <td>
+                            <strong class="text-dark d-block text-truncate" style="max-width: 150px;"><?php echo htmlspecialchars($seg['nom_dep'] ?? 'Sin asignar'); ?></strong>
+                            <small class="text-muted font-monospace"><?php echo htmlspecialchars($seg['ip_ini']); ?> - <?php echo htmlspecialchars($seg['ip_lim']); ?></small>
+                        </td>
+                        <td class="text-center">
+                            <span class="badge bg-success shadow-sm" title="Libres"><?php echo number_format($stats['libres']); ?></span>
+                            <span class="badge bg-primary shadow-sm" title="Ocupadas"><?php echo number_format($stats['ocupadas']); ?></span>
+                        </td>
+                        <td class="text-end">
+                            <button class="btn btn-sm btn-light border text-primary btn-ver-ips" data-id="<?php echo $seg['id_seg']; ?>" title="Ver IPs"><i class="fas fa-list"></i></button>
+                            <button class="btn btn-sm btn-light border text-secondary btn-editar-seg" data-id="<?php echo $seg['id_seg']; ?>" data-dep="<?php echo $seg['id_dep']; ?>" data-ini="<?php echo htmlspecialchars($seg['ip_ini']); ?>" data-lim="<?php echo htmlspecialchars($seg['ip_lim']); ?>" data-reservas="<?php echo htmlspecialchars($seg['str_reservas']); ?>" title="Editar"><i class="fas fa-edit"></i></button>
+                        </td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+        </div>
+    <?php endif; ?>
 </div>
 
 <div class="modal fade" id="modalFormSegmento" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
         <div class="modal-content border-0 shadow">
             <div class="modal-header bg-light border-bottom-0">
                 <h5 class="modal-title fw-bold text-dark" id="tituloModalSegmento">Nuevo Segmento</h5>
@@ -124,6 +196,14 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
                             <label class="form-label fw-bold small text-dark mb-1">IP Límite *</label>
                             <input type="text" class="form-control focus-guinda font-monospace" name="ip_lim" id="seg_lim" placeholder="Ej. 192.168.1.254" required>
                             <div class="invalid-feedback">Ingrese una IP válida.</div>
+                        </div>
+                    </div>
+
+                    <div class="card border-warning border-opacity-50 bg-white mt-4" id="bloqueReservas">
+                        <div class="card-body p-3">
+                            <label class="form-label fw-bold small text-dark mb-1"><i class="fas fa-shield-alt text-warning me-1"></i> Reservas y Excepciones (Opcional)</label>
+                            <textarea class="form-control focus-guinda font-monospace small" name="reservas" id="seg_reservas" rows="2" placeholder="Ej: 192.168.1.1, 192.168.1.10-192.168.1.20"></textarea>
+                            <small class="text-muted mt-1 d-block" style="font-size: 0.75rem;">Separe por comas o use un guion (-) para bloques continuos.</small>
                         </div>
                     </div>
                     

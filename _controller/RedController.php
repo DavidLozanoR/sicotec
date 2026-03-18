@@ -22,7 +22,7 @@ class RedController {
     }
 
     public function renderJS() {
-        include self::JS;
+        if (file_exists(self::JS)) { include self::JS; }
     }
 
     public function verificarPermiso($id_sub, $id_permiso) {
@@ -33,199 +33,250 @@ class RedController {
     }
 
     private function traerContenido($model) {
-        $departamentos = $model->seleccionaRegistros("Departamentos", ["id_dep", "nom_dep"]);
+        $departamentos = $model->seleccionaRegistros("Departamentos", ["id_dep", "nom_dep"], "1=1 ORDER BY nom_dep ASC");
+        
+        $segmentos_db = $model->seleccionaRegistrosJoin(
+            "segmentos s",
+            ["LEFT JOIN departamentos d ON s.id_dep = d.id_dep"],
+            ["s.id_seg", "s.ip_ini", "s.ip_lim", "s.id_dep", "d.nom_dep"],
+            "s.estatus = 1" // Se quita el ORDER BY para hacerlo con PHP
+        );
 
-        // Solo traemos los segmentos que NO han sido borrados lógicamente (estatus = 1)
-        $tabla = "segmentos s";
-        $joins = ["LEFT JOIN departamentos d ON s.id_dep = d.id_dep"];
-        $campos = ["s.*", "d.nom_dep"];
-        $segmentos = $model->seleccionaRegistrosJoin($tabla, $joins, $campos, "s.estatus = 1", []);
+        $segmentos = [];
 
-        $lista_segmentos = [];
-
-        if ($segmentos) {
-            foreach ($segmentos as $seg) {
-                // Contamos las IPs físicas que le pertenecen a este segmento y no están inactivas
-                $ips = $model->seleccionaRegistros("infraestructura_red", ["est"], "id_seg = ? AND LOWER(est) != 'inactivo'", [$seg['id_seg']]);
+        if ($segmentos_db) {
+            foreach ($segmentos_db as $seg) {
+                $redes = $model->seleccionaRegistros("infraestructura_red", ["ip", "est"], "id_seg = ? AND LOWER(est) != 'inactivo'", [$seg['id_seg']]);
                 
-                $total_ips = $ips ? count($ips) : 0;
-                $ocupadas = 0; $reservadas = 0; $libres = 0;
+                $total = 0; $libres = 0; $ocupadas = 0; $reservadas = 0;
+                $lista_reservas = []; 
 
-                if ($ips) {
-                    foreach ($ips as $ip) {
-                        $estado = strtolower(trim($ip['est']));
-                        if ($estado === 'ocupado') { $ocupadas++; }
-                        elseif ($estado === 'reservado') { $reservadas++; }
-                        elseif ($estado === 'libre') { $libres++; }
+                if ($redes) {
+                    foreach ($redes as $r) {
+                        $total++;
+                        $estado = strtolower(trim($r['est']));
+                        
+                        if ($estado === 'libre') $libres++;
+                        elseif ($estado === 'ocupado') $ocupadas++;
+                        elseif ($estado === 'reservado') {
+                            $reservadas++;
+                            $lista_reservas[] = $r['ip']; 
+                        }
                     }
                 }
 
+                $pct_libres = $total > 0 ? round(($libres / $total) * 100) : 0;
+                $pct_ocupadas = $total > 0 ? round(($ocupadas / $total) * 100) : 0;
+                $pct_reservadas = $total > 0 ? round(($reservadas / $total) * 100) : 0;
+
                 $seg['estadisticas'] = [
-                    'total' => $total_ips,
+                    'total' => $total,
+                    'libres' => $libres,
                     'ocupadas' => $ocupadas,
                     'reservadas' => $reservadas,
-                    'libres' => $libres,
-                    'pct_ocupadas' => ($total_ips > 0) ? round(($ocupadas * 100) / $total_ips) : 0,
-                    'pct_reservadas' => ($total_ips > 0) ? round(($reservadas * 100) / $total_ips) : 0,
-                    'pct_libres' => ($total_ips > 0) ? round(($libres * 100) / $total_ips) : 0
+                    'pct_libres' => $pct_libres,
+                    'pct_ocupadas' => $pct_ocupadas,
+                    'pct_reservadas' => $pct_reservadas
                 ];
-                $lista_segmentos[] = $seg;
+
+                $seg['str_reservas'] = implode(', ', $lista_reservas);
+                $segmentos[] = $seg;
             }
+
+            // ORDENAMIENTO MATEMÁTICO DE TARJETAS
+            usort($segmentos, function($a, $b) {
+                return ip2long($a['ip_ini']) - ip2long($b['ip_ini']);
+            });
         }
-        return ['segmentos' => $lista_segmentos, 'departamentos' => $departamentos];
+
+        return [
+            'departamentos' => $departamentos ?: [],
+            'segmentos' => $segmentos
+        ];
     }
 
-    // ==========================================================
-    // CRUD DE SEGMENTOS
-    // ==========================================================
-    public function insertarSegmento($id_sub, $id_dep, $ip_ini, $ip_lim) {
+    public function insertarSegmento($id_sub, $id_dep, $ip_ini, $ip_lim, $reservas) {
         $model = new MainModel();
-        
-        if (!filter_var($ip_ini, FILTER_VALIDATE_IP) || !filter_var($ip_lim, FILTER_VALIDATE_IP)) {
-            return ["result" => 0, "msg" => "Las direcciones IP proporcionadas no tienen un formato válido."];
+
+        if (!$this->verificarPermiso($id_sub, 2)) return ["result" => 0, "msg" => "Permiso denegado."];
+
+        $long_ini = ip2long(trim($ip_ini));
+        $long_fin = ip2long(trim($ip_lim));
+
+        if ($long_ini === false || $long_fin === false || $long_ini > $long_fin) {
+            return ["result" => 0, "msg" => "El rango del segmento no es válido matemáticamente."];
         }
 
-        // =========================================================
-        // ESCUDO: PREVENIR TRASLAPE CON SEGMENTOS ACTIVOS
-        // =========================================================
-        $nuevo_ini_num = ip2long($ip_ini);
-        $nuevo_lim_num = ip2long($ip_lim);
-
-        if ($nuevo_ini_num > $nuevo_lim_num) {
-            return ["result" => 0, "msg" => "La IP Inicial no puede ser mayor que la IP Límite."];
-        }
-
+        // BARRERA DE OVERLAP (Solapamiento de rangos)
         $segmentos_activos = $model->seleccionaRegistros("segmentos", ["id_seg", "ip_ini", "ip_lim"], "estatus = 1");
-        
         if ($segmentos_activos) {
-            foreach ($segmentos_activos as $seg) {
-                $activo_ini_num = ip2long($seg['ip_ini']);
-                $activo_lim_num = ip2long($seg['ip_lim']);
-
-                // Si los rangos se cruzan en cualquier punto
-                if ($nuevo_ini_num <= $activo_lim_num && $nuevo_lim_num >= $activo_ini_num) {
-                    return ["result" => 0, "msg" => "Conflicto de Red: El rango choca con el Segmento Activo ID {$seg['id_seg']} ({$seg['ip_ini']} - {$seg['ip_lim']})."];
+            foreach ($segmentos_activos as $s) {
+                $ext_ini = ip2long($s['ip_ini']);
+                $ext_fin = ip2long($s['ip_lim']);
+                if ($long_ini <= $ext_fin && $long_fin >= $ext_ini) {
+                    return ["result" => 0, "msg" => "El rango ingresado choca con el Segmento {$s['id_seg']} ({$s['ip_ini']} - {$s['ip_lim']}). Las IPs no pueden cruzarse."];
                 }
             }
         }
-        // =========================================================
 
-        // Al insertar, el Trigger de la BD dibujará las IPs o las reciclará si estaban inactivas
-        $id_seg_nuevo = $model->agregaRegistroConBitacora(
-            "segmentos", ["id_dep", "ip_ini", "ip_lim", "estatus"], [$id_dep, $ip_ini, $ip_lim, 1],
-            $id_sub, "Registró el segmento de red: {$ip_ini} al {$ip_lim}"
-        );
+        $ips_a_reservar = [];
+        if (!empty(trim($reservas))) {
+            $bloques = explode(',', $reservas);
+            foreach ($bloques as $bloque) {
+                $bloque = trim($bloque, " \t\n\r\0\x0B-");
+                if (empty($bloque)) continue;
 
-        if ($id_seg_nuevo) return ["result" => 1, "msg" => "El segmento y sus direcciones IP se generaron exitosamente."];
-        return ["result" => 0, "msg" => "No se pudo crear el segmento en la base de datos."];
+                if (strpos($bloque, '-') !== false) {
+                    $partes = explode('-', $bloque);
+                    if (count($partes) !== 2) return ["result" => 0, "msg" => "Error de sintaxis en el rango: $bloque"];
+                    $l_rini = ip2long(trim($partes[0]));
+                    $l_rfin = ip2long(trim($partes[1]));
+
+                    if ($l_rini === false || $l_rfin === false || $l_rini > $l_rfin) return ["result" => 0, "msg" => "Rango de reserva inválido: $bloque"];
+                    if ($l_rini < $long_ini || $l_rfin > $long_fin) return ["result" => 0, "msg" => "El rango a reservar '$bloque' escapa de los límites de la red."];
+                    for ($i = $l_rini; $i <= $l_rfin; $i++) { $ips_a_reservar[] = long2ip($i); }
+                } else {
+                    $l_ip = ip2long($bloque);
+                    if ($l_ip === false) return ["result" => 0, "msg" => "La dirección '$bloque' no es una IP válida."];
+                    if ($l_ip < $long_ini || $l_ip > $long_fin) return ["result" => 0, "msg" => "La IP '$bloque' no pertenece al rango."];
+                    $ips_a_reservar[] = $bloque;
+                }
+            }
+            $ips_a_reservar = array_unique($ips_a_reservar); 
+        }
+
+        $model->agregaRegistro("segmentos", ["id_dep", "ip_ini", "ip_lim", "estatus"], [$id_dep, trim($ip_ini), trim($ip_lim), 1]);
+        $seg_creado = $model->seleccionaRegistros("segmentos", ["id_seg"], "ip_ini = ? AND ip_lim = ? AND estatus = 1", [trim($ip_ini), trim($ip_lim)]);
+        
+        if ($seg_creado && count($seg_creado) > 0) {
+            $id_seg_real = $seg_creado[0]['id_seg'];
+            $model->registrarBitacora($id_sub, 'INSERT', "Creó segmento ID: {$id_seg_real} | Rango: {$ip_ini} a {$ip_lim}");
+
+            if (!empty($ips_a_reservar)) {
+                $count_reservas = 0;
+                foreach ($ips_a_reservar as $ip_res) {
+                    $res = $model->actualizaRegistro("infraestructura_red", ["est"], "id_seg = ? AND ip = ?", ['Reservado', $id_seg_real, $ip_res]);
+                    if($res !== false) $count_reservas++;
+                }
+                $model->registrarBitacora($id_sub, 'UPDATE', "Se reservaron $count_reservas IPs al crear el segmento ID: $id_seg_real");
+                return ["result" => 1, "msg" => "Segmento creado exitosamente con $count_reservas IPs reservadas."];
+            }
+            return ["result" => 1, "msg" => "Segmento creado exitosamente."];
+        }
+        return ["result" => 0, "msg" => "Error al localizar el segmento recién creado."];
     }
 
-public function actualizarSegmento($id_sub, $id_seg, $id_dep, $ip_ini, $ip_lim) {
+    public function actualizarSegmento($id_sub, $id_seg, $id_dep, $ip_ini, $ip_lim, $reservas) {
         $model = new MainModel();
+        if (!$this->verificarPermiso($id_sub, 1)) return ["result" => 0, "msg" => "Permiso denegado."];
 
-        if (!filter_var($ip_ini, FILTER_VALIDATE_IP) || !filter_var($ip_lim, FILTER_VALIDATE_IP)) {
-            return ["result" => 0, "msg" => "Formato de IP inválido."];
+        $long_ini = ip2long(trim($ip_ini));
+        $long_fin = ip2long(trim($ip_lim));
+
+        if ($long_ini === false || $long_fin === false || $long_ini > $long_fin) {
+            return ["result" => 0, "msg" => "El rango del segmento no es válido matemáticamente."];
         }
 
-        // =========================================================
-        // ESCUDO: PREVENIR TRASLAPE CON OTROS SEGMENTOS ACTIVOS
-        // =========================================================
-        $nuevo_ini_num = ip2long($ip_ini);
-        $nuevo_lim_num = ip2long($ip_lim);
-
-        if ($nuevo_ini_num > $nuevo_lim_num) {
-            return ["result" => 0, "msg" => "La IP Inicial no puede ser mayor que la IP Límite."];
-        }
-
-        // Traemos todos los segmentos activos EXCEPTO el segmento que estamos editando
+        // VERIFICAMOS EMPALMES IGNORANDO AL PROPIO SEGMENTO QUE ESTAMOS EDITANDO
         $segmentos_activos = $model->seleccionaRegistros("segmentos", ["id_seg", "ip_ini", "ip_lim"], "estatus = 1 AND id_seg != ?", [$id_seg]);
-        
         if ($segmentos_activos) {
-            foreach ($segmentos_activos as $seg) {
-                $activo_ini_num = ip2long($seg['ip_ini']);
-                $activo_lim_num = ip2long($seg['ip_lim']);
-
-                // Si los rangos se cruzan en cualquier punto
-                if ($nuevo_ini_num <= $activo_lim_num && $nuevo_lim_num >= $activo_ini_num) {
-                    return ["result" => 0, "msg" => "Conflicto de Red: El nuevo rango choca con el Segmento Activo ID {$seg['id_seg']} ({$seg['ip_ini']} - {$seg['ip_lim']})."];
-                }
-            }
-        }
-        // =========================================================
-
-        // Proteger IPs ocupadas si el rango se encoge
-        $ips_en_uso = $model->seleccionaRegistros("infraestructura_red", ["ip", "est"], "id_seg = ? AND LOWER(est) NOT IN ('libre', 'inactivo')", [$id_seg]);
-        if ($ips_en_uso) {
-            foreach ($ips_en_uso as $ip) {
-                $ip_num = ip2long($ip['ip']);
-                // Reutilizamos las variables numéricas que ya calculamos arriba
-                if ($ip_num < $nuevo_ini_num || $ip_num > $nuevo_lim_num) {
-                    return ["result" => 0, "msg" => "La IP {$ip['ip']} está fuera del nuevo rango y se encuentra '{$ip['est']}'. Libérela antes de recortar el segmento."];
+            foreach ($segmentos_activos as $s) {
+                $ext_ini = ip2long($s['ip_ini']);
+                $ext_fin = ip2long($s['ip_lim']);
+                if ($long_ini <= $ext_fin && $long_fin >= $ext_ini) {
+                    return ["result" => 0, "msg" => "El nuevo rango choca con el Segmento {$s['id_seg']} ({$s['ip_ini']} - {$s['ip_lim']}). Las IPs no pueden cruzarse."];
                 }
             }
         }
 
-        // Actualizamos el registro (El Trigger ajustará las IPs automáticamente)
-        $res = $model->actualizaRegistro("segmentos", ["id_dep", "ip_ini", "ip_lim"], "id_seg = ?", [$id_dep, $ip_ini, $ip_lim, $id_seg]);
-        if ($res) {
-            $model->registrarBitacora($id_sub, 'UPDATE', "Actualizó el segmento ID: {$id_seg}. Rango: {$ip_ini} a {$ip_lim}");
-            return ["result" => 1, "msg" => "El segmento se actualizó correctamente. Las IPs se ajustaron automáticamente."];
+        $ips_nuevas = [];
+        if (!empty(trim($reservas))) {
+            $bloques = explode(',', $reservas);
+            foreach ($bloques as $bloque) {
+                $bloque = trim($bloque, " \t\n\r\0\x0B-");
+                if (empty($bloque)) continue;
+
+                if (strpos($bloque, '-') !== false) {
+                    $partes = explode('-', $bloque);
+                    if (count($partes) !== 2) return ["result" => 0, "msg" => "Error de sintaxis en el rango: $bloque"];
+                    $l_rini = ip2long(trim($partes[0]));
+                    $l_rfin = ip2long(trim($partes[1]));
+                    if ($l_rini === false || $l_rfin === false || $l_rini > $l_rfin) return ["result" => 0, "msg" => "Rango de reserva inválido: $bloque"];
+                    if ($l_rini < $long_ini || $l_rfin > $long_fin) return ["result" => 0, "msg" => "El rango '$bloque' escapa de los nuevos límites de la red."];
+                    for ($i = $l_rini; $i <= $l_rfin; $i++) { $ips_nuevas[] = long2ip($i); }
+                } else {
+                    $l_ip = ip2long($bloque);
+                    if ($l_ip === false) return ["result" => 0, "msg" => "La dirección '$bloque' no es una IP válida."];
+                    if ($l_ip < $long_ini || $l_ip > $long_fin) return ["result" => 0, "msg" => "La IP '$bloque' no pertenece al nuevo rango."];
+                    $ips_nuevas[] = $bloque;
+                }
+            }
+            $ips_nuevas = array_unique($ips_nuevas); 
         }
-        return ["result" => 0, "msg" => "Error al actualizar el segmento."];
+
+        // AL ACTUALIZAR LOS LÍMITES AQUÍ, EL TRIGGER DE LA BD HARÁ SU TRABAJO 
+        $model->actualizaRegistro("segmentos", ["id_dep", "ip_ini", "ip_lim"], "id_seg = ?", [$id_dep, trim($ip_ini), trim($ip_lim), $id_seg]);
+
+        // LOGICA DE RESERVAS
+        $actuales_db = $model->seleccionaRegistros("infraestructura_red", ["ip"], "id_seg = ? AND LOWER(est) = 'reservado'", [$id_seg]);
+        $ips_viejas = [];
+        if ($actuales_db) {
+            foreach ($actuales_db as $row) { $ips_viejas[] = $row['ip']; }
+        }
+
+        $ips_a_liberar = array_diff($ips_viejas, $ips_nuevas);
+        $ips_a_reservar = array_diff($ips_nuevas, $ips_viejas);
+
+        if (!empty($ips_a_liberar)) {
+            foreach ($ips_a_liberar as $ip) {
+                $model->actualizaRegistro("infraestructura_red", ["est"], "id_seg = ? AND ip = ? AND LOWER(est) = 'reservado'", ['Libre', $id_seg, $ip]);
+            }
+        }
+
+        $fallos = 0;
+        if (!empty($ips_a_reservar)) {
+            foreach ($ips_a_reservar as $ip) {
+                $check = $model->seleccionaRegistros("infraestructura_red", ["est"], "id_seg = ? AND ip = ?", [$id_seg, $ip]);
+                if ($check && strtolower($check[0]['est']) === 'libre') {
+                    $model->actualizaRegistro("infraestructura_red", ["est"], "id_seg = ? AND ip = ?", ['Reservado', $id_seg, $ip]);
+                } else {
+                    $fallos++;
+                }
+            }
+        }
+
+        $msg = "Segmento y reservas actualizadas correctamente.";
+        if ($fallos > 0) $msg .= " (Aviso: $fallos IP(s) no se reservaron por estar ocupadas o fuera del nuevo rango).";
+
+        $model->registrarBitacora($id_sub, 'UPDATE', "Actualizó rango y reservas del segmento ID: {$id_seg}");
+        return ["result" => 1, "msg" => $msg];
     }
 
     public function eliminarSegmento($id_sub, $id_seg) {
         $model = new MainModel();
-        
-        // 1. Validar que no haya IPs ocupadas por dispositivos
-        $uso = $model->seleccionaRegistros("infraestructura_red", ["id_red"], "id_seg = ? AND LOWER(est) NOT IN ('libre', 'inactivo')", [$id_seg]);
-        if ($uso && count($uso) > 0) {
-            return ["result" => 0, "msg" => "No se puede desactivar. Existen equipos conectados a este segmento."];
-        }
+        $uso = $model->seleccionaRegistros("infraestructura_red", ["id_disp"], "id_seg = ? AND id_disp IS NOT NULL", [$id_seg]);
+        if ($uso && count($uso) > 0) return ["result" => 0, "msg" => "No puede eliminar este segmento porque tiene " . count($uso) . " dispositivo(s) conectado(s)."];
 
-        // 2. Borrado Lógico de las IPs (Cambiamos las libres a 'Inactivo')
-        $model->actualizaRegistro(
-            "infraestructura_red", 
-            ["est"], 
-            "id_seg = ? AND LOWER(est) = 'libre'", 
-            ['Inactivo', $id_seg]
-        );
-
-        // 3. Borrado Lógico del Segmento
-        $res = $model->actualizaRegistro(
-            "segmentos", 
-            ["estatus"], 
-            "id_seg = ?", 
-            [0, $id_seg]
-        );
-
-        if ($res) {
+        $res = $model->actualizaRegistro("segmentos", ["estatus"], "id_seg = ?", [0, $id_seg]);
+        if ($res !== false) {
             $model->registrarBitacora($id_sub, 'DELETE', "Realizó borrado lógico del segmento de red ID: {$id_seg}");
             return ["result" => 1, "msg" => "Segmento desactivado correctamente."];
         }
         return ["result" => 0, "msg" => "Error al intentar desactivar el segmento."];
     }
 
-    // ==========================================================
-    // MÉTODO PARA EL MODAL EXPLORADOR DE IPs
-    // ==========================================================
     public function obtenerIpsSegmento($id_seg) {
         $model = new MainModel();
         $tabla = "infraestructura_red r";
         $joins = ["LEFT JOIN dispositivos d ON r.id_disp = d.id_disp"];
-        // Solo mostramos las IPs que no están inactivas
         $campos = ["r.id_red", "r.ip", "r.est", "d.nom_host", "d.num_inv"];
-        
         $ips = $model->seleccionaRegistrosJoin($tabla, $joins, $campos, "r.id_seg = ? AND LOWER(r.est) != 'inactivo'", [$id_seg]);
         
         if ($ips) {
-            // Ordenamos las IPs matemáticamente para que se muestren en secuencia perfecta
-            usort($ips, function($a, $b) {
-                return ip2long($a['ip']) - ip2long($b['ip']);
-            });
+            usort($ips, function($a, $b) { return ip2long($a['ip']) - ip2long($b['ip']); });
+            return ["result" => 1, "data" => $ips];
         }
-
-        return ["result" => 1, "data" => $ips ? $ips : []];
+        return ["result" => 0, "msg" => "No se encontraron IPs activas para este segmento."];
     }
 }
 ?>
