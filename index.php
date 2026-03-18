@@ -43,6 +43,12 @@
                 $ctrl = new AdminUsuariosController($id_user);
             }   
         break;
+		 case "roles":
+            if ($accion == "") {
+                require_once "_controller/AdminRolesController.php";
+                $ctrl = new AdminRolesController($id_user);
+            }   
+        break;
 
 		case "personal":
 			if($accion== ""){

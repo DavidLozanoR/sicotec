@@ -2,27 +2,28 @@
 ini_set("display_errors", E_ALL);
 require_once "MainModel.php";
 
-
 class AdminUsuariosController {
 
-    private $id;
+    private $slug;
     const VISTA = '_view/adminUsuarios.html.php';
     const JS = 'js/adminUsuarios.js';
 
-    function __construct($id=null){ 
-        $this->id = $id;
-         if(!isset($_SESSION['usuario']) && $this->id!=1){
-            die("Error: Su usuario no tiene acceso a este módulo");
-        }
+    function __construct($slug = null){ 
+        if(session_status() === PHP_SESSION_NONE) { session_start(); }
+        if(!isset($_SESSION['usuario'])) { die("Error: Su sesión ha expirado."); }
+        $this->slug = $slug;
     }
 
-    // Dibuja la vista completa (Tablas de Usuarios y Roles)
     function renderContent(){
         $model = new MainModel();
         
-        // 1. DATOS PARA USUARIOS
-        //ocultamos rol id=1 administrador
+        $consultaSub = $model->seleccionaRegistros("submodulos", ["id_sub"], "slug = ?", [$this->slug]);
+        $id_sub_actual = (!empty($consultaSub)) ? $consultaSub[0]['id_sub'] : 7; // Ajusta el ID default si es necesario
+
+        // Roles disponibles para el select de nuevo usuario (ocultamos Administrador)
         $roles_disponibles = $model->seleccionaRegistros("Roles", ["id_rol", "nom_rol"], "id_rol != ? AND status = 1", [1]);
+        
+        // Usuarios activos
         $usuarios = $model->seleccionaRegistrosJoin(
             "Usuarios u",
             ["JOIN Roles r ON u.id_rol = r.id_rol"],
@@ -31,115 +32,43 @@ class AdminUsuariosController {
             [1]
         );
 
-        // 2. CONSTRUCCIÓN DEL ÁRBOL PARA EL MODAL DE ROLES
-        $permisos_catalogo = $model->seleccionaRegistros("Permisos", ["id_perm", "nom_perm"]);
-        $modulos = $model->seleccionaRegistros("Modulos", ["*"], "id_mod != ? ORDER BY orden", [4]);
-        $submodulos = $model->seleccionaRegistros("Submodulos", ["*"], "1=1 ORDER BY orden");
-
-        $arbol_modulos = [];
-        if ($modulos) {
-            foreach ($modulos as $mod) {
-                $mod['submodulos'] = [];
-                if ($submodulos) {
-                    foreach ($submodulos as $sub) {
-                        if ($sub['id_mod'] == $mod['id_mod']) {
-                            $mod['submodulos'][] = $sub;
-                        }
-                    }
-                }
-                $arbol_modulos[] = $mod;
-            }
-        }
-
-        // 3. DATOS PARA LA TABLA DE ROLES
-        $roles = $model->seleccionaRegistros("Roles", ["id_rol", "nom_rol"], "status = 1");//solo activos
-
-        if ($roles) {
-            foreach ($roles as $index => $rol) {
-                $permisosRol = $model->seleccionaRegistros("Rol_Submodulo_Permiso", ["id_sub", "id_perm"], "id_rol = ?", [$rol['id_rol']]);
-                
-                $total_permisos = 0;
-                $submodulos_unicos = [];
-                $permisos_json = []; 
-
-                if ($permisosRol) {
-                    $total_permisos = count($permisosRol);
-                    foreach ($permisosRol as $pr) {
-                        $submodulos_unicos[$pr['id_sub']] = true;
-                        if(!isset($permisos_json[$pr['id_sub']])) $permisos_json[$pr['id_sub']] = [];
-                        $permisos_json[$pr['id_sub']][] = $pr['id_perm'];
-                    }
-                }
-
-                $roles[$index]['total_permisos'] = $total_permisos;
-                $roles[$index]['total_submodulos'] = count($submodulos_unicos);
-                $roles[$index]['permisos_json'] = $permisos_json;
-
-                $usuariosAsignados = $model->seleccionaRegistros("Usuarios", ["id_usuar"], "id_rol = ? AND status = ?", [$rol['id_rol'], 1]);
-                $roles[$index]['total_usuarios'] = $usuariosAsignados ? count($usuariosAsignados) : 0;
-            }
-        }
-
         include self::VISTA;
     }
 
-    public function renderJS(){ include self::JS; }
-    //VALIDAR ATRIBUTOS
+    public function renderJS(){ 
+        if (file_exists(self::JS)) { include self::JS; }
+    }
 
+    // ==========================================
+    // VALIDACIONES Y LÓGICA DE USUARIOS
+    // ==========================================
     public function validarDatosUsuario($nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $esInsercion = false) {
-        
-        // 1. Validar Nickname (Una sola palabra, sin espacios, inicia con letra, admite cualquier símbolo)
         $regex_usuario = '/^[a-zA-ZáéíóúÁÉÍÓÚñÑ][^\s]*$/';
         if (strlen($nom_usuar) > 50 || !preg_match($regex_usuario, $nom_usuar)) {
-            return "El nombre de usuario es inválido: debe ser una sola palabra sin espacios, iniciar con una letra y puede contener números o cualquier símbolo especial.";
+            return "El nombre de usuario es inválido.";
         }
-
-        // REGEX PARA NOMBRES: Empieza con letra, permite un solo espacio entre palabras, termina con letra.
         $regex_nombres = '/^[a-zA-ZáéíóúÁÉÍÓÚñÑ]+( [a-zA-ZáéíóúÁÉÍÓÚñÑ]+)*$/';
+        if (strlen($nombres) > 100 || !preg_match($regex_nombres, $nombres)) return "El nombre es inválido.";
+        if (strlen($ape_pa) > 100 || !preg_match($regex_nombres, $ape_pa)) return "El apellido paterno es inválido.";
+        if (!empty($ape_ma) && (strlen($ape_ma) > 100 || !preg_match($regex_nombres, $ape_ma))) return "El apellido materno es inválido.";
 
-        // 2. Validar Nombres
-        if (strlen($nombres) > 100 || !preg_match($regex_nombres, $nombres)) {
-            return "El nombre es inválido: solo debe contener letras, no iniciar ni terminar con espacios, ni tener espacios dobles.";
-        }
-
-        // 3. Validar Apellido Paterno
-        if (strlen($ape_pa) > 100 || !preg_match($regex_nombres, $ape_pa)) {
-            return "El apellido paterno es inválido: solo debe contener letras, no iniciar ni terminar con espacios, ni tener espacios dobles.";
-        }
-
-        // 4. Validar Apellido Materno (Si no está vacío)
-        if (!empty($ape_ma) && (strlen($ape_ma) > 100 || !preg_match($regex_nombres, $ape_ma))) {
-            return "El apellido materno es inválido: solo debe contener letras, no iniciar ni terminar con espacios, ni tener espacios dobles.";
-        }
-
-        // 5. Validar Contraseña
-        if ($esInsercion && empty($password)) {
-            return "La contraseña es obligatoria para usuarios nuevos.";
-        }
+        if ($esInsercion && empty($password)) return "La contraseña es obligatoria para usuarios nuevos.";
         if (!empty($password)) {
             if (strlen($password) > 8) return "La contraseña no puede tener más de 8 caracteres.";
             if (strpos($password, ' ') !== false) return "La contraseña no puede contener espacios.";
         }
-
-        return true; // Todo en orden
+        return true; 
     }
 
-    // LÓGICA EXCLUSIVA DE USUARIOS
-   
     public function insertaUsuario($id_sub, $nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $id_rol) {
-        if ($id_rol == 1) {
-            return ["result" => 0, "msg" => "Seguridad: No se permite asignar el rol de Administrador a nuevos usuarios."];
-        }
+        if ($id_rol == 1) return ["result" => 0, "msg" => "Seguridad: No se permite asignar el rol de Administrador."];
 
         $model = new MainModel();
-        
         $existe = $model->seleccionaRegistros("Usuarios", ["id_usuar", "status"], "nom_usuar = ?", [$nom_usuar]);
+        
         if ($existe && count($existe) > 0) {
-            if ($existe[0]['status'] == 1) {
-                return ["result" => 0, "msg" => "El usuario '$nom_usuar' ya existe. Si desea cambiar sus accesos, edite su rol."];
-            } else {
-                return ["result" => 0, "msg" => "El usuario '$nom_usuar' existe pero está dado de baja."];
-            }
+            if ($existe[0]['status'] == 1) return ["result" => 0, "msg" => "El usuario '$nom_usuar' ya existe."];
+            else return ["result" => 0, "msg" => "El usuario '$nom_usuar' existe pero está dado de baja."];
         }
         
         $pass_hash = password_hash($password, PASSWORD_DEFAULT);
@@ -149,17 +78,14 @@ class AdminUsuariosController {
         );
         
         if ($res) {
-            $bitacora = $model->registrarBitacora($id_sub, 'INSERT', "Creó al nuevo usuario '{$nom_usuar}' (Rol ID: {$id_rol})");
-            $msg_extra = ($bitacora !== true) ? "\n\n" . $bitacora : "";
-            
-            return ["result" => 1, "msg" => "Usuario creado con éxito." . $msg_extra];
+            $model->registrarBitacora($id_sub, 'INSERT', "Creó al nuevo usuario '{$nom_usuar}'");
+            return ["result" => 1, "msg" => "Usuario creado con éxito."];
         }
         return ["result" => 0, "msg" => "Error al guardar el usuario"];
     }
 
     public function actualizaUsuario($id_sub, $id_usuar, $nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $id_rol) {
         $model = new MainModel();
-        
         $usuario_actual = $model->seleccionaRegistros("Usuarios", ["id_rol"], "id_usuar = ?", [$id_usuar]);
         $rol_actual = $usuario_actual ? $usuario_actual[0]['id_rol'] : 0;
 
@@ -167,7 +93,7 @@ class AdminUsuariosController {
         if ($rol_actual == 1 && $id_rol != 1) return ["result" => 0, "msg" => "Seguridad: El Administrador principal no puede perder su rol."];
         
         $existe = $model->seleccionaRegistros("Usuarios", ["id_usuar"], "nom_usuar = ? AND id_usuar != ?", [$nom_usuar, $id_usuar]);
-        if ($existe && count($existe) > 0) return ["result" => 0, "msg" => "El nickname '$nom_usuar' ya está siendo utilizado."];
+        if ($existe && count($existe) > 0) return ["result" => 0, "msg" => "El nickname '$nom_usuar' ya está en uso."];
 
         if (!empty($password)) {
             $pass_hash = password_hash($password, PASSWORD_DEFAULT);
@@ -177,24 +103,19 @@ class AdminUsuariosController {
         }
 
         if ($res) {
-            $bitacora = $model->registrarBitacora($id_sub, 'UPDATE', "Actualizó datos del usuario '{$nom_usuar}'");
-            $msg_extra = ($bitacora !== true) ? "\n\n" . $bitacora : "";
-
+            $model->registrarBitacora($id_sub, 'UPDATE', "Actualizó datos del usuario '{$nom_usuar}'");
             if (isset($_SESSION['usuario']['id_usuar']) && $_SESSION['usuario']['id_usuar'] == $id_usuar) {
                 $_SESSION['usuario']['nom_usuar'] = $nom_usuar;
                 $_SESSION['usuario']['nombres'] = $nombres;
-                $_SESSION['usuario']['ape_pa'] = $ape_pa;
-                $_SESSION['usuario']['ape_ma'] = $ape_ma;
-                return ["result" => 1, "msg" => "Usuario actualizado con éxito." . $msg_extra, "update_current_user" => true, "nuevo_nombre" => $nombres];
+                return ["result" => 1, "msg" => "Usuario actualizado con éxito.", "update_current_user" => true, "nuevo_nombre" => $nombres];
             }
-            return ["result" => 1, "msg" => "Usuario actualizado con éxito." . $msg_extra];
+            return ["result" => 1, "msg" => "Usuario actualizado con éxito."];
         }
         return ["result" => 0, "msg" => "Error al actualizar el usuario."];
     }
 
     public function bajaUsuario($id_sub, $id_usuar) {
         $model = new MainModel();
-        
         $usuario = $model->seleccionaRegistros("Usuarios", ["id_rol", "nom_usuar"], "id_usuar = ?", [$id_usuar]);
         if ($usuario && $usuario[0]['id_rol'] == 1) return ["result" => 0, "msg" => "Seguridad: No se puede dar de baja al Administrador."];
 
@@ -202,9 +123,8 @@ class AdminUsuariosController {
         $res = $model->actualizaRegistro("Usuarios", ["status"], "id_usuar=?", [0, $id_usuar]);
         
         if ($res) {
-            $bitacora = $model->registrarBitacora($id_sub, 'DELETE', "Dio de baja al usuario '{$nom_baja}'");
-            $msg_extra = ($bitacora !== true) ? "\n\n" . $bitacora : "";
-            return ["result" => 1, "msg" => "Usuario dado de baja exitosamente." . $msg_extra];
+            $model->registrarBitacora($id_sub, 'DELETE', "Dio de baja al usuario '{$nom_baja}'");
+            return ["result" => 1, "msg" => "Usuario dado de baja exitosamente."];
         }
         return ["result" => 0, "msg" => "Error al dar de baja al usuario."];
     }
