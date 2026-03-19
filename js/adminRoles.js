@@ -6,7 +6,25 @@ document.addEventListener("DOMContentLoaded", function () {
     const inputNomRol = document.getElementById('nom_rol_input');
     if (inputNomRol) {
         inputNomRol.addEventListener('input', function () {
-            this.value = this.value.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '');
+            // 1. Quitamos espacios en blanco inmediatamente
+            let val = this.value.replace(/\s/g, '');
+            
+            // 2. Quitamos caracteres especiales no permitidos (dejamos letras, números)
+            val = val.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/g, '');
+
+            // 3. Validar que el primer carácter sea estrictamente una letra
+            // Si hay texto, pero el primer carácter no es una letra, lo borramos
+            if (val.length > 0 && !/^[a-zA-ZáéíóúÁÉÍÓÚñÑ]/.test(val)) {
+                val = val.substring(1); 
+            }
+
+            // 4. Limitar a un máximo de 25 caracteres
+            if (val.length > 25) {
+                val = val.substring(0, 25);
+            }
+
+            // Regresamos el valor limpio y formateado al input
+            this.value = val;
         });
     }
 
@@ -76,7 +94,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Sin Permisos',
-                    text: 'Debe seleccionar al menos un permiso para crear o actualizar el rol.',
+                    text: 'Debe seleccionar al menos el permiso de "Consultar" en algún submódulo para que el usuario pueda ver el sistema.',
                     confirmButtonColor: '#9D2449'
                 });
                 return; // Detiene el envío
