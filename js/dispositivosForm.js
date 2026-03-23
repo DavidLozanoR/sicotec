@@ -264,6 +264,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // ==========================================
     // FUNCIÓN GENÉRICA: BUSCADOR FUZZY PARA SELECTS
+    // EX: aplicarFuzzySearch('select[name="icono"]');
     // ==========================================
     function aplicarFuzzySearch(selector) {
         const selectOriginal = document.querySelector(selector);
@@ -401,13 +402,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // ==========================================
-    // LLAMADA ESPECÍFICA PARA ESTE MÓDULO
-    // ==========================================
-    aplicarFuzzySearch('select[name="asig_po_id"]');
     aplicarFuzzySearch('select[name="resp_po_id"]');
+    aplicarFuzzySearch('select[name="asig_po_id"]');
 
-    
     // ==========================================
     // LÓGICA DE MÚLTIPLES SERVICIOS Y VERSIONES
     // ==========================================
