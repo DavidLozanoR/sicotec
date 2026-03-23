@@ -262,6 +262,204 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+
+    // ==========================================
+    // LÓGICA DE MÚLTIPLES SERVICIOS Y VERSIONES
+    // ==========================================
+    // Un contador global para darles un ID único a los selects dinámicos
+    let contadorServiciosDinamicos = 0;
+
+    function crearFilaServicio(idServicioSelec = '', idVersionSelec = '') {
+        contadorServiciosDinamicos++;
+        const uniqueIdServ = `dinamic-serv-${contadorServiciosDinamicos}`;
+        const uniqueIdVer = `dinamic-ver-${contadorServiciosDinamicos}`;
+
+        const fila = document.createElement('label');
+        fila.className = 'list-group-item d-flex justify-content-between align-items-center py-3 list-group-item-action bg-white';
+        
+        fila.innerHTML = `
+            <div class="d-flex align-items-start gap-3 w-100 me-3">
+                <div class="row g-2 w-100 align-items-center">
+                    <div class="col-md-6">
+                        <select id="${uniqueIdServ}" class="form-select select-servicio border-secondary-subtle focus-guinda" name="servicios_instalados[]" required>
+                            <option value="" disabled selected>Seleccione software...</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
+                        <select id="${uniqueIdVer}" class="form-select select-version border-secondary-subtle focus-guinda" required>
+                            <option value="" disabled selected>Seleccione versión...</option>
+                        </select>
+                        <div class="status-version mt-1 small"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="text-end text-nowrap mt-1">
+                <button type="button" class="btn btn-sm btn-outline-danger btn-remove-row" title="Quitar servicio">
+                    <i class="fas fa-trash-alt"></i>
+                </button>
+            </div>
+        `;
+
+        const selectServ = fila.querySelector(`#${uniqueIdServ}`);
+        const selectVer = fila.querySelector(`#${uniqueIdVer}`);
+        const statusVer = fila.querySelector('.status-version');
+        const btnRemove = fila.querySelector('.btn-remove-row');
+
+        // Agregar validación UI en tiempo real a los nuevos selects
+        selectServ.addEventListener('change', () => validarCampoUI(selectServ));
+        selectVer.addEventListener('change', () => validarCampoUI(selectVer));
+
+        selectServ.addEventListener('change', function() {
+            selectVer.name = `versiones_instaladas[${this.value}]`;
+        });
+
+        // Poblar las opciones del catálogo
+        catalogoServicios.forEach(s => {
+            const option = document.createElement('option');
+            option.value = s.id_serv;
+            option.textContent = s.nom;
+            
+            const versionOficial = catalogoVersiones.find(v => v.id_serv == s.id_serv && String(v.obs) === "0");
+            option.dataset.oficial = versionOficial ? versionOficial.id_ver : '';
+            
+            selectServ.appendChild(option);
+        });
+
+        const cargarVersiones = (idServicioActual, versionSeleccionada = '') => {
+            // Guardamos temporalmente si el select original estaba oculto por el fuzzy search
+            const isFuzzyActive = selectVer.style.display === 'none';
+            const $fuzzyContainer = selectVer.nextElementSibling;
+            
+            // Si el fuzzy estaba activo, destruimos su contenedor visual antes de rehacer las opciones
+            if (isFuzzyActive && $fuzzyContainer && $fuzzyContainer.classList.contains('fuzzy-container')) {
+                $fuzzyContainer.remove();
+                selectVer.style.display = ''; // Lo volvemos a mostrar temporalmente
+            }
+
+            selectVer.innerHTML = '<option value="" disabled selected>Seleccione versión...</option>';
+            const versionesFiltradas = catalogoVersiones.filter(v => v.id_serv == idServicioActual);
+            
+            versionesFiltradas.forEach(v => {
+                const option = document.createElement('option');
+                option.value = v.id_ver;
+                option.textContent = v.ver;
+                selectVer.appendChild(option);
+            });
+
+            if (versionSeleccionada) {
+                selectVer.value = versionSeleccionada;
+            }
+            
+            validarVersion(selectServ, selectVer, statusVer, fila);
+
+            // Volvemos a inicializar el fuzzy search para el selector de versiones que acabamos de recargar
+            aplicarFuzzySearch(`#${uniqueIdVer}`);
+        };
+
+        selectServ.addEventListener('change', () => cargarVersiones(selectServ.value));
+        selectVer.addEventListener('change', () => validarVersion(selectServ, selectVer, statusVer, fila));
+        btnRemove.addEventListener('click', () => fila.remove());
+
+        if (idServicioSelec) {
+            selectServ.value = idServicioSelec;
+            selectVer.name = `versiones_instaladas[${idServicioSelec}]`;
+            cargarVersiones(idServicioSelec, idVersionSelec);
+        }
+
+        const msjVacio = document.getElementById('mensaje-sin-servicios');
+        if(msjVacio) msjVacio.remove();
+
+        contenedorServicios.appendChild(fila);
+ 
+        // Llamamos a aplicarFuzzySearch DESPUÉS de que la fila y sus options ya están en el DOM
+        aplicarFuzzySearch(`#${uniqueIdServ}`);
+        
+        // No llamamos al de versiones aún, porque se llamará automáticamente dentro de "cargarVersiones" 
+        
+    }
+
+    function validarVersion(selectServ, selectVer, containerStatus, fila) {
+        containerStatus.innerHTML = '';
+        selectVer.classList.remove('is-valid', 'is-invalid', 'border-danger');
+        fila.classList.remove('bg-danger', 'bg-opacity-10', 'border-danger', 'border-opacity-50');
+
+        if (!selectServ.value || !selectVer.value) return;
+
+        const optionServ = selectServ.options[selectServ.selectedIndex];
+        const idVerOficial = optionServ.dataset.oficial;
+
+        if (selectVer.value === idVerOficial) {
+            selectVer.classList.add('is-valid');
+            containerStatus.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i> Oficial (Al día)</span>';
+        } else {
+            selectVer.classList.add('is-invalid', 'border-danger');
+            fila.classList.add('bg-danger', 'bg-opacity-10', 'border-danger', 'border-opacity-50');
+            containerStatus.innerHTML = '<span class="text-danger fw-bold"><i class="fas fa-exclamation-triangle me-1"></i> Obsoleta/Distinta</span>';
+        }
+    }
+
+    if(btnAddServicio) {
+        btnAddServicio.addEventListener('click', () => crearFilaServicio());
+    }
+
+    // ==========================================
+    // ACTUALIZAR SERVICIO CARGADO (BOTÓN RÁPIDO)
+    // ==========================================
+    document.querySelectorAll('.btn-quitar-serv').forEach(btn => {
+        btn.addEventListener('click', function() {
+            this.closest('.list-group-item').remove();
+        });
+    });
+
+    document.querySelectorAll('.btn-actualizar-serv').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const row = this.closest('.list-group-item');
+            const idServ = this.dataset.idServ;
+            const inputVersion = row.querySelector(`input[name="versiones_instaladas[${idServ}]"]`);
+            
+            const versionOficial = catalogoVersiones.find(v => v.id_serv == idServ && String(v.obs) === "0");
+            
+            if(versionOficial && inputVersion) {
+                inputVersion.value = versionOficial.id_ver;
+                
+                row.classList.remove('bg-danger', 'bg-opacity-10', 'border-danger', 'border-opacity-50');
+                row.classList.add('bg-white');
+                
+                const titleH6 = row.querySelector('h6');
+                titleH6.classList.remove('text-danger');
+                titleH6.classList.add('text-dark');
+                
+                const iconDanger = titleH6.querySelector('.fa-exclamation-triangle');
+                if(iconDanger) iconDanger.remove();
+
+                const textSmall = row.querySelector('small');
+                textSmall.classList.remove('text-danger');
+                textSmall.classList.add('text-muted');
+                textSmall.innerHTML = `Instalado: <strong>${versionOficial.ver}</strong>`;
+
+                const textEndDiv = this.parentElement;
+                textEndDiv.innerHTML = `
+                    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-3 py-2 shadow-sm me-2">
+                        <i class="fas fa-check-circle me-1"></i> Al día
+                    </span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary btn-quitar-serv" data-id-serv="${idServ}" title="Desinstalar servicio">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>
+                `;
+
+                textEndDiv.querySelector('.btn-quitar-serv').addEventListener('click', function() {
+                    this.closest('.list-group-item').remove();
+                });
+
+                Toast.fire({ icon: 'success', title: 'Versión actualizada. Guarde los cambios.' });
+            } else {
+                Toast.fire({ icon: 'warning', title: 'Este servicio no tiene una versión oficial.' });
+            }
+        });
+    });
+
+
+    
     // ==========================================
     // FUNCIÓN GENÉRICA: BUSCADOR FUZZY PARA SELECTS
     // EX: aplicarFuzzySearch('select[name="icono"]');
@@ -405,173 +603,6 @@ document.addEventListener('DOMContentLoaded', () => {
     aplicarFuzzySearch('select[name="resp_po_id"]');
     aplicarFuzzySearch('select[name="asig_po_id"]');
 
-    // ==========================================
-    // LÓGICA DE MÚLTIPLES SERVICIOS Y VERSIONES
-    // ==========================================
-    function crearFilaServicio(idServicioSelec = '', idVersionSelec = '') {
-        const fila = document.createElement('label');
-        fila.className = 'list-group-item d-flex justify-content-between align-items-center py-3 list-group-item-action bg-white';
-        
-        fila.innerHTML = `
-            <div class="d-flex align-items-start gap-3 w-100 me-3">
-                <div class="row g-2 w-100 align-items-center">
-                    <div class="col-md-6">
-                        <select class="form-select select-servicio border-secondary-subtle focus-guinda" name="servicios_instalados[]" required>
-                            <option value="" disabled selected>Seleccione software...</option>
-                        </select>
-                    </div>
-                    <div class="col-md-6">
-                        <select class="form-select select-version border-secondary-subtle focus-guinda" required>
-                            <option value="" disabled selected>Seleccione versión...</option>
-                        </select>
-                        <div class="status-version mt-1 small"></div>
-                    </div>
-                </div>
-            </div>
-            <div class="text-end text-nowrap mt-1">
-                <button type="button" class="btn btn-sm btn-outline-danger btn-remove-row" title="Quitar servicio">
-                    <i class="fas fa-trash-alt"></i>
-                </button>
-            </div>
-        `;
-
-        const selectServ = fila.querySelector('.select-servicio');
-        const selectVer = fila.querySelector('.select-version');
-        const statusVer = fila.querySelector('.status-version');
-        const btnRemove = fila.querySelector('.btn-remove-row');
-
-        // Agregar validación UI en tiempo real a los nuevos selects
-        selectServ.addEventListener('change', () => validarCampoUI(selectServ));
-        selectVer.addEventListener('change', () => validarCampoUI(selectVer));
-
-        selectServ.addEventListener('change', function() {
-            selectVer.name = `versiones_instaladas[${this.value}]`;
-        });
-
-        catalogoServicios.forEach(s => {
-            const option = document.createElement('option');
-            option.value = s.id_serv;
-            option.textContent = s.nom;
-            
-            const versionOficial = catalogoVersiones.find(v => v.id_serv == s.id_serv && String(v.obs) === "0");
-            option.dataset.oficial = versionOficial ? versionOficial.id_ver : '';
-            
-            selectServ.appendChild(option);
-        });
-
-        const cargarVersiones = (idServicioActual, versionSeleccionada = '') => {
-            selectVer.innerHTML = '<option value="" disabled selected>Seleccione versión...</option>';
-            const versionesFiltradas = catalogoVersiones.filter(v => v.id_serv == idServicioActual);
-            
-            versionesFiltradas.forEach(v => {
-                const option = document.createElement('option');
-                option.value = v.id_ver;
-                option.textContent = v.ver;
-                selectVer.appendChild(option);
-            });
-
-            if (versionSeleccionada) {
-                selectVer.value = versionSeleccionada;
-            }
-            
-            validarVersion(selectServ, selectVer, statusVer, fila);
-        };
-
-        selectServ.addEventListener('change', () => cargarVersiones(selectServ.value));
-        selectVer.addEventListener('change', () => validarVersion(selectServ, selectVer, statusVer, fila));
-        btnRemove.addEventListener('click', () => fila.remove());
-
-        if (idServicioSelec) {
-            selectServ.value = idServicioSelec;
-            selectVer.name = `versiones_instaladas[${idServicioSelec}]`;
-            cargarVersiones(idServicioSelec, idVersionSelec);
-        }
-
-        const msjVacio = document.getElementById('mensaje-sin-servicios');
-        if(msjVacio) msjVacio.remove();
-
-        contenedorServicios.appendChild(fila);
-    }
-
-    function validarVersion(selectServ, selectVer, containerStatus, fila) {
-        containerStatus.innerHTML = '';
-        selectVer.classList.remove('is-valid', 'is-invalid', 'border-danger');
-        fila.classList.remove('bg-danger', 'bg-opacity-10', 'border-danger', 'border-opacity-50');
-
-        if (!selectServ.value || !selectVer.value) return;
-
-        const optionServ = selectServ.options[selectServ.selectedIndex];
-        const idVerOficial = optionServ.dataset.oficial;
-
-        if (selectVer.value === idVerOficial) {
-            selectVer.classList.add('is-valid');
-            containerStatus.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i> Oficial (Al día)</span>';
-        } else {
-            selectVer.classList.add('is-invalid', 'border-danger');
-            fila.classList.add('bg-danger', 'bg-opacity-10', 'border-danger', 'border-opacity-50');
-            containerStatus.innerHTML = '<span class="text-danger fw-bold"><i class="fas fa-exclamation-triangle me-1"></i> Obsoleta/Distinta</span>';
-        }
-    }
-
-    if(btnAddServicio) {
-        btnAddServicio.addEventListener('click', () => crearFilaServicio());
-    }
-
-    // ==========================================
-    // ACTUALIZAR SERVICIO CARGADO (BOTÓN RÁPIDO)
-    // ==========================================
-    document.querySelectorAll('.btn-quitar-serv').forEach(btn => {
-        btn.addEventListener('click', function() {
-            this.closest('.list-group-item').remove();
-        });
-    });
-
-    document.querySelectorAll('.btn-actualizar-serv').forEach(btn => {
-        btn.addEventListener('click', function() {
-            const row = this.closest('.list-group-item');
-            const idServ = this.dataset.idServ;
-            const inputVersion = row.querySelector(`input[name="versiones_instaladas[${idServ}]"]`);
-            
-            const versionOficial = catalogoVersiones.find(v => v.id_serv == idServ && String(v.obs) === "0");
-            
-            if(versionOficial && inputVersion) {
-                inputVersion.value = versionOficial.id_ver;
-                
-                row.classList.remove('bg-danger', 'bg-opacity-10', 'border-danger', 'border-opacity-50');
-                row.classList.add('bg-white');
-                
-                const titleH6 = row.querySelector('h6');
-                titleH6.classList.remove('text-danger');
-                titleH6.classList.add('text-dark');
-                
-                const iconDanger = titleH6.querySelector('.fa-exclamation-triangle');
-                if(iconDanger) iconDanger.remove();
-
-                const textSmall = row.querySelector('small');
-                textSmall.classList.remove('text-danger');
-                textSmall.classList.add('text-muted');
-                textSmall.innerHTML = `Instalado: <strong>${versionOficial.ver}</strong>`;
-
-                const textEndDiv = this.parentElement;
-                textEndDiv.innerHTML = `
-                    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-3 py-2 shadow-sm me-2">
-                        <i class="fas fa-check-circle me-1"></i> Al día
-                    </span>
-                    <button type="button" class="btn btn-sm btn-outline-secondary btn-quitar-serv" data-id-serv="${idServ}" title="Desinstalar servicio">
-                        <i class="fas fa-trash-alt"></i>
-                    </button>
-                `;
-
-                textEndDiv.querySelector('.btn-quitar-serv').addEventListener('click', function() {
-                    this.closest('.list-group-item').remove();
-                });
-
-                Toast.fire({ icon: 'success', title: 'Versión actualizada. Guarde los cambios.' });
-            } else {
-                Toast.fire({ icon: 'warning', title: 'Este servicio no tiene una versión oficial.' });
-            }
-        });
-    });
 
     // ==========================================
     // ENVÍO DEL FORMULARIO Y NAVEGACIÓN A ERRORES
