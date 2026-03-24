@@ -215,7 +215,7 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                                         ?>
                                             <label class="list-group-item d-flex justify-content-between align-items-center py-3 list-group-item-action <?php echo $clase_bg; ?>">
                                                 <div class="d-flex align-items-start gap-3">
-                                                    <input type="hidden" name="servicios_instalados[]" value="<?php echo $sa['id_serv']; ?>">
+                                                    <input type="hidden" name="servicios_instalados[]" id="serv_instalados" value="<?php echo $sa['id_serv']; ?>">
                                                     <input type="hidden" name="versiones_instaladas[<?php echo $sa['id_serv']; ?>]" value="<?php echo $sa['id_ver_instalada']; ?>">
                                                     <div>
                                                         <h6 class="mb-0 fw-bold <?php echo $clase_texto; ?>">

@@ -262,10 +262,18 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+
     // ==========================================
     // LÓGICA DE MÚLTIPLES SERVICIOS Y VERSIONES
     // ==========================================
+    // Un contador global para darles un ID único a los selects dinámicos
+    let contadorServiciosDinamicos = 0;
+
     function crearFilaServicio(idServicioSelec = '', idVersionSelec = '') {
+        contadorServiciosDinamicos++;
+        const uniqueIdServ = `dinamic-serv-${contadorServiciosDinamicos}`;
+        const uniqueIdVer = `dinamic-ver-${contadorServiciosDinamicos}`;
+
         const fila = document.createElement('label');
         fila.className = 'list-group-item d-flex justify-content-between align-items-center py-3 list-group-item-action bg-white';
         
@@ -273,12 +281,12 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="d-flex align-items-start gap-3 w-100 me-3">
                 <div class="row g-2 w-100 align-items-center">
                     <div class="col-md-6">
-                        <select class="form-select select-servicio border-secondary-subtle focus-guinda" name="servicios_instalados[]" required>
+                        <select id="${uniqueIdServ}" class="form-select select-servicio border-secondary-subtle focus-guinda" name="servicios_instalados[]" required>
                             <option value="" disabled selected>Seleccione software...</option>
                         </select>
                     </div>
                     <div class="col-md-6">
-                        <select class="form-select select-version border-secondary-subtle focus-guinda" required>
+                        <select id="${uniqueIdVer}" class="form-select select-version border-secondary-subtle focus-guinda" required>
                             <option value="" disabled selected>Seleccione versión...</option>
                         </select>
                         <div class="status-version mt-1 small"></div>
@@ -292,8 +300,8 @@ document.addEventListener('DOMContentLoaded', () => {
             </div>
         `;
 
-        const selectServ = fila.querySelector('.select-servicio');
-        const selectVer = fila.querySelector('.select-version');
+        const selectServ = fila.querySelector(`#${uniqueIdServ}`);
+        const selectVer = fila.querySelector(`#${uniqueIdVer}`);
         const statusVer = fila.querySelector('.status-version');
         const btnRemove = fila.querySelector('.btn-remove-row');
 
@@ -305,6 +313,7 @@ document.addEventListener('DOMContentLoaded', () => {
             selectVer.name = `versiones_instaladas[${this.value}]`;
         });
 
+        // Poblar las opciones del catálogo
         catalogoServicios.forEach(s => {
             const option = document.createElement('option');
             option.value = s.id_serv;
@@ -317,6 +326,16 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const cargarVersiones = (idServicioActual, versionSeleccionada = '') => {
+            // Guardamos temporalmente si el select original estaba oculto por el fuzzy search
+            const isFuzzyActive = selectVer.style.display === 'none';
+            const $fuzzyContainer = selectVer.nextElementSibling;
+            
+            // Si el fuzzy estaba activo, destruimos su contenedor visual antes de rehacer las opciones
+            if (isFuzzyActive && $fuzzyContainer && $fuzzyContainer.classList.contains('fuzzy-container')) {
+                $fuzzyContainer.remove();
+                selectVer.style.display = ''; // Lo volvemos a mostrar temporalmente
+            }
+
             selectVer.innerHTML = '<option value="" disabled selected>Seleccione versión...</option>';
             const versionesFiltradas = catalogoVersiones.filter(v => v.id_serv == idServicioActual);
             
@@ -332,6 +351,9 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             validarVersion(selectServ, selectVer, statusVer, fila);
+
+            // Volvemos a inicializar el fuzzy search para el selector de versiones que acabamos de recargar
+            aplicarFuzzySearch(`#${uniqueIdVer}`);
         };
 
         selectServ.addEventListener('change', () => cargarVersiones(selectServ.value));
@@ -348,6 +370,12 @@ document.addEventListener('DOMContentLoaded', () => {
         if(msjVacio) msjVacio.remove();
 
         contenedorServicios.appendChild(fila);
+ 
+        // Llamamos a aplicarFuzzySearch DESPUÉS de que la fila y sus options ya están en el DOM
+        aplicarFuzzySearch(`#${uniqueIdServ}`);
+        
+        // No llamamos al de versiones aún, porque se llamará automáticamente dentro de "cargarVersiones" 
+        
     }
 
     function validarVersion(selectServ, selectVer, containerStatus, fila) {
@@ -429,6 +457,152 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     });
+
+
+    
+    // ==========================================
+    // FUNCIÓN GENÉRICA: BUSCADOR FUZZY PARA SELECTS
+    // EX: aplicarFuzzySearch('select[name="icono"]');
+    // ==========================================
+    function aplicarFuzzySearch(selector) {
+        const selectOriginal = document.querySelector(selector);
+        if (!selectOriginal) return;
+
+        // Evitar doble inicialización
+        if (selectOriginal.nextElementSibling && selectOriginal.nextElementSibling.classList.contains('fuzzy-container')) return;
+
+        // 1. Ocultar el select original (seguirá almacenando el valor para el FormData)
+        selectOriginal.style.display = 'none';
+
+        // 2. Crear la estructura del nuevo componente
+        const container = document.createElement('div');
+        container.className = 'position-relative w-100 fuzzy-container';
+
+        const inputBuscador = document.createElement('input');
+        inputBuscador.type = 'text';
+        inputBuscador.className = 'form-control focus-guinda border-secondary-subtle pe-4';
+        inputBuscador.placeholder = selectOriginal.options[0] ? selectOriginal.options[0].text : 'Buscar...';
+        inputBuscador.autocomplete = 'off';
+
+        const iconClear = document.createElement('span');
+        iconClear.innerHTML = '&times;';
+        iconClear.className = 'position-absolute text-muted';
+        iconClear.style.cssText = 'right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; display: none; font-size: 1.2rem;';
+
+        const listaDesplegable = document.createElement('ul');
+        listaDesplegable.className = 'list-group position-absolute w-100 shadow-lg z-3 d-none';
+        listaDesplegable.style.cssText = 'max-height: 250px; overflow-y: auto; top: 100%; left: 0;';
+
+        // 3. Poblar la lista con las opciones del select original
+        Array.from(selectOriginal.options).forEach(opt => {
+            if (opt.value === '') return; // Omitir el placeholder original
+
+            const li = document.createElement('li');
+            li.className = 'list-group-item list-group-item-action';
+            li.style.cursor = 'pointer';
+            li.textContent = opt.text;
+            li.dataset.value = opt.value;
+            listaDesplegable.appendChild(li);
+
+            // Sincronizar si ya existe una opción seleccionada (ej. al editar)
+            if (opt.selected) {
+                inputBuscador.value = opt.text;
+                iconClear.style.display = 'block';
+            }
+        });
+
+        // Ensamblar e inyectar en el DOM
+        container.appendChild(inputBuscador);
+        container.appendChild(iconClear);
+        container.appendChild(listaDesplegable);
+        selectOriginal.parentNode.insertBefore(container, selectOriginal.nextSibling);
+
+        // 4. Lógica de filtrado (Fuzzy Search)
+        function filtrarResultados(texto) {
+            const query = texto.toLowerCase();
+            let coincidencias = 0;
+            const items = listaDesplegable.querySelectorAll('li');
+
+            items.forEach(li => {
+                const textoItem = li.textContent.toLowerCase();
+                if (textoItem.includes(query)) {
+                    li.style.display = 'block';
+                    coincidencias++;
+                } else {
+                    li.style.display = 'none';
+                }
+            });
+
+            if (coincidencias > 0) {
+                listaDesplegable.classList.remove('d-none');
+            } else {
+                listaDesplegable.classList.add('d-none');
+            }
+        }
+
+        // 5. Eventos del Input
+        inputBuscador.addEventListener('focus', () => {
+            listaDesplegable.classList.remove('d-none');
+            filtrarResultados(inputBuscador.value);
+        });
+
+        inputBuscador.addEventListener('input', (e) => {
+            const valor = e.target.value;
+            filtrarResultados(valor);
+            iconClear.style.display = valor ? 'block' : 'none';
+            // Al escribir, se borra la selección real hasta que el usuario elija una opción válida
+            selectOriginal.value = ''; 
+        });
+
+        // 6. Eventos de la Lista (Selección)
+        listaDesplegable.addEventListener('click', (e) => {
+            const li = e.target.closest('li');
+            if (!li) return;
+
+            // Actualizar interfaz visual
+            inputBuscador.value = li.textContent;
+            listaDesplegable.classList.add('d-none');
+            iconClear.style.display = 'block';
+
+            // Actualizar el valor del <select> oculto para el FormData
+            selectOriginal.value = li.dataset.value;
+
+            // Disparar evento change por si hay validaciones atadas al select original
+            selectOriginal.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        // 7. Evento Limpiar (X)
+        iconClear.addEventListener('click', () => {
+            inputBuscador.value = '';
+            selectOriginal.value = '';
+            iconClear.style.display = 'none';
+            filtrarResultados('');
+            inputBuscador.focus();
+            selectOriginal.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        // 8. Cerrar dropdown al hacer click fuera
+        document.addEventListener('click', (e) => {
+            if (!container.contains(e.target)) {
+                listaDesplegable.classList.add('d-none');
+                
+                // Si el usuario escribió algo pero no seleccionó nada de la lista, restaurar o limpiar
+                if (selectOriginal.value === '') {
+                    inputBuscador.value = '';
+                    iconClear.style.display = 'none';
+                } else {
+                    const opcionSeleccionada = selectOriginal.options[selectOriginal.selectedIndex];
+                    if (opcionSeleccionada) {
+                        inputBuscador.value = opcionSeleccionada.text;
+                    }
+                }
+            }
+        });
+    }
+
+    aplicarFuzzySearch('select[name="resp_po_id"]');
+    aplicarFuzzySearch('select[name="asig_po_id"]');
+
 
     // ==========================================
     // ENVÍO DEL FORMULARIO Y NAVEGACIÓN A ERRORES

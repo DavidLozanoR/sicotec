@@ -6,163 +6,11 @@ $(document).ready(function() {
     const modalVer = new bootstrap.Modal(document.getElementById('modalVersiones'));
     const $form = $('#formServicio');
 
-    // ==========================================
-    // 1. GESTIÓN DEL CATÁLOGO DE SERVICIOS
-    // ==========================================
-    $('#btnNuevoServicio').on('click', function() {
-        $form[0].reset();
-        $('#serv_id').val('');
-        $('#tituloModalServ').html('<i class="fas fa-plus-circle me-2 text-guinda"></i>Nuevo Servicio');
-        $('#bloque_version_inicial').show();
-        $('#serv_ver_ini').prop('required', true);
-        $form.removeClass('was-validated');
-        modalForm.show();
-    });
-
-    $('.btn-editar-serv').on('click', function(e) {
-        e.preventDefault();
-        $('#serv_id').val($(this).data('id'));
-        $('#serv_tipo').val($(this).data('tipo'));
-        $('#serv_nom').val($(this).data('nom'));
-        $('#serv_especs').val($(this).data('especs'));
-        
-        $('#tituloModalServ').html('<i class="fas fa-edit me-2 text-secondary"></i>Editar Servicio');
-        $('#bloque_version_inicial').hide(); 
-        $('#serv_ver_ini').prop('required', false);
-        $form.removeClass('was-validated');
-        modalForm.show();
-    });
-
-    $form.on('submit', function(e) {
-        e.preventDefault();
-        if (!this.checkValidity()) {
-            e.stopPropagation();
-            $form.addClass('was-validated');
-            return;
-        }
-
-        let formData = new FormData(this);
-        formData.append('peticion', ($('#serv_id').val() === '') ? 'INSERT_SERV' : 'UPDATE_SERV');
-        formData.append('id_sub', idSub);
-
-        $.ajax({
-            url: urlAsync, type: 'POST', data: formData, processData: false, contentType: false, dataType: 'json',
-            success: function(r) {
-                if (r.result === 1) {
-                    Swal.fire({icon: 'success', title: 'Éxito', text: r.msg, confirmButtonColor: '#9D2449'}).then(() => location.reload(true));
-                } else {
-                    Swal.fire({icon: 'error', title: 'Error', text: r.msg, confirmButtonColor: '#9D2449'});
-                }
-            }
-        });
-    });
-
-    $('.btn-eliminar-serv').on('click', function(e) {
-        e.preventDefault();
-        let id_serv = $(this).data('id');
-        Swal.fire({
-            title: '¿Eliminar este catálogo?',
-            text: "Se borrará junto con todo su historial de versiones.",
-            icon: 'warning', showCancelButton: true, confirmButtonColor: '#9D2449', confirmButtonText: 'Sí, eliminar'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                $.post(urlAsync, {peticion: 'DELETE_SERV', id_serv: id_serv, id_sub: idSub}, function(r) {
-                    if (r.result === 1) Swal.fire({icon: 'success', title: 'Eliminado', text: r.msg, confirmButtonColor: '#9D2449'}).then(() => location.reload(true));
-                    else Swal.fire({icon: 'error', title: 'Atención', text: r.msg, confirmButtonColor: '#9D2449'});
-                }, 'json');
-            }
-        });
-    });
+    const $selectIcono = $('#serv_icono');
+    const $previewIcono = $('#preview-icono');
 
     // ==========================================
-    // 2. GESTIÓN DEL HISTORIAL DE VERSIONES
-    // ==========================================
-    $('.btn-versiones').on('click', function(e) {
-        e.preventDefault();
-        let id_serv = $(this).data('id');
-        let nom_serv = $(this).data('nom');
-        
-        $('#ver_id_serv').val(id_serv);
-        $('#tituloModalVer').html(`<i class="fas fa-code-branch me-2"></i> Versiones de: ${nom_serv}`);
-        $('#formNuevaVersion')[0].reset();
-        
-        cargarVersiones(id_serv);
-        modalVer.show();
-    });
-
-    function cargarVersiones(id_serv) {
-        let $tbody = $('#tbodyVersiones');
-        $tbody.html('<tr><td colspan="3" class="text-center py-3"><i class="fas fa-spinner fa-spin text-guinda"></i> Cargando...</td></tr>');
-        
-        $.post(urlAsync, {peticion: 'GET_VERSIONS', id_serv: id_serv, id_sub: idSub}, function(r) {
-            if (r.result === 1) {
-                let html = '';
-                r.data.forEach(function(v) {
-                    let esAceptada = (v.obs == 0);
-                    
-                    let badge = esAceptada ? 
-                        '<span class="badge bg-success shadow-sm"><i class="fas fa-check-circle me-1"></i>Aceptada</span>' : 
-                        '<span class="badge bg-danger shadow-sm"><i class="fas fa-exclamation-triangle me-1"></i>Obsoleta</span>';
-                    
-                    // Si es aceptada, el botón permite marcarla como obsoleta. Y viceversa.
-                    let btnAction = esAceptada ? 
-                        `<button class="btn btn-sm btn-outline-danger btn-toggle-state" data-id="${v.id_ver}" data-estado="1" title="Marcar como Obsoleta"><i class="fas fa-ban me-1"></i> Obsoleta</button>` : 
-                        `<button class="btn btn-sm btn-outline-success btn-toggle-state" data-id="${v.id_ver}" data-estado="0" title="Marcar como Aceptada"><i class="fas fa-check me-1"></i> Aceptada</button>`;
-
-                    html += `<tr>
-                        <td class="ps-4 fw-bold font-monospace">${v.ver}</td>
-                        <td>${badge}</td>
-                        <td class="text-end pe-4">${btnAction}</td>
-                    </tr>`;
-                });
-                $tbody.html(html || '<tr><td colspan="3" class="text-center text-muted">No hay versiones registradas.</td></tr>');
-            }
-        }, 'json');
-    }
-
-    // Agregar nueva versión
-    $('#formNuevaVersion').on('submit', function(e) {
-        e.preventDefault();
-        let id_serv = $('#ver_id_serv').val();
-        let formData = new FormData(this);
-        formData.append('peticion', 'ADD_VERSION');
-        formData.append('id_sub', idSub);
-
-        $.ajax({
-            url: urlAsync, type: 'POST', data: formData, processData: false, contentType: false, dataType: 'json',
-            success: function(r) {
-                if (r.result === 1) {
-                    $('#nueva_version').val('');
-                    cargarVersiones(id_serv); 
-                } else {
-                    Swal.fire({icon: 'error', text: r.msg, confirmButtonColor: '#9D2449'});
-                }
-            }
-        });
-    });
-
-    // Alternar estado de la versión (Aceptada <-> Obsoleta)
-    $(document).on('click', '.btn-toggle-state', function() {
-        let id_ver = $(this).data('id');
-        let nuevo_estado = $(this).data('estado'); // 0 o 1
-        let id_serv = $('#ver_id_serv').val();
-
-        $.post(urlAsync, {peticion: 'TOGGLE_VERSION_STATE', id_serv: id_serv, id_ver: id_ver, nuevo_estado: nuevo_estado, id_sub: idSub}, function(r) {
-            if (r.result === 1) {
-                cargarVersiones(id_serv); 
-            } else {
-                Swal.fire({icon: 'error', text: r.msg, confirmButtonColor: '#9D2449'});
-            }
-        }, 'json');
-    });
-
-    // Recargar la página al cerrar para que se vean todas las aceptadas en la tarjeta
-    document.getElementById('modalVersiones').addEventListener('hidden.bs.modal', function () {
-        location.reload(true);
-    });
-
-    // ==========================================
-    // 3. ICONOS DINÁMICOS
+    // 0. CONFIGURACIÓN DE ICONOS (CON FUZZY SEARCH GLOBAL)
     // ==========================================
     const iconosDisponibles = [
         { val: 'fas fa-cube text-dark', text: 'Cubo (Software General)' },
@@ -294,56 +142,337 @@ $(document).ready(function() {
         { val: 'fas fa-ticket-alt text-warning', text: 'Tickets de Soporte' }
     ];
 
-    const $selectIcono = $('#serv_icono');
-    const $previewIcono = $('#preview-icono');
-
-    if (!$('#busquedaIcono').length) {
-        $selectIcono.before('<input type="text" id="busquedaIcono" class="form-control form-control-sm mb-1" placeholder="Buscar icono por nombre..." autocomplete="off">');
-    }
-
-    $(document).on('keydown', '#busquedaIcono', function(e) {
-        if (e.keyCode === 13) {
-            e.preventDefault();
-            return false;
-        }
-    });
-
-    function filtrarIconos(busqueda) {
-        const query = busqueda.toLowerCase();
-        $selectIcono.find('option').each(function() {
-            const label = $(this).text().toLowerCase();
-            const coincide = label.indexOf(query) > -1;
-            $(this).prop('disabled', !coincide).toggle(coincide);
-        });
-
-        if ($selectIcono.find('option:selected').is(':hidden')) {
-            $selectIcono.find('option:visible:first').prop('selected', true).trigger('change');
-        }
-    }
-
-    $('#busquedaIcono').on('input', function() {
-        filtrarIconos($(this).val());
-    });
-
+    // Poblar el select inyectando el data-icon para que el Fuzzy global lo pueda renderizar
     function popularIconos() {
         $selectIcono.empty();
         iconosDisponibles.forEach(icono => {
-            $selectIcono.append(`<option value="${icono.val}">${icono.text}</option>`);
+            $selectIcono.append(`<option value="${icono.val}" data-icon="${icono.val}">${icono.text}</option>`);
         });
     }
 
     popularIconos();
+    
+        // ==========================================
+    // FUNCIÓN GENÉRICA: BUSCADOR FUZZY PARA SELECTS
+    // EX: aplicarFuzzySearch('select[name="icono"]');
+    // ==========================================
+    function aplicarFuzzySearch(selector) {
+        const selectOriginal = document.querySelector(selector);
+        if (!selectOriginal) return;
 
+        // Evitar doble inicialización
+        if (selectOriginal.nextElementSibling && selectOriginal.nextElementSibling.classList.contains('fuzzy-container')) return;
+
+        // 1. Ocultar el select original (seguirá almacenando el valor para el FormData)
+        selectOriginal.style.display = 'none';
+
+        // 2. Crear la estructura del nuevo componente
+        const container = document.createElement('div');
+        container.className = 'position-relative w-100 fuzzy-container';
+
+        const inputBuscador = document.createElement('input');
+        inputBuscador.type = 'text';
+        inputBuscador.className = 'form-control focus-guinda border-secondary-subtle pe-4';
+        inputBuscador.placeholder = selectOriginal.options[0] ? selectOriginal.options[0].text : 'Buscar...';
+        inputBuscador.autocomplete = 'off';
+
+        const iconClear = document.createElement('span');
+        iconClear.innerHTML = '&times;';
+        iconClear.className = 'position-absolute text-muted';
+        iconClear.style.cssText = 'right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; display: none; font-size: 1.2rem;';
+
+        const listaDesplegable = document.createElement('ul');
+        listaDesplegable.className = 'list-group position-absolute w-100 shadow-lg z-3 d-none';
+        listaDesplegable.style.cssText = 'max-height: 250px; overflow-y: auto; top: 100%; left: 0;';
+
+        // 3. Poblar la lista con las opciones del select original
+        Array.from(selectOriginal.options).forEach(opt => {
+            if (opt.value === '') return; // Omitir el placeholder original
+
+            const li = document.createElement('li');
+            li.className = 'list-group-item list-group-item-action';
+            li.style.cursor = 'pointer';
+            li.textContent = opt.text;
+            li.dataset.value = opt.value;
+            listaDesplegable.appendChild(li);
+
+            // Sincronizar si ya existe una opción seleccionada (ej. al editar)
+            if (opt.selected) {
+                inputBuscador.value = opt.text;
+                iconClear.style.display = 'block';
+            }
+        });
+
+        // Ensamblar e inyectar en el DOM
+        container.appendChild(inputBuscador);
+        container.appendChild(iconClear);
+        container.appendChild(listaDesplegable);
+        selectOriginal.parentNode.insertBefore(container, selectOriginal.nextSibling);
+
+        // 4. Lógica de filtrado (Fuzzy Search)
+        function filtrarResultados(texto) {
+            const query = texto.toLowerCase();
+            let coincidencias = 0;
+            const items = listaDesplegable.querySelectorAll('li');
+
+            items.forEach(li => {
+                const textoItem = li.textContent.toLowerCase();
+                if (textoItem.includes(query)) {
+                    li.style.display = 'block';
+                    coincidencias++;
+                } else {
+                    li.style.display = 'none';
+                }
+            });
+
+            if (coincidencias > 0) {
+                listaDesplegable.classList.remove('d-none');
+            } else {
+                listaDesplegable.classList.add('d-none');
+            }
+        }
+
+        // 5. Eventos del Input
+        inputBuscador.addEventListener('focus', () => {
+            listaDesplegable.classList.remove('d-none');
+            filtrarResultados(inputBuscador.value);
+        });
+
+        inputBuscador.addEventListener('input', (e) => {
+            const valor = e.target.value;
+            filtrarResultados(valor);
+            iconClear.style.display = valor ? 'block' : 'none';
+            // Al escribir, se borra la selección real hasta que el usuario elija una opción válida
+            selectOriginal.value = ''; 
+        });
+
+        // 6. Eventos de la Lista (Selección)
+        listaDesplegable.addEventListener('click', (e) => {
+            const li = e.target.closest('li');
+            if (!li) return;
+
+            // Actualizar interfaz visual
+            inputBuscador.value = li.textContent;
+            listaDesplegable.classList.add('d-none');
+            iconClear.style.display = 'block';
+
+            // Actualizar el valor del <select> oculto para el FormData
+            selectOriginal.value = li.dataset.value;
+
+            // Disparar evento change por si hay validaciones atadas al select original
+            selectOriginal.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        // 7. Evento Limpiar (X)
+        iconClear.addEventListener('click', () => {
+            inputBuscador.value = '';
+            selectOriginal.value = '';
+            iconClear.style.display = 'none';
+            filtrarResultados('');
+            inputBuscador.focus();
+            selectOriginal.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        // 8. Cerrar dropdown al hacer click fuera
+        document.addEventListener('click', (e) => {
+            if (!container.contains(e.target)) {
+                listaDesplegable.classList.add('d-none');
+                
+                // Si el usuario escribió algo pero no seleccionó nada de la lista, restaurar o limpiar
+                if (selectOriginal.value === '') {
+                    inputBuscador.value = '';
+                    iconClear.style.display = 'none';
+                } else {
+                    const opcionSeleccionada = selectOriginal.options[selectOriginal.selectedIndex];
+                    if (opcionSeleccionada) {
+                        inputBuscador.value = opcionSeleccionada.text;
+                    }
+                }
+            }
+        });
+    }
+    // 
+    aplicarFuzzySearch('#serv_icono');
+
+    //  la actualización del cuadrito lateral gris
     $selectIcono.on('change', function() {
         const clase = $(this).val();
-        $previewIcono.html(`<i class="${clase} fs-5"></i>`);
+        if (clase) {
+            $previewIcono.html(`<i class="${clase} fs-5"></i>`);
+        }
     });
 
+    // ==========================================
+    // 1. GESTIÓN DEL CATÁLOGO DE SERVICIOS
+    // ==========================================
+    $('#btnNuevoServicio').on('click', function() {
+        $form[0].reset();
+        $('#serv_id').val('');
+        $('#tituloModalServ').html('<i class="fas fa-plus-circle me-2 text-guinda"></i>Nuevo Servicio');
+        $('#bloque_version_inicial').show();
+        $('#serv_ver_ini').prop('required', true);
+        
+        // Reset al primer icono
+        $selectIcono.val(iconosDisponibles[0].val).trigger('change');
+        // Sincronizar el input visual del fuzzy search
+        $selectIcono.next('.fuzzy-container').find('input').val(iconosDisponibles[0].text);
+
+        $form.removeClass('was-validated');
+        modalForm.show();
+    });
+
+    // (UNIFICADO) Lógica del botón Editar
     $('.btn-editar-serv').on('click', function(e) {
+        e.preventDefault();
+        $('#serv_id').val($(this).data('id'));
+        $('#serv_tipo').val($(this).data('tipo'));
+        $('#serv_nom').val($(this).data('nom'));
+        $('#serv_especs').val($(this).data('especs'));
+        
         let iconoBD = $(this).data('icono');
+        
+        // Si el icono no existe, lo agregamos temporalmente (útil para iconos legacy)
         if (iconoBD && $selectIcono.find(`option[value="${iconoBD}"]`).length === 0) {
-            $selectIcono.prepend(`<option value="${iconoBD}">Icono Actual</option>`);
+            $selectIcono.prepend(`<option value="${iconoBD}" data-icon="${iconoBD}">Icono Actual</option>`);
         }
+        
         $selectIcono.val(iconoBD || iconosDisponibles[0].val).trigger('change');
+        
+        // Sincronizar el input visual del fuzzy search con el texto de la opción seleccionada
+        const textoSeleccionado = $selectIcono.find('option:selected').text();
+        $selectIcono.next('.fuzzy-container').find('input').val(textoSeleccionado);
+
+        $('#tituloModalServ').html('<i class="fas fa-edit me-2 text-secondary"></i>Editar Servicio');
+        $('#bloque_version_inicial').hide(); 
+        $('#serv_ver_ini').prop('required', false);
+        
+        $form.removeClass('was-validated');
+        modalForm.show();
+    });
+
+    $form.on('submit', function(e) {
+        e.preventDefault();
+        if (!this.checkValidity()) {
+            e.stopPropagation();
+            $form.addClass('was-validated');
+            return;
+        }
+
+        let formData = new FormData(this);
+        formData.append('peticion', ($('#serv_id').val() === '') ? 'INSERT_SERV' : 'UPDATE_SERV');
+        formData.append('id_sub', idSub);
+
+        $.ajax({
+            url: urlAsync, type: 'POST', data: formData, processData: false, contentType: false, dataType: 'json',
+            success: function(r) {
+                if (r.result === 1) {
+                    Swal.fire({icon: 'success', title: 'Éxito', text: r.msg, confirmButtonColor: '#9D2449'}).then(() => location.reload(true));
+                } else {
+                    Swal.fire({icon: 'error', title: 'Error', text: r.msg, confirmButtonColor: '#9D2449'});
+                }
+            }
+        });
+    });
+
+    $('.btn-eliminar-serv').on('click', function(e) {
+        e.preventDefault();
+        let id_serv = $(this).data('id');
+        Swal.fire({
+            title: '¿Eliminar este catálogo?',
+            text: "Se borrará junto con todo su historial de versiones.",
+            icon: 'warning', showCancelButton: true, confirmButtonColor: '#9D2449', confirmButtonText: 'Sí, eliminar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.post(urlAsync, {peticion: 'DELETE_SERV', id_serv: id_serv, id_sub: idSub}, function(r) {
+                    if (r.result === 1) Swal.fire({icon: 'success', title: 'Eliminado', text: r.msg, confirmButtonColor: '#9D2449'}).then(() => location.reload(true));
+                    else Swal.fire({icon: 'error', title: 'Atención', text: r.msg, confirmButtonColor: '#9D2449'});
+                }, 'json');
+            }
+        });
+    });
+
+    // ==========================================
+    // 2. GESTIÓN DEL HISTORIAL DE VERSIONES
+    // ==========================================
+    $('.btn-versiones').on('click', function(e) {
+        e.preventDefault();
+        let id_serv = $(this).data('id');
+        let nom_serv = $(this).data('nom');
+        
+        $('#ver_id_serv').val(id_serv);
+        $('#tituloModalVer').html(`<i class="fas fa-code-branch me-2"></i> Versiones de: ${nom_serv}`);
+        $('#formNuevaVersion')[0].reset();
+        
+        cargarVersiones(id_serv);
+        modalVer.show();
+    });
+
+    function cargarVersiones(id_serv) {
+        let $tbody = $('#tbodyVersiones');
+        $tbody.html('<tr><td colspan="3" class="text-center py-3"><i class="fas fa-spinner fa-spin text-guinda"></i> Cargando...</td></tr>');
+        
+        $.post(urlAsync, {peticion: 'GET_VERSIONS', id_serv: id_serv, id_sub: idSub}, function(r) {
+            if (r.result === 1) {
+                let html = '';
+                r.data.forEach(function(v) {
+                    let esAceptada = (v.obs == 0);
+                    
+                    let badge = esAceptada ? 
+                        '<span class="badge bg-success shadow-sm"><i class="fas fa-check-circle me-1"></i>Aceptada</span>' : 
+                        '<span class="badge bg-danger shadow-sm"><i class="fas fa-exclamation-triangle me-1"></i>Obsoleta</span>';
+                    
+                    let btnAction = esAceptada ? 
+                        `<button class="btn btn-sm btn-outline-danger btn-toggle-state" data-id="${v.id_ver}" data-estado="1" title="Marcar como Obsoleta"><i class="fas fa-ban me-1"></i> Obsoleta</button>` : 
+                        `<button class="btn btn-sm btn-outline-success btn-toggle-state" data-id="${v.id_ver}" data-estado="0" title="Marcar como Aceptada"><i class="fas fa-check me-1"></i> Aceptada</button>`;
+
+                    html += `<tr>
+                        <td class="ps-4 fw-bold font-monospace">${v.ver}</td>
+                        <td>${badge}</td>
+                        <td class="text-end pe-4">${btnAction}</td>
+                    </tr>`;
+                });
+                $tbody.html(html || '<tr><td colspan="3" class="text-center text-muted">No hay versiones registradas.</td></tr>');
+            }
+        }, 'json');
+    }
+
+    // Agregar nueva versión
+    $('#formNuevaVersion').on('submit', function(e) {
+        e.preventDefault();
+        let id_serv = $('#ver_id_serv').val();
+        let formData = new FormData(this);
+        formData.append('peticion', 'ADD_VERSION');
+        formData.append('id_sub', idSub);
+
+        $.ajax({
+            url: urlAsync, type: 'POST', data: formData, processData: false, contentType: false, dataType: 'json',
+            success: function(r) {
+                if (r.result === 1) {
+                    $('#nueva_version').val('');
+                    cargarVersiones(id_serv); 
+                } else {
+                    Swal.fire({icon: 'error', text: r.msg, confirmButtonColor: '#9D2449'});
+                }
+            }
+        });
+    });
+
+    // Alternar estado de la versión
+    $(document).on('click', '.btn-toggle-state', function() {
+        let id_ver = $(this).data('id');
+        let nuevo_estado = $(this).data('estado'); 
+        let id_serv = $('#ver_id_serv').val();
+
+        $.post(urlAsync, {peticion: 'TOGGLE_VERSION_STATE', id_serv: id_serv, id_ver: id_ver, nuevo_estado: nuevo_estado, id_sub: idSub}, function(r) {
+            if (r.result === 1) {
+                cargarVersiones(id_serv); 
+            } else {
+                Swal.fire({icon: 'error', text: r.msg, confirmButtonColor: '#9D2449'});
+            }
+        }, 'json');
+    });
+
+    document.getElementById('modalVersiones').addEventListener('hidden.bs.modal', function () {
+        location.reload(true);
     });
 });
