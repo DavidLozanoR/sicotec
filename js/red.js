@@ -9,6 +9,147 @@ $(document).ready(function() {
     const $form = $('#formSegmento');
     const $tituloModal = $('#tituloModalSegmento');
 
+    // ==========================================
+    // FUNCIÓN GENÉRICA: BUSCADOR FUZZY PARA SELECTS
+    // EX: aplicarFuzzySearch('select[name="icono"]'); 
+    // EX: aplicarFuzzySearch('#id_name_seegment') 
+    // ==========================================
+    function aplicarFuzzySearch(selector) {
+        const selectOriginal = document.querySelector(selector);
+        if (!selectOriginal) return;
+
+        // Evitar doble inicialización
+        if (selectOriginal.nextElementSibling && selectOriginal.nextElementSibling.classList.contains('fuzzy-container')) return;
+
+        // 1. Ocultar el select original (seguirá almacenando el valor para el FormData)
+        selectOriginal.style.display = 'none';
+
+        // 2. Crear la estructura del nuevo componente
+        const container = document.createElement('div');
+        container.className = 'position-relative w-100 fuzzy-container';
+
+        const inputBuscador = document.createElement('input');
+        inputBuscador.type = 'text';
+        inputBuscador.className = 'form-control focus-guinda border-secondary-subtle pe-4';
+        inputBuscador.placeholder = selectOriginal.options[0] ? selectOriginal.options[0].text : 'Buscar...';
+        inputBuscador.autocomplete = 'off';
+
+        const iconClear = document.createElement('span');
+        iconClear.innerHTML = '&times;';
+        iconClear.className = 'position-absolute text-muted';
+        iconClear.style.cssText = 'right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; display: none; font-size: 1.2rem;';
+
+        const listaDesplegable = document.createElement('ul');
+        listaDesplegable.className = 'list-group position-absolute w-100 shadow-lg z-3 d-none';
+        listaDesplegable.style.cssText = 'max-height: 250px; overflow-y: auto; top: 100%; left: 0;';
+
+        // 3. Poblar la lista con las opciones del select original
+        Array.from(selectOriginal.options).forEach(opt => {
+            if (opt.value === '') return; // Omitir el placeholder original
+
+            const li = document.createElement('li');
+            li.className = 'list-group-item list-group-item-action';
+            li.style.cursor = 'pointer';
+            li.textContent = opt.text;
+            li.dataset.value = opt.value;
+            listaDesplegable.appendChild(li);
+
+            // Sincronizar si ya existe una opción seleccionada (ej. al editar)
+            if (opt.selected) {
+                inputBuscador.value = opt.text;
+                iconClear.style.display = 'block';
+            }
+        });
+
+        // Ensamblar e inyectar en el DOM
+        container.appendChild(inputBuscador);
+        container.appendChild(iconClear);
+        container.appendChild(listaDesplegable);
+        selectOriginal.parentNode.insertBefore(container, selectOriginal.nextSibling);
+
+        // 4. Lógica de filtrado (Fuzzy Search)
+        function filtrarResultados(texto) {
+            const query = texto.toLowerCase();
+            let coincidencias = 0;
+            const items = listaDesplegable.querySelectorAll('li');
+
+            items.forEach(li => {
+                const textoItem = li.textContent.toLowerCase();
+                if (textoItem.includes(query)) {
+                    li.style.display = 'block';
+                    coincidencias++;
+                } else {
+                    li.style.display = 'none';
+                }
+            });
+
+            if (coincidencias > 0) {
+                listaDesplegable.classList.remove('d-none');
+            } else {
+                listaDesplegable.classList.add('d-none');
+            }
+        }
+
+        // 5. Eventos del Input
+        inputBuscador.addEventListener('focus', () => {
+            listaDesplegable.classList.remove('d-none');
+            filtrarResultados(inputBuscador.value);
+        });
+
+        inputBuscador.addEventListener('input', (e) => {
+            const valor = e.target.value;
+            filtrarResultados(valor);
+            iconClear.style.display = valor ? 'block' : 'none';
+            // Al escribir, se borra la selección real hasta que el usuario elija una opción válida
+            selectOriginal.value = ''; 
+        });
+
+        // 6. Eventos de la Lista (Selección)
+        listaDesplegable.addEventListener('click', (e) => {
+            const li = e.target.closest('li');
+            if (!li) return;
+
+            // Actualizar interfaz visual
+            inputBuscador.value = li.textContent;
+            listaDesplegable.classList.add('d-none');
+            iconClear.style.display = 'block';
+
+            // Actualizar el valor del <select> oculto para el FormData
+            selectOriginal.value = li.dataset.value;
+
+            // Disparar evento change por si hay validaciones atadas al select original
+            selectOriginal.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        // 7. Evento Limpiar (X)
+        iconClear.addEventListener('click', () => {
+            inputBuscador.value = '';
+            selectOriginal.value = '';
+            iconClear.style.display = 'none';
+            filtrarResultados('');
+            inputBuscador.focus();
+            selectOriginal.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        // 8. Cerrar dropdown al hacer click fuera
+        document.addEventListener('click', (e) => {
+            if (!container.contains(e.target)) {
+                listaDesplegable.classList.add('d-none');
+                
+                // Si el usuario escribió algo pero no seleccionó nada de la lista, restaurar o limpiar
+                if (selectOriginal.value === '') {
+                    inputBuscador.value = '';
+                    iconClear.style.display = 'none';
+                } else {
+                    const opcionSeleccionada = selectOriginal.options[selectOriginal.selectedIndex];
+                    if (opcionSeleccionada) {
+                        inputBuscador.value = opcionSeleccionada.text;
+                    }
+                }
+            }
+        });
+    }
+
     // 1. ABRIR MODAL PARA "NUEVO SEGMENTO"
     $('#btnNuevoSegmento').on('click', function() {
         $form[0].reset(); 
@@ -21,7 +162,9 @@ $(document).ready(function() {
         $tituloModal.html('<i class="fas fa-plus-circle me-2 text-guinda"></i>Nuevo Segmento');
         $form.removeClass('was-validated'); 
         
+        
         modalForm.show();
+        aplicarFuzzySearch('#seg_dep')
     });
 
     // 2. ABRIR MODAL PARA "EDITAR SEGMENTO Y RESERVAS"
@@ -250,6 +393,8 @@ $(document).ready(function() {
         }
     }
 
+    // llamar el fuzzysearch para las vlans
+    aplicarFuzzySearch('#filtroDep');
     // Escuchamos los eventos para que el filtro sea en vivo
     $filtroTexto.on('keyup', aplicarFiltrosSegmentos);
     $filtroDep.on('change', aplicarFiltrosSegmentos);
