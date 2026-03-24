@@ -27,30 +27,60 @@ $id_sub = $input['id_sub'] ?? null;
 $id_disp = $input['id_disp'] ?? null;
 
 $id_u_int = $_SESSION['usuario']['id_usuar'] ?? null;
+$id_rol = $_SESSION['usuario']['id_rol'] ?? null;
+
+$verificarPermiso = function($id_permiso_requerido) use ($modelo, $id_rol, $id_sub) {
+    if (!$id_rol || !$id_sub) return false;
+    $permiso = $modelo->seleccionaRegistros(
+        "rol_submodulo_permiso", 
+        ["id_perm"], 
+        "id_rol = ? AND id_sub = ? AND id_perm = ?", 
+        [$id_rol, $id_sub, $id_permiso_requerido]
+    );
+    return (!empty($permiso) && count($permiso) > 0);
+};
+
 date_default_timezone_set('America/Mexico_City');
 $fec_u_int = date('Y-m-d H:i:s');
 
 $asig_po_id = !empty($input['asig_po_id']) ? $input['asig_po_id'] : null;
 $resp_po_id = !empty($input['resp_po_id']) ? $input['resp_po_id'] : null;
 
+// ==============================================================
+// LÓGICA NUEVA: EXTRAEMOS LAS MACS DE LAS INTERFACES DEL FRONTEND
+// ==============================================================
+$interfaces = $input['interfaces_red'] ?? [];
+$mac_ethernet = null;
+$mac_wifi = null;
+
+foreach ($interfaces as $intf) {
+    if ($intf['tipo_conexion'] === 'Ethernet') $mac_ethernet = trim($intf['mac']);
+    if ($intf['tipo_conexion'] === 'WiFi') $mac_wifi = trim($intf['mac']);
+}
+
 $camposDispositivo = [
-    "nom_host", "marca", "modelo", "num_ser", "num_inv", "mac", "dom", 
+    "nom_host", "marca", "modelo", "num_ser", "num_inv", "mac_ethernet", "mac_wifi", "dom", 
     "especs_hw", "resp_po_id", "asig_po_id", "id_u_int", "fec_u_int"
 ];
 
 $paramsDispositivo = [
     trim($input['nom_host'] ?? ''), trim($input['marca'] ?? ''), trim($input['modelo'] ?? ''),
-    trim($input['num_ser'] ?? ''), trim($input['num_inv'] ?? ''), trim($input['mac'] ?? ''),
+    trim($input['num_ser'] ?? ''), trim($input['num_inv'] ?? ''), $mac_ethernet, $mac_wifi,
     trim($input['dom'] ?? ''), trim($input['especs_hw'] ?? ''), $resp_po_id, $asig_po_id, $id_u_int, $fec_u_int
 ];
 
 try {
     if ($peticion === 'INSERT') {
+        if (!$verificarPermiso(2)) {
+            throw new Exception("Acceso denegado: No cuenta con permisos para agregar nuevos dispositivos.");
+        }
+
         $detalle = "Registro de nuevo dispositivo. Host: " . ($input['nom_host'] ?? 'N/A');
         $id_disp = $modelo->agregaRegistroConBitacora("dispositivos", $camposDispositivo, $paramsDispositivo, $id_sub, $detalle);
         if (!$id_disp) throw new Exception("Error al registrar el dispositivo en la base de datos.");
 
     } elseif ($peticion === 'UPDATE') {
+        
         if (empty($id_disp)) throw new Exception("ID de dispositivo requerido para actualizar.");
         
         $detalle = "Actualización de dispositivo. Host: " . ($input['nom_host'] ?? 'N/A');
@@ -59,22 +89,36 @@ try {
         if (!$exito) throw new Exception("No se detectaron cambios o hubo un error al actualizar.");
 
     } elseif ($peticion === 'BAJA_DISP') {
+        if (!$verificarPermiso(3)) {
+            throw new Exception("Acceso denegado: No cuenta con los privilegios para dar de baja equipos.");
+        }
+
         if (empty($id_disp) || empty($id_sub)) throw new Exception("Datos insuficientes para procesar la baja del dispositivo.");
 
         $disp_actual = $modelo->seleccionaRegistros("dispositivos", ["*"], "id_disp = ?", [$id_disp]);
         if (empty($disp_actual)) throw new Exception("El dispositivo no existe o ya fue eliminado.");
         $d = $disp_actual[0];
 
-        $red_actual = $modelo->seleccionaRegistros("infraestructura_red", ["ip"], "id_disp = ?", [$id_disp]);
-        $ip_snapshot = !empty($red_actual) ? $red_actual[0]['ip'] : 'Ninguna';
+        // LÓGICA NUEVA PARA BITÁCORA
+        $red_actual = $modelo->seleccionaRegistros("infraestructura_red", ["tipo_conexion", "ip"], "id_disp = ?", [$id_disp]);
+        $ip_snapshot = '';
+        if (!empty($red_actual)) {
+            foreach($red_actual as $r) {
+                $ip_snapshot .= $r['tipo_conexion'] . ": " . $r['ip'] . " | ";
+            }
+            $ip_snapshot = rtrim($ip_snapshot, " | ");
+        } else {
+            $ip_snapshot = 'Ninguna';
+        }
 
         $servicios_actuales = $modelo->seleccionaRegistros("dispositivo_servicio", ["id_serv", "id_ver_instalada"], "id_disp = ?", [$id_disp]);
         $serv_snapshot = empty($servicios_actuales) ? 'Ninguno' : json_encode($servicios_actuales);
 
-        $detalle_fotografia = "RESPALDO PRE-BAJA | Host: {$d['nom_host']} | Marca: {$d['marca']} | Modelo: {$d['modelo']} | Serie: {$d['num_ser']} | Inv: {$d['num_inv']} | MAC: {$d['mac']} | IP Liberada: {$ip_snapshot} | Asig_PO: {$d['asig_po_id']} | Resp_PO: {$d['resp_po_id']} | Software: {$serv_snapshot}";
+        $detalle_fotografia = "RESPALDO PRE-BAJA | Host: {$d['nom_host']} | Marca: {$d['marca']} | Modelo: {$d['modelo']} | Serie: {$d['num_ser']} | Inv: {$d['num_inv']} | MAC Eth: {$d['mac_ethernet']} | MAC WiFi: {$d['mac_wifi']} | IP Liberadas: {$ip_snapshot} | Asig_PO: {$d['asig_po_id']} | Resp_PO: {$d['resp_po_id']} | Software: {$serv_snapshot}";
 
         $modelo->registrarBitacora($id_sub, 'BACKUP_BAJA', $detalle_fotografia);
-        $modelo->actualizaRegistro("infraestructura_red", ["id_disp"], "id_disp = ?", [null, $id_disp]);
+        // Desvinculamos el tipo_conexion al dar de baja
+        $modelo->actualizaRegistro("infraestructura_red", ["id_disp", "tipo_conexion"], "id_disp = ?", [null, null, $id_disp]);
         $modelo->borraRegistroConBitacora("dispositivo_servicio", "id_disp = ?", [$id_disp], $id_sub, "Limpieza de software vinculada al dispositivo: {$d['nom_host']}");
         
         $exito_baja = $modelo->borraRegistroConBitacora("dispositivos", "id_disp = ?", [$id_disp], $id_sub, "Baja definitiva del dispositivo: {$d['nom_host']}");
@@ -84,19 +128,17 @@ try {
         exit;
 
     } 
-    // ==============================================================
-    // NUEVAS RUTAS PARA ACTUALIZAR SOFTWARE DIRECTO DESDE LA TABLA
-    // ==============================================================
     elseif ($peticion === 'GET_VERSIONES_ACTUALIZAR') {
         $id_serv = $input['id_serv'] ?? null;
         if (empty($id_serv)) throw new Exception("ID de servicio no proporcionado.");
-        
-        // Consultamos únicamente las versiones "Aceptadas" (obs = 0)
         $versiones = $modelo->seleccionaRegistros("versiones", ["id_ver", "ver"], "id_serv = ? AND obs = 0 ORDER BY ver DESC", [$id_serv]);
         echo json_encode(["status" => "success", "data" => $versiones ?: []]);
         exit;
 
     } elseif ($peticion === 'UPDATE_VERSION_DISPOSITIVO') {
+        if (!$verificarPermiso(1)) {
+            throw new Exception("Acceso denegado: No cuenta con permisos para modificar el software instalado.");
+        }
         $id_disp = $input['id_disp'] ?? null;
         $id_serv = $input['id_serv'] ?? null;
         $id_ver_nueva = $input['id_ver_nueva'] ?? null;
@@ -132,15 +174,28 @@ try {
         throw new Exception("Petición no reconocida.");
     }
 
-    $id_red = !empty($input['id_red']) ? $input['id_red'] : null;
-    $modelo->actualizaRegistro("infraestructura_red", ["id_disp"], "id_disp = ?", [null, $id_disp]);
+    // ==============================================================
+    // LOGICA NUEVA PARA ASIGNAR IP Y TIPO DE CONEXION
+    // ==============================================================
+    // 1. Liberamos todas las IPs (y sus etiquetas) que tenía este equipo
+    $modelo->actualizaRegistro("infraestructura_red", ["id_disp", "tipo_conexion"], "id_disp = ?", [null, null, $id_disp]);
 
-    if ($id_red) {
-        $modelo->actualizaRegistro("infraestructura_red", ["id_disp"], "id_red = ?", [$id_disp, $id_red]);
+    // 2. Asignamos las nuevas según el array enviado desde JavaScript
+    if (!empty($interfaces) && is_array($interfaces)) {
+        foreach ($interfaces as $intf) {
+            if (!empty($intf['id_red'])) {
+                $modelo->actualizaRegistro(
+                    "infraestructura_red", 
+                    ["id_disp", "tipo_conexion"], 
+                    "id_red = ?", 
+                    [$id_disp, $intf['tipo_conexion'], $intf['id_red']]
+                );
+            }
+        }
     }
 
+    // Código de software intacto...
     $modelo->borraRegistro("dispositivo_servicio", "id_disp = ?", [$id_disp]);
-
     $asignaciones = $input['asignaciones_software'] ?? [];
     if (!empty($asignaciones) && is_array($asignaciones)) {
         foreach ($asignaciones as $software) {

@@ -24,6 +24,18 @@ class DispositivosFormController {
         $this->id_disp = $id;
     }
 
+    public function verificarPermiso($id_sub, $id_permiso) {
+        $model = new MainModel();
+        $id_rol = $_SESSION['usuario']['id_rol'];
+        $permiso = $model->seleccionaRegistros(
+            "rol_submodulo_permiso", 
+            ["id_perm"], 
+            "id_rol = ? AND id_sub = ? AND id_perm = ?", 
+            [$id_rol, $id_sub, $id_permiso]
+        );
+        return ($permiso && count($permiso) > 0);
+    }
+
     public function renderContent() {
         $model = new MainModel();
 
@@ -40,6 +52,10 @@ class DispositivosFormController {
             return; 
         }
 
+        $es_edicion = !empty($this->id_disp);
+        $permiso_requerido = $es_edicion ? 1 : 2; 
+        $accion_texto = $es_edicion ? "editar" : "registrar nuevos";
+
         $datos = $this->traerContenido($model);
         extract($datos);
 
@@ -51,68 +67,68 @@ class DispositivosFormController {
         $servicios_asignados = [];
 
         // ==============================================================
-        // REDES (CRUZADAS CON SEGMENTOS Y DEPARTAMENTOS)
+        // LÓGICA NUEVA: REDES Y VLANS (Sin dependencias de departamento)
         // ==============================================================
         $tablaRed = "infraestructura_red r";
         $joinsRed = [
             "LEFT JOIN segmentos s ON r.id_seg = s.id_seg",
-            "LEFT JOIN departamentos d ON s.id_dep = d.id_dep"
+            "LEFT JOIN vlans v ON s.id_vlan = v.id_vlan" // Solo unimos con VLANs
         ];
-        // COALESCE evita que IPs sin departamento rompan el diseño
-        $camposRed = ["r.id_red", "r.ip", "s.id_dep", "COALESCE(d.nom_dep, 'General / Sin Departamento Asignado') AS nom_dep"];
+        
+        $camposRed = [
+            "r.id_red", "r.ip", "s.id_seg", 
+            "COALESCE(v.nom_vlan, 'Sin VLAN asignada') AS nom_vlan" // Mostramos la VLAN o un texto por defecto
+        ];
         
         $condicionRed = "r.id_disp IS NULL";
         $paramsRed = [];
+        // Si estamos editando, permitimos traer también las IPs que ya tiene asignadas este equipo
         if (!empty($this->id_disp)) {
             $condicionRed = "(r.id_disp IS NULL OR r.id_disp = ?)";
             $paramsRed = [$this->id_disp];
         }
         
-        // Ordenamos alfabéticamente por departamento y luego secuencialmente por IP
-        $condicionRed .= " AND LOWER(r.est) != 'inactivo' ORDER BY d.nom_dep ASC, INET_ATON(r.ip) ASC";
-        
+        $condicionRed .= " AND LOWER(r.est) != 'inactivo' ORDER BY v.nom_vlan ASC, INET_ATON(r.ip) ASC";
         $redes_disponibles = $model->seleccionaRegistrosJoin($tablaRed, $joinsRed, $camposRed, $condicionRed, $paramsRed);
-        // ==============================================================
         
-        // Personal Operativo (Añadimos id_dep para futuras validaciones en JS si las deseas)
         $campos_po = ["id_po", "id_dep", "TRIM(CONCAT(nombres, ' ', ape_pa, ' ', COALESCE(ape_ma, ''))) AS nombre_completo"];
         $personal_operativo = $model->seleccionaRegistros("personal_operativo", $campos_po, "1=1 ORDER BY nombres ASC");
 
-        // Catálogos de Servicios
         $servicios = $model->seleccionaRegistros("servicios", ["id_serv", "nom"], "estatus = 1");
-        
-        // Versiones
         $versiones = $model->seleccionaRegistros("versiones", ["id_ver", "ver", "id_serv", "obs"]);
 
         if (!empty($this->id_disp)) {
-            $joins = [
-                "LEFT JOIN infraestructura_red r ON d.id_disp = r.id_disp"
-            ];
-            
-            $campos = ["d.*", "r.id_red", "r.ip"];
-            
-            $resultado = $model->seleccionaRegistrosJoin("dispositivos d", $joins, $campos, "d.id_disp = ?", [$this->id_disp]);
+            $campos = ["*"];
+            $resultado = $model->seleccionaRegistros("dispositivos", $campos, "id_disp = ?", [$this->id_disp]);
             
             if (!empty($resultado)) {
                 $dispositivo = $resultado[0];
+                
+                // Traemos las interfaces exactas que tiene asignadas el equipo actualmente
+                $interfaces_actuales = $model->seleccionaRegistrosJoin(
+                    "infraestructura_red r",
+                    ["LEFT JOIN segmentos s ON r.id_seg = s.id_seg"],
+                    ["r.id_red", "r.ip", "r.tipo_conexion", "s.id_seg"],
+                    "r.id_disp = ?",
+                    [$this->id_disp]
+                );
+                $dispositivo['interfaces'] = $interfaces_actuales ?: [];
                 
                 $joins_serv = [
                     "JOIN servicios s ON ds.id_serv = s.id_serv",
                     "JOIN versiones v_inst ON ds.id_ver_instalada = v_inst.id_ver"
                 ];
                 $campos_serv = [
-                    "ds.id_serv", 
-                    "ds.id_ver_instalada", 
-                    "s.nom AS nombre_servicio", 
-                    "v_inst.ver AS version_instalada",
-                    "v_inst.obs AS es_obsoleta"
+                    "ds.id_serv", "ds.id_ver_instalada", "s.nom AS nombre_servicio", 
+                    "v_inst.ver AS version_instalada", "v_inst.obs AS es_obsoleta"
                 ];
                 $servicios_asignados = $model->seleccionaRegistrosJoin("dispositivo_servicio ds", $joins_serv, $campos_serv, "ds.id_disp = ?", [$this->id_disp]);
-
             } else {
                 die("<div class='alert alert-warning m-4 fw-bold'>El dispositivo no existe.</div>");
             }
         }
+
+        $puede_eliminar = $this->verificarPermiso($this->id_submod, 3);
 
         return [
             'redes_disponibles'   => $redes_disponibles ?: [],
@@ -122,14 +138,13 @@ class DispositivosFormController {
             'servicios_asignados' => $servicios_asignados ?: [],
             'dispositivo'         => $dispositivo,
             'id_sub_actual'       => $this->id_submod,
-            'id_disp'             => $this->id_disp
+            'id_disp'             => $this->id_disp,
+            'puede_eliminar'      => $puede_eliminar
         ];
     }
 
     public function renderJS() {
-        if(file_exists(self::JS)){
-            include self::JS;
-        }
+        if(file_exists(self::JS)){ include self::JS; }
     }
 }
 ?>

@@ -1,5 +1,5 @@
 <?php
-$departamentos = $departamentos ?? [];
+$vlans = $vlans ?? []; // Cambiado de departamentos a vlans
 $segmentos = $segmentos ?? [];
 $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3; 
 ?>
@@ -11,7 +11,7 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
     <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3">
         <div>
             <h3 class="fw-bold text-guinda mb-1"><i class="fas fa-network-wired me-2"></i>Infraestructura de Red</h3>
-            <p class="text-secondary mb-0 small">Gestión de segmentos, IPs reservadas y asignaciones por departamento.</p>
+            <p class="text-secondary mb-0 small">Gestión de segmentos, IPs reservadas y asignaciones por VLAN.</p>
         </div>
         <button class="btn btn-guinda shadow-sm fw-bold" id="btnNuevoSegmento">
             <i class="fas fa-plus-circle me-1"></i> <span class="d-none d-sm-inline">Nuevo Segmento</span>
@@ -23,15 +23,15 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
         <div class="col-12 col-md-4">
             <div class="input-group shadow-sm">
                 <span class="input-group-text bg-white text-muted border-end-0"><i class="fas fa-search"></i></span>
-                <input type="text" id="filtroTexto" class="form-control border-start-0 focus-guinda" placeholder="Buscar por IP o departamento...">
+                <input type="text" id="filtroTexto" class="form-control border-start-0 focus-guinda" placeholder="Buscar por IP o VLAN...">
             </div>
         </div>
         <div class="col-12 col-md-4">
             <select id="filtroDep" class="form-select shadow-sm focus-guinda">
-                <option value="todos">Todos los Departamentos</option>
+                <option value="todos">Todas las VLANs</option>
                 <option value="sin_asignar">-- Sin asignar --</option>
-                <?php foreach($departamentos as $dep): ?>
-                    <option value="<?php echo $dep['id_dep']; ?>"><?php echo htmlspecialchars($dep['nom_dep']); ?></option>
+                <?php foreach($vlans as $vlan): ?>
+                    <option value="<?php echo $vlan['id_vlan']; ?>"><?php echo htmlspecialchars($vlan['nom_vlan']); ?></option>
                 <?php endforeach; ?>
             </select>
         </div>
@@ -63,8 +63,8 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
                 $stats = $seg['estadisticas'];
             ?>
             <div class="col-12 col-md-6 col-xl-4 item-segmento" 
-                 data-dep="<?php echo $seg['id_dep']; ?>" 
-                 data-texto="<?php echo strtolower($seg['ip_ini'].' '.$seg['ip_lim'].' '.($seg['nom_dep'] ?? 'sin asignar')); ?>"
+                 data-dep="<?php echo $seg['id_vlan']; ?>" 
+                 data-texto="<?php echo strtolower($seg['ip_ini'].' '.$seg['ip_lim'].' '.($seg['nom_vlan'] ?? 'sin asignar')); ?>"
                  data-libres="<?php echo $stats['libres']; ?>"
                  data-reservas="<?php echo $stats['reservadas']; ?>">
                  
@@ -76,7 +76,7 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
                                     <i class="fas fa-server text-guinda me-2"></i>Segmento <?php echo htmlspecialchars($seg['id_seg']); ?>
                                 </h5>
                                 <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle mt-1">
-                                    <i class="fas fa-building me-1"></i> <?php echo htmlspecialchars($seg['nom_dep'] ?? 'Sin asignar'); ?>
+                                    <i class="fas fa-tags me-1"></i> <?php echo htmlspecialchars($seg['nom_vlan'] ?? 'Sin asignar'); ?>
                                 </span>
                             </div>
                             
@@ -86,7 +86,7 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
                                 </button>
                                 <ul class="dropdown-menu dropdown-menu-end shadow-sm border-0 ring-1 ring-secondary-subtle">
                                     <li><a class="dropdown-item py-2 btn-ver-ips" href="#" data-id="<?php echo $seg['id_seg']; ?>"><i class="fas fa-list-ol me-2 text-primary"></i> Explorar IPs</a></li>
-                                    <li><a class="dropdown-item py-2 btn-editar-seg" href="#" data-id="<?php echo $seg['id_seg']; ?>" data-dep="<?php echo $seg['id_dep']; ?>" data-ini="<?php echo htmlspecialchars($seg['ip_ini']); ?>" data-lim="<?php echo htmlspecialchars($seg['ip_lim']); ?>" data-reservas="<?php echo htmlspecialchars($seg['str_reservas']); ?>"><i class="fas fa-edit me-2 text-secondary"></i> Editar Rango/Reservas</a></li>
+                                    <li><a class="dropdown-item py-2 btn-editar-seg" href="#" data-id="<?php echo $seg['id_seg']; ?>" data-dep="<?php echo $seg['id_vlan']; ?>" data-ini="<?php echo htmlspecialchars($seg['ip_ini']); ?>" data-lim="<?php echo htmlspecialchars($seg['ip_lim']); ?>" data-reservas="<?php echo htmlspecialchars($seg['str_reservas']); ?>"><i class="fas fa-edit me-2 text-secondary"></i> Editar Rango/Reservas</a></li>
                                     <li><hr class="dropdown-divider"></li>
                                     <li><a class="dropdown-item py-2 text-danger btn-eliminar-seg" href="#" data-id="<?php echo $seg['id_seg']; ?>" data-rango="<?php echo htmlspecialchars($seg['ip_ini'].' - '.$seg['ip_lim']); ?>"><i class="fas fa-trash-alt me-2"></i> Desactivar Segmento</a></li>
                                 </ul>
@@ -139,13 +139,13 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
                         $stats = $seg['estadisticas'];
                     ?>
                     <tr class="item-segmento" 
-                        data-dep="<?php echo $seg['id_dep']; ?>" 
-                        data-texto="<?php echo strtolower($seg['ip_ini'].' '.$seg['ip_lim'].' '.($seg['nom_dep'] ?? 'sin asignar')); ?>"
+                        data-dep="<?php echo $seg['id_vlan']; ?>" 
+                        data-texto="<?php echo strtolower($seg['ip_ini'].' '.$seg['ip_lim'].' '.($seg['nom_vlan'] ?? 'sin asignar')); ?>"
                         data-libres="<?php echo $stats['libres']; ?>"
                         data-reservas="<?php echo $stats['reservadas']; ?>">
                         
                         <td>
-                            <strong class="text-dark d-block text-truncate" style="max-width: 150px;"><?php echo htmlspecialchars($seg['nom_dep'] ?? 'Sin asignar'); ?></strong>
+                            <strong class="text-dark d-block text-truncate" style="max-width: 150px;"><i class="fas fa-tags me-1 text-secondary"></i><?php echo htmlspecialchars($seg['nom_vlan'] ?? 'Sin asignar'); ?></strong>
                             <small class="text-muted font-monospace"><?php echo htmlspecialchars($seg['ip_ini']); ?> - <?php echo htmlspecialchars($seg['ip_lim']); ?></small>
                         </td>
                         <td class="text-center">
@@ -154,7 +154,7 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
                         </td>
                         <td class="text-end">
                             <button class="btn btn-sm btn-light border text-primary btn-ver-ips" data-id="<?php echo $seg['id_seg']; ?>" title="Ver IPs"><i class="fas fa-list"></i></button>
-                            <button class="btn btn-sm btn-light border text-secondary btn-editar-seg" data-id="<?php echo $seg['id_seg']; ?>" data-dep="<?php echo $seg['id_dep']; ?>" data-ini="<?php echo htmlspecialchars($seg['ip_ini']); ?>" data-lim="<?php echo htmlspecialchars($seg['ip_lim']); ?>" data-reservas="<?php echo htmlspecialchars($seg['str_reservas']); ?>" title="Editar"><i class="fas fa-edit"></i></button>
+                            <button class="btn btn-sm btn-light border text-secondary btn-editar-seg" data-id="<?php echo $seg['id_seg']; ?>" data-dep="<?php echo $seg['id_vlan']; ?>" data-ini="<?php echo htmlspecialchars($seg['ip_ini']); ?>" data-lim="<?php echo htmlspecialchars($seg['ip_lim']); ?>" data-reservas="<?php echo htmlspecialchars($seg['str_reservas']); ?>" title="Editar"><i class="fas fa-edit"></i></button>
                         </td>
                     </tr>
                     <?php endforeach; ?>
@@ -176,14 +176,14 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
                     <input type="hidden" name="id_seg" id="seg_id">
                     
                     <div class="mb-3">
-                        <label class="form-label fw-bold small text-dark mb-1">Departamento Asignado *</label>
-                        <select class="form-select focus-guinda border-secondary-subtle" name="id_dep" id="seg_dep" required>
-                            <option value="" selected disabled>Seleccione un departamento...</option>
-                            <?php foreach($departamentos as $dep): ?>
-                                <option value="<?php echo $dep['id_dep']; ?>"><?php echo htmlspecialchars($dep['nom_dep']); ?></option>
+                        <label class="form-label fw-bold small text-dark mb-1">VLAN Asignada *</label>
+                        <select class="form-select focus-guinda border-secondary-subtle" name="id_vlan" id="seg_dep" required>
+                            <option value="" selected disabled>Seleccione una VLAN...</option>
+                            <?php foreach($vlans as $vlan): ?>
+                                <option value="<?php echo $vlan['id_vlan']; ?>"><?php echo htmlspecialchars($vlan['nom_vlan']); ?></option>
                             <?php endforeach; ?>
                         </select>
-                        <div class="invalid-feedback">Debe seleccionar un departamento.</div>
+                        <div class="invalid-feedback">Debe seleccionar una VLAN.</div>
                     </div>
 
                     <div class="row g-3">

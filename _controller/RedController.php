@@ -33,12 +33,14 @@ class RedController {
     }
 
     private function traerContenido($model) {
-        $departamentos = $model->seleccionaRegistros("Departamentos", ["id_dep", "nom_dep"], "1=1 ORDER BY nom_dep ASC");
+        // CAMBIO: Ahora traemos el catálogo de VLANs en lugar de Departamentos
+        $vlans = $model->seleccionaRegistros("vlans", ["id_vlan", "nom_vlan"], "1=1 ORDER BY nom_vlan ASC");
         
+        // CAMBIO: Ajustamos el JOIN para relacionar con vlans
         $segmentos_db = $model->seleccionaRegistrosJoin(
             "segmentos s",
-            ["LEFT JOIN departamentos d ON s.id_dep = d.id_dep"],
-            ["s.id_seg", "s.ip_ini", "s.ip_lim", "s.id_dep", "d.nom_dep"],
+            ["LEFT JOIN vlans v ON s.id_vlan = v.id_vlan"],
+            ["s.id_seg", "s.ip_ini", "s.ip_lim", "s.id_vlan", "v.nom_vlan"],
             "s.estatus = 1" // Se quita el ORDER BY para hacerlo con PHP
         );
 
@@ -90,12 +92,13 @@ class RedController {
         }
 
         return [
-            'departamentos' => $departamentos ?: [],
+            'vlans' => $vlans ?: [], // CAMBIO: Exportamos vlans a la vista
             'segmentos' => $segmentos
         ];
     }
 
-    public function insertarSegmento($id_sub, $id_dep, $ip_ini, $ip_lim, $reservas) {
+    // CAMBIO: Renombrado de parámetro $id_dep a $id_vlan
+    public function insertarSegmento($id_sub, $id_vlan, $ip_ini, $ip_lim, $reservas) {
         $model = new MainModel();
 
         if (!$this->verificarPermiso($id_sub, 2)) return ["result" => 0, "msg" => "Permiso denegado."];
@@ -145,7 +148,8 @@ class RedController {
             $ips_a_reservar = array_unique($ips_a_reservar); 
         }
 
-        $model->agregaRegistro("segmentos", ["id_dep", "ip_ini", "ip_lim", "estatus"], [$id_dep, trim($ip_ini), trim($ip_lim), 1]);
+        // CAMBIO: Guardamos en id_vlan
+        $model->agregaRegistro("segmentos", ["id_vlan", "ip_ini", "ip_lim", "estatus"], [$id_vlan, trim($ip_ini), trim($ip_lim), 1]);
         $seg_creado = $model->seleccionaRegistros("segmentos", ["id_seg"], "ip_ini = ? AND ip_lim = ? AND estatus = 1", [trim($ip_ini), trim($ip_lim)]);
         
         if ($seg_creado && count($seg_creado) > 0) {
@@ -166,7 +170,8 @@ class RedController {
         return ["result" => 0, "msg" => "Error al localizar el segmento recién creado."];
     }
 
-    public function actualizarSegmento($id_sub, $id_seg, $id_dep, $ip_ini, $ip_lim, $reservas) {
+    // CAMBIO: Renombrado de parámetro $id_dep a $id_vlan
+    public function actualizarSegmento($id_sub, $id_seg, $id_vlan, $ip_ini, $ip_lim, $reservas) {
         $model = new MainModel();
         if (!$this->verificarPermiso($id_sub, 1)) return ["result" => 0, "msg" => "Permiso denegado."];
 
@@ -215,7 +220,8 @@ class RedController {
         }
 
         // AL ACTUALIZAR LOS LÍMITES AQUÍ, EL TRIGGER DE LA BD HARÁ SU TRABAJO 
-        $model->actualizaRegistro("segmentos", ["id_dep", "ip_ini", "ip_lim"], "id_seg = ?", [$id_dep, trim($ip_ini), trim($ip_lim), $id_seg]);
+        // CAMBIO: Se actualiza usando $id_vlan
+        $model->actualizaRegistro("segmentos", ["id_vlan", "ip_ini", "ip_lim"], "id_seg = ?", [$id_vlan, trim($ip_ini), trim($ip_lim), $id_seg]);
 
         // LOGICA DE RESERVAS
         $actuales_db = $model->seleccionaRegistros("infraestructura_red", ["ip"], "id_seg = ? AND LOWER(est) = 'reservado'", [$id_seg]);

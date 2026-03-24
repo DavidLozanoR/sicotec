@@ -1,5 +1,21 @@
-<link rel="stylesheet" href="css/dispositivos.css">
-
+<style>
+    .columna-red-dinamica span.fw-bold {
+        background-color: #cff4fc !important; /* Fondo azul info */
+        color: #055160 !important; /* Texto azul oscuro */
+        border: 1px solid #b6effb;
+        padding: 0.15rem 0.4rem;
+        border-radius: 0.25rem;
+        font-family: monospace;
+        font-size: 0.85rem;
+        display: inline-block;
+        margin-bottom: 0.2rem;
+    }
+    .columna-red-dinamica small.text-muted {
+        color: #9D2449 !important; /* Color Guinda para la VLAN */
+        font-weight: 700;
+        font-size: 0.75rem !important;
+    }
+</style>
 <div class="container-fluid px-4 py-3" id="main-dispositivos-container" data-id-sub="<?php echo $id_sub_actual ?? ''; ?>">
     
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -41,9 +57,9 @@
                 <div class="col-12 col-sm-6 col-lg-3">
                     <select class="form-select shadow-sm focus-guinda border-secondary-subtle" id="filtroDepartamento">
                         <option value="todos">Red: Todas</option>
-                        <option value="sin_red">Sin red / departamento</option>
+                        <option value="sin_red">Sin red / VLAN</option>
                         <?php foreach($departamentos as $dep): ?>
-                            <option value="<?php echo $dep['id_dep']; ?>">Red: <?php echo htmlspecialchars($dep['nom_dep']); ?></option>
+                            <option value="<?php echo $dep['id_vlan']; ?>"><?php echo htmlspecialchars($dep['nom_vlan']); ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
@@ -69,53 +85,72 @@
                     <thead class="table-light sticky-top" style="z-index: 2;">                        
                         <tr>
                             <th>Hostname</th>
-                            <th>Marca / Modelo</th>
-                            <th>No. Serie</th>
-                            <th>Red / Ubicación</th>
-                            <th>Responsable</th>
+                            <th class="d-none d-sm-table-cell">Marca / Modelo</th>
+                            <th class="d-none d-lg-table-cell">No. Serie</th>
+                            <th class="d-none d-md-table-cell">Dirección MAC</th>
+                            <th>Conexión / VLAN</th>
+                            <th class="d-none d-sm-table-cell">Responsable</th>
                             <th class="text-center">Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if ($dispositivos && count($dispositivos) > 0): ?>
                             <?php foreach ($dispositivos as $disp): ?>
-                                <tr data-software="<?php echo htmlspecialchars($disp['str_software']); ?>" 
-                                    data-estado="<?php echo $disp['estado_asig']; ?>" 
-                                    data-dep="<?php echo $disp['id_dep'] ?: 'sin_red'; ?>">
+                                <tr data-software="<?php echo htmlspecialchars($disp['str_software'] ?? ''); ?>" 
+                                    data-estado="<?php echo $disp['estado_asig'] ?? 'sin_asignar'; ?>" 
+                                    data-dep="<?php echo $disp['id_dep'] ?? 'sin_red'; ?>">
                                     
                                     <td class="fw-bold text-dark">
-                                        <?php echo htmlspecialchars($disp['nom_host']); ?>
-                                        <?php if ($disp['tiene_obsoleto']): ?>
+                                        <?php echo htmlspecialchars($disp['nom_host'] ?? ''); ?>
+                                        <?php if (!empty($disp['tiene_obsoleto'])): ?>
                                             <br>
                                             <span class="badge bg-danger mt-1 shadow-sm">
                                                 <i class="fas fa-exclamation-triangle me-1"></i>Software Obsoleto
                                             </span>
                                         <?php endif; ?>
+                                        <div class="d-block d-sm-none text-muted fw-normal mt-1" style="font-size: 0.75rem;">
+                                            <?php echo htmlspecialchars(($disp['marca'] ?? '') . ' / ' . ($disp['modelo'] ?? '')); ?>
+                                        </div>
                                     </td>
                                     
-                                    <td>
-                                        <?php echo htmlspecialchars($disp['marca'] . ' / ' . $disp['modelo']); ?><br>
-                                        <small class="text-muted"><strong class="text-dark">Inv:</strong> <?php echo htmlspecialchars($disp['num_inv']); ?></small>
+                                    <td class="d-none d-sm-table-cell">
+                                        <?php echo htmlspecialchars(($disp['marca'] ?? '') . ' / ' . ($disp['modelo'] ?? '')); ?><br>
+                                        <small class="text-muted"><strong class="text-dark">Inv:</strong> <?php echo htmlspecialchars($disp['num_inv'] ?? ''); ?></small>
                                     </td>
                                     
-                                    <td><?php echo htmlspecialchars($disp['num_ser']); ?></td>
+                                    <td class="d-none d-lg-table-cell"><?php echo htmlspecialchars($disp['num_ser'] ?? ''); ?></td>
                                     
-                                    <td>
-                                        <?php if($disp['ip']): ?>
-                                            <span class="badge bg-info text-dark d-block mb-1">
-                                                <i class="fas fa-network-wired me-1"></i><?php echo htmlspecialchars($disp['ip']); ?>
-                                            </span>
-                                            <?php if($disp['departamento']): ?>
-                                                <small class="text-primary fw-bold d-block" style="font-size: 0.75rem;">
-                                                    <i class="fas fa-building me-1"></i><?php echo htmlspecialchars($disp['departamento']); ?>
-                                                </small>
-                                            <?php endif; ?>
-                                        <?php else: ?>
-                                            <span class="text-muted small">Sin red asignada</span>
+                                    <td class="d-none d-md-table-cell">
+                                        <?php if (!empty($disp['mac_ethernet'])): ?>
+                                            <div class="text-nowrap mb-1" title="MAC Ethernet">
+                                                <i class="fas fa-ethernet text-secondary me-2"></i> 
+                                                <span class="font-monospace small fw-bold"><?php echo htmlspecialchars($disp['mac_ethernet']); ?></span>
+                                            </div>
+                                        <?php endif; ?>
+                                        
+                                        <?php if (!empty($disp['mac_wifi'])): ?>
+                                            <div class="text-nowrap" title="MAC WiFi">
+                                                <i class="fas fa-wifi text-secondary me-2"></i> 
+                                                <span class="font-monospace small fw-bold"><?php echo htmlspecialchars($disp['mac_wifi']); ?></span>
+                                            </div>
+                                        <?php endif; ?>
+
+                                        <?php if (empty($disp['mac_ethernet']) && empty($disp['mac_wifi'])): ?>
+                                            <span class="text-muted small fst-italic">Sin registro físico</span>
                                         <?php endif; ?>
                                     </td>
 
                                     <td>
+                                        <?php if(!empty($disp['info_red_html'])): ?>
+                                            <?php echo $disp['info_red_html']; ?>
+                                        <?php else: ?>
+                                            <span class="badge bg-light text-secondary border border-secondary-subtle px-2 py-1">
+                                                <i class="fas fa-unlink me-1"></i> Sin Red
+                                            </span>
+                                        <?php endif; ?>
+                                    </td>
+
+                                    <td class="d-none d-sm-table-cell">
                                         <?php if(!empty($disp['responsable'])): ?>
                                             <span class="text-dark">
                                                 <i class="fas fa-user-tie me-2 text-secondary"></i><?php echo htmlspecialchars($disp['responsable']); ?>
@@ -151,7 +186,7 @@
                             <?php endforeach; ?>
                         <?php else: ?>
                             <tr>
-                                <td colspan="6" class="text-center py-5 text-muted">
+                                <td colspan="7" class="text-center py-5 text-muted">
                                     <i class="fas fa-laptop fa-3x mb-3" style="color: #e0e0e0;"></i><br>
                                     No se encontraron dispositivos en el catálogo.
                                 </td>

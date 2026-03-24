@@ -3,6 +3,7 @@
 $id_disp = $id_disp ?? null;
 $dispositivo = $dispositivo ?? null;
 $redes_disponibles = $redes_disponibles ?? [];
+$vlans_disponibles = $vlans_disponibles ?? []; // Nueva variable que enviaremos desde el controlador
 $personal_operativo = $personal_operativo ?? [];
 $servicios = $servicios ?? [];
 $versiones = $versiones ?? [];
@@ -18,8 +19,9 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
     const catalogoVersiones = <?php echo json_encode($versiones); ?>;
     const serviciosAsignadosIniciales = <?php echo json_encode($servicios_asignados); ?>;
     
-    // NUEVAS: Variables para el control dinámico de Redes
+    // Variables para el control dinámico de Redes e Interfaces
     const redesDisponibles = <?php echo json_encode($redes_disponibles); ?>;
+    const vlansDisponibles = <?php echo json_encode($vlans_disponibles); ?>;
     const dispositivoActual = <?php echo json_encode($dispositivo); ?>;
 </script>
 
@@ -119,7 +121,7 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
 
                             <div class="tab-pane fade" id="v-pills-net" role="tabpanel" aria-labelledby="v-pills-net-tab">
                                 <h5 class="fw-bold text-guinda mb-4 border-bottom border-secondary-subtle pb-3">Configuración Lógica y de Red</h5>
-                                <div class="row g-4">
+                                <div class="row g-4 mb-4">
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold small text-dark mb-1">Hostname *</label>
                                         <input type="text" class="form-control focus-guinda border-secondary-subtle font-monospace" name="nom_host" value="<?php echo htmlspecialchars($dispositivo['nom_host'] ?? ''); ?>" maxlength="100" required>
@@ -128,25 +130,64 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                                         <label class="form-label fw-bold small text-dark mb-1">Dominio</label>
                                         <input type="text" class="form-control focus-guinda border-secondary-subtle" name="dom" value="<?php echo htmlspecialchars($dispositivo['dom'] ?? ''); ?>" maxlength="100">
                                     </div>
-                                    <div class="col-12">
-                                        <label class="form-label fw-bold small text-dark mb-1">Dirección MAC del Equipo</label>
-                                        <input type="text" class="form-control focus-guinda border-secondary-subtle font-monospace" name="mac" value="<?php echo htmlspecialchars($dispositivo['mac'] ?? ''); ?>" maxlength="17" placeholder="Ej: 00:1A:2B:3C:4D:5E">
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold small text-dark mb-1"><i class="fas fa-map-marker-alt text-guinda me-1"></i> Ubicación / Departamento</label>
-                                        <select class="form-select focus-guinda border-secondary-subtle" id="select-red-dep">
-                                            <option value="resguardo" selected>En resguardo (Almacén)</option>
-                                            </select>
-                                    </div>
-
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold small text-dark mb-1"><i class="fas fa-network-wired text-guinda me-1"></i> Asignación de IP</label>
-                                        <select class="form-select focus-guinda border-secondary-subtle font-monospace bg-light" name="id_red" id="select-red-ip" disabled>
-                                            <option value="">-- Sin IP (En resguardo) --</option>
-                                        </select>
-                                    </div>
                                 </div>
+
+                                <div class="col-12 mt-4">
+                                    <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-secondary-subtle pb-2">
+                                        <h6 class="fw-bold text-dark mb-0"><i class="fas fa-network-wired me-2"></i>Interfaces de Red</h6>
+                                        <button type="button" class="btn btn-sm btn-outline-guinda fw-bold" id="btn-add-interfaz">
+                                            <i class="fas fa-plus me-1"></i> Añadir Interfaz
+                                        </button>
+                                    </div>
+                                    
+                                    <div class="alert alert-light border border-info border-start border-5 shadow-sm d-flex align-items-center py-2 mb-3">
+                                        <i class="fas fa-info-circle text-info fa-lg me-3"></i>
+                                        <small class="text-muted">Puede registrar hasta dos interfaces (una <strong>Ethernet</strong> y una <strong>WiFi</strong>). Para poder seleccionar una dirección IP, es obligatorio escribir primero la dirección MAC.</small>
+                                    </div>
+
+                                    <div id="contenedor-interfaces" class="d-flex flex-column gap-3">
+                                        </div>
+                                    
+                                    <template id="template-interfaz">
+                                        <div class="card border border-secondary-subtle shadow-sm interfaz-item">
+                                            <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                                                <span class="fw-bold text-secondary small titulo-interfaz"><i class="fas fa-ethernet me-1"></i> Configuración de Interfaz</span>
+                                                <button type="button" class="btn btn-sm btn-outline-danger border-0 btn-eliminar-interfaz" title="Quitar Interfaz">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </div>
+                                            <div class="card-body p-3">
+                                                <div class="row g-3">
+                                                    <div class="col-md-4">
+                                                        <label class="form-label fw-bold small text-dark mb-1">Tipo de Conexión *</label>
+                                                        <select class="form-select form-select-sm focus-guinda select-tipo-conexion" name="tipo_conexion[]" required>
+                                                            <option value="" selected disabled>-- Seleccionar --</option>
+                                                            <option value="Ethernet">Ethernet (Cable)</option>
+                                                            <option value="WiFi">WiFi (Inalámbrico)</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-8">
+                                                        <label class="form-label fw-bold small text-dark mb-1">Dirección MAC *</label>
+                                                        <input type="text" class="form-control form-control-sm focus-guinda font-monospace input-mac" name="mac[]" maxlength="17" placeholder="Ej: 00:1A:2B:3C:4D:5E" required>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold small text-dark mb-1"><i class="fas fa-tags text-guinda me-1"></i> Red / VLAN</label>
+                                                        <select class="form-select form-select-sm focus-guinda select-vlan" disabled>
+                                                            <option value="resguardo" selected>En resguardo (Sin red)</option>
+                                                            </select>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <label class="form-label fw-bold small text-dark mb-1"><i class="fas fa-laptop-house text-guinda me-1"></i> Asignación de IP</label>
+                                                        <select class="form-select form-select-sm focus-guinda font-monospace bg-light select-ip" name="id_red[]" disabled>
+                                                            <option value="">-- Sin IP --</option>
+                                                        </select>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </div>
+                                
                                 <div class="col-12 mt-4 text-end border-top border-secondary-subtle pt-4">
                                         <button type="button" class="btn btn-outline-secondary fw-bold px-4 btn-siguiente" data-next="v-pills-asig-tab">
                                             Siguiente: Asignación de Personal <i class="fas fa-arrow-right ms-2"></i>
@@ -215,7 +256,7 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                                         ?>
                                             <label class="list-group-item d-flex justify-content-between align-items-center py-3 list-group-item-action <?php echo $clase_bg; ?>">
                                                 <div class="d-flex align-items-start gap-3">
-                                                    <input type="hidden" name="servicios_instalados[]" id="serv_instalados" value="<?php echo $sa['id_serv']; ?>">
+                                                    <input type="hidden" name="servicios_instalados[]" value="<?php echo $sa['id_serv']; ?>">
                                                     <input type="hidden" name="versiones_instaladas[<?php echo $sa['id_serv']; ?>]" value="<?php echo $sa['id_ver_instalada']; ?>">
                                                     <div>
                                                         <h6 class="mb-0 fw-bold <?php echo $clase_texto; ?>">
