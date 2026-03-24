@@ -69,6 +69,23 @@ switch ($peticion) {
         echo json_encode($controller->bajaUsuario($id_sub, $id_usuar));
         break;
 
+    // ==========================================
+    // NUEVO CASO: REACTIVACIÓN DE USUARIO
+    // ==========================================
+    case 'REACTIVATE_USER':
+        $id_usuar = $_POST['id_usuar'] ?? '';
+        $nom_usuar = trim($_POST['nom_usuar'] ?? ''); // El nickname que escribió en el formulario
+        $password = $_POST['password'] ?? ''; // Por si quiere cambiarle la contraseña al reactivarlo
+        $id_rol = $_POST['id_rol'] ?? ''; // El nuevo rol asignado
+
+        if (empty($id_sub) || empty($id_usuar) || empty($nom_usuar) || empty($id_rol)) {
+            echo json_encode(["result" => 0, "msg" => "Faltan datos obligatorios para reactivar al usuario."]);
+            exit;
+        }
+
+        echo json_encode($controller->reactivarUsuario($id_sub, $id_usuar, $id_rol, $nom_usuar, $password));
+        break;
+
     default:
         echo json_encode(["result" => 0, "msg" => "Petición no reconocida."]);
         break;

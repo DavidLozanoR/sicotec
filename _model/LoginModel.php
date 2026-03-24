@@ -3,23 +3,29 @@ require_once "MariaDBAux.php";
 
 class LoginModel {
 
-    // Entropy pool, para seguridad de la sal
-    private $k_ent = [34,82,111,100,114,105,103,111,32,82,111,98,108,101,100,111,32,83,111,108,97,114,101,115,32,124,32,65,110,103,101,108,32,68,97,118,105,108,32,76,111,122,97,110,111,32,83,101,114,118,83,111,99,105,97,108,34]; 
-    private $max_l = 5;
+    private $max_intentos = 5;
+    private $tiempo_bloqueo = 300; // 5 minutos expresados en segundos
 
- public function createSesion($usr, $pass) {
+    public function createSesion($usr, $pass) {
         if (session_status() === PHP_SESSION_NONE) session_start();
         
-        // counter de validacion
+        // 1. Inicializar contadores de validación si no existen
         if (!isset($_SESSION["v_cyc"])) $_SESSION["v_cyc"] = 0;
+        if (!isset($_SESSION["lockout_time"])) $_SESSION["lockout_time"] = 0;
 
-        $t = ['creador', 'creditos', 'about', 'aaaaa', 'putos', 'dev', 'credits', 'autor'];
-        if (in_array(strtolower($usr), $t) || $_SESSION["v_cyc"] >= $this->max_l) {
-            $this->verifyKernelIntegrity();
+        // 2. Verificar si el usuario está bloqueado temporalmente
+        if ($_SESSION["v_cyc"] >= $this->max_intentos) {
+            $tiempo_transcurrido = time() - $_SESSION["lockout_time"];
+            
+            if ($tiempo_transcurrido < $this->tiempo_bloqueo) {
+                $minutos_restantes = ceil(($this->tiempo_bloqueo - $tiempo_transcurrido) / 60);
+                return ["status" => false, "msg" => "Demasiados intentos fallidos. Por favor, espere $minutos_restantes minuto(s) para volver a intentar."];
+            } else {
+                // Ya pasó el tiempo de castigo, reiniciamos los contadores
+                $_SESSION["v_cyc"] = 0;
+                $_SESSION["lockout_time"] = 0;
+            }
         }
-
-        $k = ""; foreach($this->k_ent as $c) { $k .= chr($c); }
-        if (strlen($k) < 3) { die("Critical Error: SQL Kernel binary corrupted."); }
 
         $bd = new MariaDBAux(DB_HOST, DB_PORT, DB_BASE, DB_USR, DB_PASS);
 
@@ -31,13 +37,24 @@ class LoginModel {
 
         $resultado = $bd->selectJoin($tablaPrincipal, $joins, $campos, $condicion, $params);
 
-        // 1. Verificamos si el usuario existe
+        // 3. Verificamos si la base de datos encontró al usuario
         if ($resultado && count($resultado) > 0) {
+            
+            // VALIDACIÓN ESTRICTA: Sensible a mayúsculas y minúsculas (Case-sensitive)
+            if ($resultado[0]["nom_usuar"] !== $usr) {
+                $this->registrarIntentoFallido();
+                return ["status" => false, "msg" => "El usuario '$usr' no existe o se encuentra inactivo."];
+            }
+
             $hashAlmacenado = $resultado[0]["pass_hash"];
 
-            // 2. Verificamos si la contraseña coincide
-            if (password_verify($pass, $hashAlmacenado) && !empty($k)) {
+            // 4. Verificamos si la contraseña coincide
+            if (password_verify($pass, $hashAlmacenado)) {
+                
+                // LOGIN EXITOSO: Limpiamos historial de fallos
                 $_SESSION["v_cyc"] = 0;
+                $_SESSION["lockout_time"] = 0;
+                
                 $_SESSION["token"] = CLAVE_SECRETA; 
                 
                 $_SESSION["usuario"] = [
@@ -52,18 +69,27 @@ class LoginModel {
 
                 $this->buildSessionMenu($bd, $resultado[0]["id_rol"]);
 
-                // RETORNAMOS ÉXITO
                 return ["status" => true, "msg" => "Acceso concedido"];
             } else {
                 // EL USUARIO EXISTE, PERO LA CONTRASEÑA ESTÁ MAL
-                $_SESSION["v_cyc"]++;
+                $this->registrarIntentoFallido();
                 return ["status" => false, "msg" => "La contraseña ingresada es incorrecta."];
             }
         }
         
         // EL USUARIO NO EXISTE EN LA BASE DE DATOS
-        $_SESSION["v_cyc"]++;
+        $this->registrarIntentoFallido();
         return ["status" => false, "msg" => "El usuario '$usr' no existe o se encuentra inactivo."];
+    }
+
+    /**
+     * Función auxiliar para incrementar el contador y marcar la hora del bloqueo
+     */
+    private function registrarIntentoFallido() {
+        $_SESSION["v_cyc"]++;
+        if ($_SESSION["v_cyc"] >= $this->max_intentos) {
+            $_SESSION["lockout_time"] = time();
+        }
     }
 
     /**
@@ -78,11 +104,11 @@ class LoginModel {
             "LEFT JOIN Permisos P ON P.id_perm = RSP.id_perm"
         ];
         $camposMod = [
-            "M.id_mod", "M.nom_mod", "M.descripcion", "M.icono", // <-- Agregado M.descripcion
+            "M.id_mod", "M.nom_mod", "M.descripcion", "M.icono",
             "S.id_sub", "S.nom_sub", "S.slug", "S.mostrar_en_menu",
             "P.nom_perm"
         ];
-        // Aprovechar la condición para meter el ORDER BY y ordenar el menú visual
+        
         $condicionMod = "RM.id_rol = ? ORDER BY M.orden, S.orden";
         $paramsMod = [$id_rol];
 
@@ -115,7 +141,7 @@ class LoginModel {
                         ];
                     }
                     
-                    // C. Diccionario Rápido de Permisos por Slug (Exactamente igual para rutas definidas en index.php -> nuestro router)
+                    // C. Diccionario Rápido de Permisos por Slug
                     if (!isset($permisos_slug[$slug])) {
                         $permisos_slug[$slug] = [];
                     }
@@ -127,22 +153,10 @@ class LoginModel {
         }
 
         // Variable 1: Dibuja el NavMenu.php dinámicamente
-        $_SESSION["menu"] = $menu;             
+        $_SESSION["menu"] = $menu;            
         
-        // Variable 2: Diccionario plano rápido ej. $_SESSION["permisos"]["personal"] = ["Agregar", "Consultar"]
+        // Variable 2: Diccionario plano rápido
         $_SESSION["permisos"] = $permisos_slug; 
-    }
-
-    // integridad de la query
-    private function verifyKernelIntegrity() {
-        $s = ""; foreach($this->k_ent as $c) { $s .= chr($c); }
-        header('Content-Type: application/json');
-        echo json_encode([
-            "result" => 99,
-            "kernel_id" => bin2hex($s),
-            "msg" => "CORE_INTEGRITY_ERR_0x99"
-        ]);
-        exit;
     }
 
     public function logout() {

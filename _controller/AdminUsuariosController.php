@@ -64,13 +64,30 @@ class AdminUsuariosController {
         if ($id_rol == 1) return ["result" => 0, "msg" => "Seguridad: No se permite asignar el rol de Administrador."];
 
         $model = new MainModel();
+        
+        // 1. Lógica Original: Verificación de Nickname (Usuario)
         $existe = $model->seleccionaRegistros("Usuarios", ["id_usuar", "status"], "nom_usuar = ?", [$nom_usuar]);
         
         if ($existe && count($existe) > 0) {
             if ($existe[0]['status'] == 1) return ["result" => 0, "msg" => "El usuario '$nom_usuar' ya existe."];
             else return ["result" => 0, "msg" => "El usuario '$nom_usuar' existe pero está dado de baja."];
         }
+
+        // 2. Nueva Lógica: Verificación de Nombre Completo para Reactivación
+        $existeNombre = $model->seleccionaRegistros("Usuarios", ["id_usuar", "status"], "nombres = ? AND ape_pa = ? AND ape_ma = ?", [$nombres, $ape_pa, $ape_ma]);
+        if ($existeNombre && count($existeNombre) > 0) {
+            if ($existeNombre[0]['status'] == 1) {
+                return ["result" => 0, "msg" => "Ya existe un usuario activo registrado con el nombre exacto: $nombres $ape_pa $ape_ma."];
+            } else {
+                return [
+                    "result" => 2, 
+                    "msg" => "El usuario '$nombres $ape_pa $ape_ma' ya fue registrado en el pasado pero se encuentra inactivo. ¿Desea reactivar su cuenta y actualizar sus accesos?", 
+                    "id_usuar_reactivar" => $existeNombre[0]['id_usuar']
+                ];
+            }
+        }
         
+        // 3. Inserción normal si todo está libre
         $pass_hash = password_hash($password, PASSWORD_DEFAULT);
         $res = $model->agregaRegistro("Usuarios", 
             ["nom_usuar", "nombres", "ape_pa", "ape_ma", "pass_hash", "id_rol", "status"], 
@@ -92,9 +109,25 @@ class AdminUsuariosController {
         if ($id_rol == 1 && $rol_actual != 1) return ["result" => 0, "msg" => "Seguridad: No puedes ascender a un usuario a Administrador."];
         if ($rol_actual == 1 && $id_rol != 1) return ["result" => 0, "msg" => "Seguridad: El Administrador principal no puede perder su rol."];
         
+        // 1. Verificación de Nickname (Original)
         $existe = $model->seleccionaRegistros("Usuarios", ["id_usuar"], "nom_usuar = ? AND id_usuar != ?", [$nom_usuar, $id_usuar]);
         if ($existe && count($existe) > 0) return ["result" => 0, "msg" => "El nickname '$nom_usuar' ya está en uso."];
 
+        // 2. Verificación de Nombre Completo
+        $existeNombre = $model->seleccionaRegistros("Usuarios", ["id_usuar", "status"], "nombres = ? AND ape_pa = ? AND ape_ma = ? AND id_usuar != ?", [$nombres, $ape_pa, $ape_ma, $id_usuar]);
+        if ($existeNombre && count($existeNombre) > 0) {
+            if ($existeNombre[0]['status'] == 1) {
+                return ["result" => 0, "msg" => "Ya existe otro usuario activo registrado con el nombre exacto: $nombres $ape_pa $ape_ma."];
+            } else {
+                return [
+                    "result" => 2, 
+                    "msg" => "Ya existe un registro inactivo coincidente con el nombre '$nombres $ape_pa $ape_ma'. ¿Desea reactivarlo y usar esa cuenta en su lugar?", 
+                    "id_usuar_reactivar" => $existeNombre[0]['id_usuar']
+                ];
+            }
+        }
+
+        // 3. Actualización normal
         if (!empty($password)) {
             $pass_hash = password_hash($password, PASSWORD_DEFAULT);
             $res = $model->actualizaRegistro("Usuarios", ["nom_usuar", "nombres", "ape_pa", "ape_ma", "pass_hash", "id_rol"], "id_usuar=?", [$nom_usuar, $nombres, $ape_pa, $ape_ma, $pass_hash, $id_rol, $id_usuar]);
@@ -127,6 +160,36 @@ class AdminUsuariosController {
             return ["result" => 1, "msg" => "Usuario dado de baja exitosamente."];
         }
         return ["result" => 0, "msg" => "Error al dar de baja al usuario."];
+    }
+
+    // ==========================================
+    // NUEVO MÉTODO PARA REACTIVACIÓN DE USUARIOS
+    // ==========================================
+    public function reactivarUsuario($id_sub, $id_usuar, $id_rol, $nuevo_nickname, $password_nueva) {
+        $model = new MainModel();
+
+        // Si se va a reactivar, debemos asegurar que el nuevo nickname no choque con otro usuario distinto
+        $existe = $model->seleccionaRegistros("Usuarios", ["id_usuar"], "nom_usuar = ? AND id_usuar != ?", [$nuevo_nickname, $id_usuar]);
+        if ($existe && count($existe) > 0) return ["result" => 0, "msg" => "El nickname '$nuevo_nickname' ya está en uso por otro usuario."];
+
+        $campos_actualizar = ["status", "id_rol", "nom_usuar"];
+        $valores_actualizar = [1, $id_rol, $nuevo_nickname];
+
+        // Si le asignaron una contraseña nueva al reactivarlo
+        if (!empty($password_nueva)) {
+            $campos_actualizar[] = "pass_hash";
+            $valores_actualizar[] = password_hash($password_nueva, PASSWORD_DEFAULT);
+        }
+
+        $valores_actualizar[] = $id_usuar; // Al final para el WHERE
+
+        $res = $model->actualizaRegistro("Usuarios", $campos_actualizar, "id_usuar = ?", $valores_actualizar);
+        
+        if ($res) {
+            $model->registrarBitacora($id_sub, 'REACTIVATE', "Reactivó al usuario '{$nuevo_nickname}' y actualizó sus accesos");
+            return ["result" => 1, "msg" => "Usuario reactivado exitosamente."];
+        }
+        return ["result" => 0, "msg" => "Error al reactivar el usuario."];
     }
 }
 ?>

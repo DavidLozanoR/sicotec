@@ -117,7 +117,36 @@ document.addEventListener("DOMContentLoaded", function () {
             }
             this.classList.remove('was-validated'); 
             this.querySelector('.dynamic-id-sub').value = idSubActual;
-            asyncProcessForm(this, '_controller/AdminUsuariosAsync.php', recargarTablaUsuarios);
+            
+            // Interceptamos la respuesta para manejar la reactivación
+            asyncProcessForm(this, '_controller/AdminUsuariosAsync.php', function(res) {
+                if (res.result === 1) {
+                    // Éxito normal
+                    recargarTablaUsuarios(res);
+                } else if (res.result === 2) {
+                    // Usuario inactivo detectado, lanzamos SweetAlert de confirmación
+                    Swal.fire({
+                        title: 'Usuario Inactivo Detectado',
+                        text: res.msg,
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonColor: '#6C1D45',
+                        cancelButtonColor: '#6c757d',
+                        confirmButtonText: 'Sí, reactivar cuenta',
+                        cancelButtonText: 'No, cancelar'
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            // Cambiamos la petición a REACTIVAR
+                            document.getElementById('peticion_input').value = 'REACTIVATE_USER';
+                            // Asignamos el ID del usuario inactivo que nos mandó PHP
+                            document.getElementById('id_usuar_input').value = res.id_usuar_reactivar;
+                            
+                            // Volvemos a procesar el formulario automáticamente
+                            asyncProcessForm(formUsuario, '_controller/AdminUsuariosAsync.php', recargarTablaUsuarios);
+                        }
+                    });
+                }
+            });
         });
     }
 
