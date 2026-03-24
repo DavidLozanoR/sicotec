@@ -88,7 +88,7 @@ class DispositivosFormController {
             $paramsRed = [$this->id_disp];
         }
         
-        $condicionRed .= " AND LOWER(r.est) != 'inactivo' ORDER BY v.nom_vlan ASC, INET_ATON(r.ip) ASC";
+        $condicionRed .= " AND LOWER(r.est) != 'inactivo' AND LOWER(r.est) != 'reservado' ORDER BY v.nom_vlan ASC, INET_ATON(r.ip) ASC";
         $redes_disponibles = $model->seleccionaRegistrosJoin($tablaRed, $joinsRed, $camposRed, $condicionRed, $paramsRed);
         
         $campos_po = ["id_po", "id_dep", "TRIM(CONCAT(nombres, ' ', ape_pa, ' ', COALESCE(ape_ma, ''))) AS nombre_completo"];
