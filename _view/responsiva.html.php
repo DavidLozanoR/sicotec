@@ -3,6 +3,7 @@ $personal = $personal ?? [];
 $id_sub_actual = $id_sub_actual ?? 4;
 ?>
 <link rel="stylesheet" href="css/dispositivos.css">
+<link rel="stylesheet" href="css/responsiva.css">
 
 <div class="container-fluid px-4 py-3">
     <input type="hidden" id="id_sub_responsiva" value="<?php echo $id_sub_actual; ?>">
@@ -134,58 +135,3 @@ $id_sub_actual = $id_sub_actual ?? 4;
         </div>
     </div>
 </div>
-
-<style>
-    .cursor-pointer { cursor: pointer; }
-    .border-transparent { border-color: transparent !important; }
-    
-    .po-item.active {
-        background-color: #f8f9fa;
-        border-color: #9D2449 !important;
-        color: #333;
-    }
-    .po-item:hover:not(.active) { background-color: #fdfdfd; }
-    .po-item.active .po-nombre { color: #9D2449; }
-
-    /* =========================================
-       NUEVOS ESTILOS SOLICITADOS
-       ========================================= */
-
-    /* 1. Asegurar que el color guinda se aplique al fondo y texto del badge */
-    .bg-guinda {
-        background-color: #9D2449 !important;
-        color: #ffffff !important;
-    }
-    .text-guinda {
-        color: #9D2449 !important;
-    }
-
-    /* 2. Atrapar las tarjetas creadas por JS y darles el estilo "General" */
-    #contenedor-equipos .card {
-        border-radius: 8px;
-        border: 1px solid #eaeaea !important;
-        border-left: 5px solid #9D2449 !important; /* Borde izquierdo distintivo */
-        box-shadow: 0 2px 5px rgba(0,0,0,0.05) !important;
-        transition: transform 0.2s ease, box-shadow 0.2s ease;
-    }
-    
-    #contenedor-equipos .card:hover {
-        transform: translateY(-4px);
-        box-shadow: 0 8px 15px rgba(0,0,0,0.1) !important;
-    }
-
-    /* Darle un tono rojizo muy tenue al contenedor del icono dentro de la tarjeta */
-    #contenedor-equipos .card .bg-light {
-        background-color: rgba(157, 36, 73, 0.08) !important;
-    }
-
-    /* Botón de transferir con bordes y hover limpios */
-    .btn-outline-guinda {
-        color: #9D2449;
-        border-color: #9D2449;
-    }
-    .btn-outline-guinda:hover {
-        background-color: #9D2449;
-        color: #ffffff;
-    }
-</style>
