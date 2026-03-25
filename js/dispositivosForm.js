@@ -82,12 +82,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function cargarVLANs(selectVlan) {
         selectVlan.innerHTML = '<option value="" selected disabled>-- Seleccione una red --</option>';
-        
         if (typeof redesDisponibles === 'undefined') return;
 
         const grupos = {};
         redesDisponibles.forEach(red => {
-            const nombreGrupo = red.nom_vlan || red.nom_dep || 'General / Sin VLAN';
+            const nombreGrupo = red.nom_vlan || 'General / Sin VLAN';
             if (!grupos[nombreGrupo]) grupos[nombreGrupo] = [];
             grupos[nombreGrupo].push(red);
         });
@@ -113,7 +112,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!id_seg) return;
 
         const redesFiltradas = redesDisponibles.filter(red => red.id_seg == id_seg);
-        
         redesFiltradas.forEach(red => {
             const opt = document.createElement('option');
             opt.value = red.id_red;
@@ -124,11 +122,11 @@ document.addEventListener('DOMContentLoaded', () => {
         selectIp.classList.remove('bg-light');
     }
 
-    function agregarInterfaz() {
+    function agregarInterfaz(datosPreCargados = null) {
         if (!contenedorInterfaces || !templateInterfaz) return;
         
         const numInterfaces = contenedorInterfaces.querySelectorAll('.interfaz-item').length;
-        if (numInterfaces >= 2) {
+        if (!datosPreCargados && numInterfaces >= 2) {
             Swal.fire('Límite alcanzado', 'Solo puedes registrar un máximo de 2 interfaces (Ethernet y WiFi).', 'warning');
             return;
         }
@@ -144,7 +142,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
         cargarVLANs(selectVlan);
 
-        // Validación de tipo duplicado
+        if (datosPreCargados) {
+            selectTipo.value = datosPreCargados.tipo;
+            inputMac.value = datosPreCargados.mac;
+            selectVlan.disabled = false;
+
+            if (datosPreCargados.id_seg && datosPreCargados.id_red) {
+                selectVlan.value = datosPreCargados.id_seg;
+                cargarIPs(datosPreCargados.id_seg, selectIp);
+                
+                if (!Array.from(selectIp.options).some(opt => opt.value == datosPreCargados.id_red)) {
+                    const opt = document.createElement('option');
+                    opt.value = datosPreCargados.id_red;
+                    opt.textContent = datosPreCargados.ip_str || "IP Asignada";
+                    selectIp.appendChild(opt);
+                }
+                selectIp.value = datosPreCargados.id_red;
+            }
+        }
+
         selectTipo.addEventListener('change', function() {
             const valorSeleccionado = this.value;
             const todosLosTipos = Array.from(contenedorInterfaces.querySelectorAll('.select-tipo-conexion'))
@@ -163,13 +179,12 @@ document.addEventListener('DOMContentLoaded', () => {
             selectIp.innerHTML = '<option value="">-- Sin IP --</option>';
             selectIp.disabled = true;
             selectIp.classList.add('bg-light');
-            validarCampoUI(this);
+            if (typeof validarCampoUI === 'function') validarCampoUI(this);
         });
 
-        // Formateo de MAC y habilitación de VLAN
         inputMac.addEventListener('input', function() {
             formatearMAC(this);
-            validarCampoUI(this);
+            if (typeof validarCampoUI === 'function') validarCampoUI(this);
             
             if (this.value.length === 17) {
                 selectVlan.disabled = false;
@@ -182,27 +197,51 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
 
-        // Cambio de VLAN carga IPs
         selectVlan.addEventListener('change', function() {
             cargarIPs(this.value, selectIp);
-            validarCampoUI(this);
+            if (typeof validarCampoUI === 'function') validarCampoUI(this);
         });
 
-        // Eliminar interfaz
         btnEliminar.addEventListener('click', function() {
             nuevoItem.remove();
-            btnAddInterfaz.disabled = false;
+            if (btnAddInterfaz) btnAddInterfaz.disabled = false;
         });
 
         contenedorInterfaces.appendChild(nuevoItem);
 
-        if (contenedorInterfaces.querySelectorAll('.interfaz-item').length >= 2) {
+        if (btnAddInterfaz && contenedorInterfaces.querySelectorAll('.interfaz-item').length >= 2) {
             btnAddInterfaz.disabled = true;
         }
     }
 
     if (btnAddInterfaz) {
-        btnAddInterfaz.addEventListener('click', agregarInterfaz);
+        btnAddInterfaz.addEventListener('click', () => agregarInterfaz(null));
+    }
+
+    if (typeof dispositivoActual !== 'undefined' && dispositivoActual) {
+        const interfacesGuardadas = dispositivoActual.interfaces || [];
+        
+        if (dispositivoActual.mac_ethernet) {
+            const redEth = interfacesGuardadas.find(i => i.tipo_conexion === 'Ethernet');
+            agregarInterfaz({
+                tipo: 'Ethernet',
+                mac: dispositivoActual.mac_ethernet,
+                id_seg: redEth ? redEth.id_seg : null,
+                id_red: redEth ? redEth.id_red : null,
+                ip_str: redEth ? redEth.ip : null
+            });
+        }
+        
+        if (dispositivoActual.mac_wifi) {
+            const redWifi = interfacesGuardadas.find(i => i.tipo_conexion === 'WiFi');
+            agregarInterfaz({
+                tipo: 'WiFi',
+                mac: dispositivoActual.mac_wifi,
+                id_seg: redWifi ? redWifi.id_seg : null,
+                id_red: redWifi ? redWifi.id_red : null,
+                ip_str: redWifi ? redWifi.ip : null
+            });
+        }
     }
 
     // ==========================================
@@ -692,6 +731,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
+            // ========================================================
+            // SOLUCIÓN DE PERMISOS: CAPTURAR E INYECTAR EL ID_SUB
+            // ========================================================
+            // 1. Buscamos si existe un input oculto
+            const inputSub = document.querySelector('input[name="id_sub"]') || document.getElementById('id_sub_actual');
+            if (inputSub) {
+                dataObj.id_sub = inputSub.value;
+            } else {
+                // 2. Si no existe, lo sacamos directamente de la URL (Ej: /dispositivos/formulario/3/)
+                const pathArray = window.location.pathname.split('/');
+                const indexForm = pathArray.indexOf('formulario');
+                if (indexForm !== -1 && pathArray[indexForm + 1]) {
+                    dataObj.id_sub = pathArray[indexForm + 1];
+                } else {
+                    // Valor por defecto en caso de fallo extremo
+                    dataObj.id_sub = 3; 
+                }
+            }
+            // ========================================================
+
             const btnSubmit = document.getElementById('btnGuardarDispositivo');
             const originalBtnText = btnSubmit.innerHTML;
             btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Guardando...';
@@ -701,7 +760,7 @@ document.addEventListener('DOMContentLoaded', () => {
             fetch('_controller/DispositivosAsync.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(dataObj)
+                body: JSON.stringify(dataObj) // <-- ¡El id_sub ya va incluido aquí!
             })
             .then(response => response.json())
             .then(data => {
@@ -709,7 +768,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     Swal.fire({ icon: 'success', title: '¡Guardado!', text: 'El dispositivo se guardó correctamente.', confirmButtonColor: '#9D2449' })
                     .then(() => window.location.href = 'dispositivos/');
                 } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: data.msg || 'Ocurrió un problema.', confirmButtonColor: '#9D2449' });
+                    Swal.fire({ icon: 'error', title: 'Error de Permisos o Guardado', text: data.msg || 'Ocurrió un problema.', confirmButtonColor: '#9D2449' });
                 }
             })
             .catch(error => {
@@ -723,193 +782,4 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-
-
-    // ==========================================
-    // 1. LÓGICA DINÁMICA DE INTERFACES DE RED (VLAN -> IP)
-    // ==========================================
-
-    function formatearMAC(input) {
-        let value = input.value.replace(/[^a-fA-F0-9]/g, '').toUpperCase();
-        let formatted = value.match(/.{1,2}/g);
-        input.value = formatted ? formatted.join(':').substring(0, 17) : '';
-    }
-
-    function cargarVLANs(selectVlan) {
-        selectVlan.innerHTML = '<option value="" selected disabled>-- Seleccione una red --</option>';
-        if (typeof redesDisponibles === 'undefined') return;
-
-        const grupos = {};
-        redesDisponibles.forEach(red => {
-            const nombreGrupo = red.nom_vlan || 'General / Sin VLAN';
-            if (!grupos[nombreGrupo]) grupos[nombreGrupo] = [];
-            grupos[nombreGrupo].push(red);
-        });
-
-        for (const [grupo, redes] of Object.entries(grupos)) {
-            const optgroup = document.createElement('optgroup');
-            optgroup.label = grupo;
-            
-            const vlansUnicas = [...new Set(redes.map(r => r.id_seg))];
-            vlansUnicas.forEach(id_seg => {
-                if (!id_seg) return;
-                const opt = document.createElement('option');
-                opt.value = id_seg;
-                opt.textContent = `Segmento de Red (ID: ${id_seg})`;
-                optgroup.appendChild(opt);
-            });
-            selectVlan.appendChild(optgroup);
-        }
-    }
-
-    function cargarIPs(id_seg, selectIp) {
-        selectIp.innerHTML = '<option value="">-- Seleccione una IP --</option>';
-        if (!id_seg) return;
-
-        const redesFiltradas = redesDisponibles.filter(red => red.id_seg == id_seg);
-        redesFiltradas.forEach(red => {
-            const opt = document.createElement('option');
-            opt.value = red.id_red;
-            opt.textContent = red.ip;
-            selectIp.appendChild(opt);
-        });
-        selectIp.disabled = false;
-        selectIp.classList.remove('bg-light');
-    }
-
-    // MODIFICADO: Ahora puede recibir un objeto con datos precargados para el modo EDICIÓN
-    function agregarInterfaz(datosPreCargados = null) {
-        if (!contenedorInterfaces || !templateInterfaz) return;
-        
-        const numInterfaces = contenedorInterfaces.querySelectorAll('.interfaz-item').length;
-        if (!datosPreCargados && numInterfaces >= 2) {
-            Swal.fire('Límite alcanzado', 'Solo puedes registrar un máximo de 2 interfaces (Ethernet y WiFi).', 'warning');
-            return;
-        }
-
-        const clon = templateInterfaz.content.cloneNode(true);
-        const nuevoItem = clon.querySelector('.interfaz-item');
-        
-        const selectTipo = nuevoItem.querySelector('.select-tipo-conexion');
-        const inputMac = nuevoItem.querySelector('.input-mac');
-        const selectVlan = nuevoItem.querySelector('.select-vlan');
-        const selectIp = nuevoItem.querySelector('.select-ip');
-        const btnEliminar = nuevoItem.querySelector('.btn-eliminar-interfaz');
-
-        cargarVLANs(selectVlan);
-
-        // Si es edición y hay datos guardados, pre-llenamos el bloque
-        if (datosPreCargados) {
-            selectTipo.value = datosPreCargados.tipo;
-            inputMac.value = datosPreCargados.mac;
-            selectVlan.disabled = false;
-
-            if (datosPreCargados.id_seg && datosPreCargados.id_red) {
-                selectVlan.value = datosPreCargados.id_seg;
-                // Al cargar las IPs precargadas, nos aseguramos de incluir también la IP actual 
-                // por si la red ya está "llena" y no viene en las disponibles
-                cargarIPs(datosPreCargados.id_seg, selectIp);
-                
-                // Si la IP no está en las disponibles (porque ya es suya), la forzamos visualmente
-                if (!Array.from(selectIp.options).some(opt => opt.value == datosPreCargados.id_red)) {
-                    const opt = document.createElement('option');
-                    opt.value = datosPreCargados.id_red;
-                    opt.textContent = datosPreCargados.ip_str || "IP Asignada";
-                    selectIp.appendChild(opt);
-                }
-                
-                selectIp.value = datosPreCargados.id_red;
-            }
-        }
-
-        // Validación de tipo duplicado
-        selectTipo.addEventListener('change', function() {
-            const valorSeleccionado = this.value;
-            const todosLosTipos = Array.from(contenedorInterfaces.querySelectorAll('.select-tipo-conexion'))
-                                       .filter(select => select !== this)
-                                       .map(select => select.value);
-
-            if (todosLosTipos.includes(valorSeleccionado)) {
-                Swal.fire('Tipo Duplicado', `Ya existe una interfaz registrada como ${valorSeleccionado}.`, 'error');
-                this.value = ''; 
-                return;
-            }
-
-            inputMac.value = '';
-            selectVlan.value = '';
-            selectVlan.disabled = true;
-            selectIp.innerHTML = '<option value="">-- Sin IP --</option>';
-            selectIp.disabled = true;
-            selectIp.classList.add('bg-light');
-            if (typeof validarCampoUI === 'function') validarCampoUI(this);
-        });
-
-        // Formateo de MAC y habilitación de VLAN
-        inputMac.addEventListener('input', function() {
-            formatearMAC(this);
-            if (typeof validarCampoUI === 'function') validarCampoUI(this);
-            
-            if (this.value.length === 17) {
-                selectVlan.disabled = false;
-            } else {
-                selectVlan.disabled = true;
-                selectVlan.value = '';
-                selectIp.innerHTML = '<option value="">-- Sin IP --</option>';
-                selectIp.disabled = true;
-                selectIp.classList.add('bg-light');
-            }
-        });
-
-        // Cambio de VLAN carga IPs
-        selectVlan.addEventListener('change', function() {
-            cargarIPs(this.value, selectIp);
-            if (typeof validarCampoUI === 'function') validarCampoUI(this);
-        });
-
-        // Eliminar interfaz
-        btnEliminar.addEventListener('click', function() {
-            nuevoItem.remove();
-            if (btnAddInterfaz) btnAddInterfaz.disabled = false;
-        });
-
-        contenedorInterfaces.appendChild(nuevoItem);
-
-        if (btnAddInterfaz && contenedorInterfaces.querySelectorAll('.interfaz-item').length >= 2) {
-            btnAddInterfaz.disabled = true;
-        }
-    }
-
-    if (btnAddInterfaz) {
-        btnAddInterfaz.addEventListener('click', () => agregarInterfaz(null));
-    }
-
-    // ==========================================
-    // NUEVO: PRE-CARGAR INTERFACES EN MODO EDICIÓN
-    // ==========================================
-    if (typeof dispositivoActual !== 'undefined' && dispositivoActual) {
-        const interfacesGuardadas = dispositivoActual.interfaces || [];
-        
-        if (dispositivoActual.mac_ethernet) {
-            const redEth = interfacesGuardadas.find(i => i.tipo_conexion === 'Ethernet');
-            agregarInterfaz({
-                tipo: 'Ethernet',
-                mac: dispositivoActual.mac_ethernet,
-                id_seg: redEth ? redEth.id_seg : null,
-                id_red: redEth ? redEth.id_red : null,
-                ip_str: redEth ? redEth.ip : null
-            });
-        }
-        
-        if (dispositivoActual.mac_wifi) {
-            const redWifi = interfacesGuardadas.find(i => i.tipo_conexion === 'WiFi');
-            agregarInterfaz({
-                tipo: 'WiFi',
-                mac: dispositivoActual.mac_wifi,
-                id_seg: redWifi ? redWifi.id_seg : null,
-                id_red: redWifi ? redWifi.id_red : null,
-                ip_str: redWifi ? redWifi.ip : null
-            });
-        }
-    }
-    
 });

@@ -4,7 +4,7 @@ if (session_status() === PHP_SESSION_NONE) {
 }
 
 require_once __DIR__ . "/../config/Global.php";
-require_once "MainModel.php";
+require_once "DispositivosController.php"; // Corrección de ruta crítica
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -16,202 +16,80 @@ if (!isset($_SESSION['usuario'])) {
 $input = json_decode(file_get_contents('php://input'), true);
 
 if (!$input) {
-    echo json_encode(["status" => "error", "msg" => "Formato de datos no válido."]);
+    echo json_encode(["status" => "error", "msg" => "Formato de datos no válido o vacío."]);
     exit;
 }
 
-$modelo = new MainModel();
+$controller = new DispositivosController();
 
 $peticion = $input['peticion'] ?? '';
 $id_sub = $input['id_sub'] ?? null;
 $id_disp = $input['id_disp'] ?? null;
 
-$id_u_int = $_SESSION['usuario']['id_usuar'] ?? null;
-$id_rol = $_SESSION['usuario']['id_rol'] ?? null;
-
-$verificarPermiso = function($id_permiso_requerido) use ($modelo, $id_rol, $id_sub) {
-    if (!$id_rol || !$id_sub) return false;
-    $permiso = $modelo->seleccionaRegistros(
-        "rol_submodulo_permiso", 
-        ["id_perm"], 
-        "id_rol = ? AND id_sub = ? AND id_perm = ?", 
-        [$id_rol, $id_sub, $id_permiso_requerido]
-    );
-    return (!empty($permiso) && count($permiso) > 0);
-};
-
-date_default_timezone_set('America/Mexico_City');
-$fec_u_int = date('Y-m-d H:i:s');
-
-$asig_po_id = !empty($input['asig_po_id']) ? $input['asig_po_id'] : null;
-$resp_po_id = !empty($input['resp_po_id']) ? $input['resp_po_id'] : null;
-
-// ==============================================================
-// LÓGICA NUEVA: EXTRAEMOS LAS MACS DE LAS INTERFACES DEL FRONTEND
-// ==============================================================
-$interfaces = $input['interfaces_red'] ?? [];
-$mac_ethernet = null;
-$mac_wifi = null;
-
-foreach ($interfaces as $intf) {
-    if ($intf['tipo_conexion'] === 'Ethernet') $mac_ethernet = trim($intf['mac']);
-    if ($intf['tipo_conexion'] === 'WiFi') $mac_wifi = trim($intf['mac']);
-}
-
-$camposDispositivo = [
-    "nom_host", "marca", "modelo", "num_ser", "num_inv", "mac_ethernet", "mac_wifi", "dom", 
-    "especs_hw", "resp_po_id", "asig_po_id", "id_u_int", "fec_u_int"
-];
-
-$paramsDispositivo = [
-    trim($input['nom_host'] ?? ''), trim($input['marca'] ?? ''), trim($input['modelo'] ?? ''),
-    trim($input['num_ser'] ?? ''), trim($input['num_inv'] ?? ''), $mac_ethernet, $mac_wifi,
-    trim($input['dom'] ?? ''), trim($input['especs_hw'] ?? ''), $resp_po_id, $asig_po_id, $id_u_int, $fec_u_int
-];
-
-try {
-    if ($peticion === 'INSERT') {
-        if (!$verificarPermiso(2)) {
-            throw new Exception("Acceso denegado: No cuenta con permisos para agregar nuevos dispositivos.");
+switch ($peticion) {
+    
+    case 'INSERT':
+        if (!$controller->verificarPermiso($id_sub, 2)) {
+            echo json_encode(["status" => "error", "msg" => "Acceso denegado: No cuenta con permisos para agregar nuevos dispositivos."]);
+            exit;
         }
+        $interfaces = $input['interfaces_red'] ?? [];
+        $asignaciones = $input['asignaciones_software'] ?? [];
+        echo json_encode($controller->insertarDispositivo($id_sub, $input, $interfaces, $asignaciones));
+        break;
 
-        $detalle = "Registro de nuevo dispositivo. Host: " . ($input['nom_host'] ?? 'N/A');
-        $id_disp = $modelo->agregaRegistroConBitacora("dispositivos", $camposDispositivo, $paramsDispositivo, $id_sub, $detalle);
-        if (!$id_disp) throw new Exception("Error al registrar el dispositivo en la base de datos.");
-
-    } elseif ($peticion === 'UPDATE') {
-        
-        if (empty($id_disp)) throw new Exception("ID de dispositivo requerido para actualizar.");
-        
-        $detalle = "Actualización de dispositivo. Host: " . ($input['nom_host'] ?? 'N/A');
-        $paramsUpdate = array_merge($paramsDispositivo, [$id_disp]);
-        $exito = $modelo->actualizaRegistroConBitacora("dispositivos", $camposDispositivo, "id_disp = ?", $paramsUpdate, $id_sub, $detalle);
-        if (!$exito) throw new Exception("No se detectaron cambios o hubo un error al actualizar.");
-
-    } elseif ($peticion === 'BAJA_DISP') {
-        if (!$verificarPermiso(3)) {
-            throw new Exception("Acceso denegado: No cuenta con los privilegios para dar de baja equipos.");
+    case 'UPDATE':
+        if (!$controller->verificarPermiso($id_sub, 1)) {
+            echo json_encode(["status" => "error", "msg" => "Acceso denegado: No cuenta con permisos para editar dispositivos."]);
+            exit;
         }
-
-        if (empty($id_disp) || empty($id_sub)) throw new Exception("Datos insuficientes para procesar la baja del dispositivo.");
-
-        $disp_actual = $modelo->seleccionaRegistros("dispositivos", ["*"], "id_disp = ?", [$id_disp]);
-        if (empty($disp_actual)) throw new Exception("El dispositivo no existe o ya fue eliminado.");
-        $d = $disp_actual[0];
-
-        // LÓGICA NUEVA PARA BITÁCORA
-        $red_actual = $modelo->seleccionaRegistros("infraestructura_red", ["tipo_conexion", "ip"], "id_disp = ?", [$id_disp]);
-        $ip_snapshot = '';
-        if (!empty($red_actual)) {
-            foreach($red_actual as $r) {
-                $ip_snapshot .= $r['tipo_conexion'] . ": " . $r['ip'] . " | ";
-            }
-            $ip_snapshot = rtrim($ip_snapshot, " | ");
-        } else {
-            $ip_snapshot = 'Ninguna';
+        if (empty($id_disp)) {
+            echo json_encode(["status" => "error", "msg" => "ID de dispositivo requerido para actualizar."]);
+            exit;
         }
+        $interfaces = $input['interfaces_red'] ?? [];
+        $asignaciones = $input['asignaciones_software'] ?? [];
+        echo json_encode($controller->actualizarDispositivo($id_sub, $id_disp, $input, $interfaces, $asignaciones));
+        break;
 
-        $servicios_actuales = $modelo->seleccionaRegistros("dispositivo_servicio", ["id_serv", "id_ver_instalada"], "id_disp = ?", [$id_disp]);
-        $serv_snapshot = empty($servicios_actuales) ? 'Ninguno' : json_encode($servicios_actuales);
+    case 'BAJA_DISP':
+        if (!$controller->verificarPermiso($id_sub, 3)) {
+            echo json_encode(["status" => "error", "msg" => "Acceso denegado: No cuenta con los privilegios para dar de baja equipos."]);
+            exit;
+        }
+        if (empty($id_disp) || empty($id_sub)) {
+            echo json_encode(["status" => "error", "msg" => "Datos insuficientes para procesar la baja del dispositivo."]);
+            exit;
+        }
+        echo json_encode($controller->bajaDispositivo($id_sub, $id_disp));
+        break;
 
-        $detalle_fotografia = "RESPALDO PRE-BAJA | Host: {$d['nom_host']} | Marca: {$d['marca']} | Modelo: {$d['modelo']} | Serie: {$d['num_ser']} | Inv: {$d['num_inv']} | MAC Eth: {$d['mac_ethernet']} | MAC WiFi: {$d['mac_wifi']} | IP Liberadas: {$ip_snapshot} | Asig_PO: {$d['asig_po_id']} | Resp_PO: {$d['resp_po_id']} | Software: {$serv_snapshot}";
-
-        $modelo->registrarBitacora($id_sub, 'BACKUP_BAJA', $detalle_fotografia);
-        // Desvinculamos el tipo_conexion al dar de baja
-        $modelo->actualizaRegistro("infraestructura_red", ["id_disp", "tipo_conexion"], "id_disp = ?", [null, null, $id_disp]);
-        $modelo->borraRegistroConBitacora("dispositivo_servicio", "id_disp = ?", [$id_disp], $id_sub, "Limpieza de software vinculada al dispositivo: {$d['nom_host']}");
-        
-        $exito_baja = $modelo->borraRegistroConBitacora("dispositivos", "id_disp = ?", [$id_disp], $id_sub, "Baja definitiva del dispositivo: {$d['nom_host']}");
-        if (!$exito_baja) throw new Exception("Ocurrió un error al intentar eliminar el dispositivo físico.");
-
-        echo json_encode(["status" => "success", "msg" => "El dispositivo fue dado de baja. La información fue respaldada en bitácora."]);
-        exit;
-
-    } 
-    elseif ($peticion === 'GET_VERSIONES_ACTUALIZAR') {
+    case 'GET_VERSIONES_ACTUALIZAR':
         $id_serv = $input['id_serv'] ?? null;
-        if (empty($id_serv)) throw new Exception("ID de servicio no proporcionado.");
-        $versiones = $modelo->seleccionaRegistros("versiones", ["id_ver", "ver"], "id_serv = ? AND obs = 0 ORDER BY ver DESC", [$id_serv]);
-        echo json_encode(["status" => "success", "data" => $versiones ?: []]);
-        exit;
-
-    } elseif ($peticion === 'UPDATE_VERSION_DISPOSITIVO') {
-        if (!$verificarPermiso(1)) {
-            throw new Exception("Acceso denegado: No cuenta con permisos para modificar el software instalado.");
+        if (empty($id_serv)) {
+            echo json_encode(["status" => "error", "msg" => "ID de servicio no proporcionado."]);
+            exit;
         }
-        $id_disp = $input['id_disp'] ?? null;
+        echo json_encode($controller->obtenerVersionesActualizar($id_serv));
+        break;
+
+    case 'UPDATE_VERSION_DISPOSITIVO':
+        if (!$controller->verificarPermiso($id_sub, 1)) {
+            echo json_encode(["status" => "error", "msg" => "Acceso denegado: No cuenta con permisos para modificar el software instalado."]);
+            exit;
+        }
         $id_serv = $input['id_serv'] ?? null;
         $id_ver_nueva = $input['id_ver_nueva'] ?? null;
 
         if (empty($id_disp) || empty($id_serv) || empty($id_ver_nueva)) {
-            throw new Exception("Faltan datos para actualizar la versión.");
+            echo json_encode(["status" => "error", "msg" => "Faltan datos para actualizar la versión."]);
+            exit;
         }
+        echo json_encode($controller->actualizarVersionDispositivo($id_sub, $id_disp, $id_serv, $id_ver_nueva));
+        break;
 
-        $disp_info = $modelo->seleccionaRegistros("dispositivos", ["nom_host"], "id_disp = ?", [$id_disp]);
-        $serv_info = $modelo->seleccionaRegistros("servicios", ["nom"], "id_serv = ?", [$id_serv]);
-        $ver_info = $modelo->seleccionaRegistros("versiones", ["ver"], "id_ver = ?", [$id_ver_nueva]);
-
-        $nom_host = $disp_info[0]['nom_host'] ?? "ID $id_disp";
-        $nom_serv = $serv_info[0]['nom'] ?? "ID $id_serv";
-        $nom_ver = $ver_info[0]['ver'] ?? "ID $id_ver_nueva";
-
-        $exito = $modelo->actualizaRegistro(
-            "dispositivo_servicio",
-            ["id_ver_instalada"],
-            "id_disp = ? AND id_serv = ?",
-            [$id_ver_nueva, $id_disp, $id_serv]
-        );
-
-        if ($exito !== false) {
-            $modelo->registrarBitacora($id_sub, 'UPDATE', "Actualizó '{$nom_serv}' a la versión '{$nom_ver}' en el equipo '{$nom_host}'");
-            echo json_encode(["status" => "success", "msg" => "El software fue actualizado a la versión {$nom_ver} correctamente."]);
-        } else {
-            throw new Exception("Error al intentar actualizar la versión.");
-        }
-        exit;
-    }
-    else {
-        throw new Exception("Petición no reconocida.");
-    }
-
-    // ==============================================================
-    // LOGICA NUEVA PARA ASIGNAR IP Y TIPO DE CONEXION
-    // ==============================================================
-    // 1. Liberamos todas las IPs (y sus etiquetas) que tenía este equipo
-    $modelo->actualizaRegistro("infraestructura_red", ["id_disp", "tipo_conexion"], "id_disp = ?", [null, null, $id_disp]);
-
-    // 2. Asignamos las nuevas según el array enviado desde JavaScript
-    if (!empty($interfaces) && is_array($interfaces)) {
-        foreach ($interfaces as $intf) {
-            if (!empty($intf['id_red'])) {
-                $modelo->actualizaRegistro(
-                    "infraestructura_red", 
-                    ["id_disp", "tipo_conexion"], 
-                    "id_red = ?", 
-                    [$id_disp, $intf['tipo_conexion'], $intf['id_red']]
-                );
-            }
-        }
-    }
-
-    // Código de software intacto...
-    $modelo->borraRegistro("dispositivo_servicio", "id_disp = ?", [$id_disp]);
-    $asignaciones = $input['asignaciones_software'] ?? [];
-    if (!empty($asignaciones) && is_array($asignaciones)) {
-        foreach ($asignaciones as $software) {
-            if (!empty($software['id_serv']) && !empty($software['id_ver_instalada'])) {
-                $modelo->agregaRegistro(
-                    "dispositivo_servicio", 
-                    ["id_disp", "id_serv", "id_ver_instalada"], 
-                    [$id_disp, $software['id_serv'], $software['id_ver_instalada']]
-                );
-            }
-        }
-    }
-
-    echo json_encode(["status" => "success", "msg" => "El dispositivo fue guardado correctamente."]);
-
-} catch (Exception $e) {
-    echo json_encode(["status" => "error", "msg" => $e->getMessage()]);
+    default:
+        echo json_encode(["status" => "error", "msg" => "Petición no reconocida o inválida."]);
+        break;
 }
 ?>
