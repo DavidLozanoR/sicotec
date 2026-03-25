@@ -40,7 +40,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     Toast.fire({ icon: 'success', title: 'Fila agregada' });
                     cargarDiccionario(true);
                 } else {
-                    Toast.fire({ icon: 'error', title: data.message || 'Error al agregar' });
+                    // MODIFICADO: Mostrar mensaje real del servidor (ej. Acceso Denegado)
+                    Swal.fire({ icon: 'error', title: 'Acción rechazada', text: data.message || 'Error al agregar', confirmButtonColor: '#9D2449' });
                 }
             })
             .catch(error => console.error('Error:', error));
@@ -85,7 +86,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 Toast.fire({ icon: 'success', title: 'Registro eliminado' });
                                 cargarDiccionario();
                             } else {
-                                Toast.fire({ icon: 'error', title: data.message || 'Error al borrar' });
+                                // MODIFICADO: Mostrar mensaje real del servidor (ej. Acceso Denegado)
+                                Swal.fire({ icon: 'error', title: 'Acción rechazada', text: data.message || 'Error al borrar', confirmButtonColor: '#9D2449' });
                             }
                         })
                         .catch(error => console.error('Error:', error));
@@ -157,7 +159,11 @@ document.addEventListener('DOMContentLoaded', () => {
                         setTimeout(() => td.style.backgroundColor = '', 500);
                     });
                 } else {
-                    Toast.fire({ icon: 'error', title: 'Error al actualizar uno o más campos' });
+                    // MODIFICADO: Extraer el primer error real que devolvió el PHP (Permisos denegados)
+                    const errorEncontrado = resultados.find(r => r.status === 'error' && r.message);
+                    const msgError = errorEncontrado ? errorEncontrado.message : 'Error al actualizar uno o más campos';
+                    
+                    Swal.fire({ icon: 'error', title: 'Error al Guardar', text: msgError, confirmButtonColor: '#9D2449' });
                 }
             })
             .catch(error => {
@@ -181,48 +187,58 @@ document.addEventListener('DOMContentLoaded', () => {
                 const data = JSON.parse(text);
                 tbody.innerHTML = '';
                 
-                if (data.status === 'success' && data.data.length > 0) {
-                    data.data.forEach((fila, index) => {
-                        const tr = document.createElement('tr');
-                        tr.innerHTML = `
-                            <td class="p-2 align-middle">
-                                <div class="d-flex align-items-start">
-                                    <i class="fas fa-trash-alt text-danger btn-borrar-nom me-2 mt-1" 
-                                       data-id="${fila.Id_nom}" 
-                                       style="cursor: pointer;" 
-                                       title="Eliminar nomenclatura"></i>
-                                    <div contenteditable="true" data-id="${fila.Id_nom}" data-campo="nom" class="flex-grow-1" style="outline: none; min-height: 20px;">${fila.nom}</div>
-                                </div>
-                            </td>
-                            <td class="p-2 align-middle">
-                                <div contenteditable="true" data-id="${fila.Id_nom}" data-campo="signif" style="outline: none; min-height: 20px;">${fila.signif}</div>
-                            </td>
-                            <td class="p-2 align-middle">
-                                <div class="d-flex align-items-start">
-                                    <div contenteditable="true" data-id="${fila.Id_nom}" data-campo="notas" class="flex-grow-1" style="outline: none; min-height: 20px;">${fila.notas}</div>
-                                    <i class="fas fa-save text-success btn-guardar-nom ms-2 mt-1 d-none" 
-                                       data-id="${fila.Id_nom}" 
-                                       style="cursor: pointer; font-size: 1.1rem;" 
-                                       title="Guardar fila"></i>
-                                </div>
-                            </td>
-                        `;
-                        tbody.appendChild(tr);
+                if (data.status === 'success') {
+                    if (data.data.length > 0) {
+                        data.data.forEach((fila, index) => {
+                            const tr = document.createElement('tr');
+                            tr.innerHTML = `
+                                <td class="p-2 align-middle">
+                                    <div class="d-flex align-items-start">
+                                        <i class="fas fa-trash-alt text-danger btn-borrar-nom me-2 mt-1" 
+                                           data-id="${fila.Id_nom}" 
+                                           style="cursor: pointer;" 
+                                           title="Eliminar nomenclatura"></i>
+                                        <div contenteditable="true" data-id="${fila.Id_nom}" data-campo="nom" class="flex-grow-1" style="outline: none; min-height: 20px;">${fila.nom}</div>
+                                    </div>
+                                </td>
+                                <td class="p-2 align-middle">
+                                    <div contenteditable="true" data-id="${fila.Id_nom}" data-campo="signif" style="outline: none; min-height: 20px;">${fila.signif}</div>
+                                </td>
+                                <td class="p-2 align-middle">
+                                    <div class="d-flex align-items-start">
+                                        <div contenteditable="true" data-id="${fila.Id_nom}" data-campo="notas" class="flex-grow-1" style="outline: none; min-height: 20px;">${fila.notas}</div>
+                                        <i class="fas fa-save text-success btn-guardar-nom ms-2 mt-1 d-none" 
+                                           data-id="${fila.Id_nom}" 
+                                           style="cursor: pointer; font-size: 1.1rem;" 
+                                           title="Guardar fila"></i>
+                                    </div>
+                                </td>
+                            `;
+                            tbody.appendChild(tr);
 
-                        if (focusNew && index === 0) {
-                            const cell = tr.querySelector('div[contenteditable]');
-                            setTimeout(() => {
-                                cell.focus();
-                                document.execCommand('selectAll', false, null);
-                            }, 50);
-                        }
-                    });
+                            if (focusNew && index === 0) {
+                                const cell = tr.querySelector('div[contenteditable]');
+                                setTimeout(() => {
+                                    cell.focus();
+                                    document.execCommand('selectAll', false, null);
+                                }, 50);
+                            }
+                        });
+                    } else {
+                        tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted">No hay nomenclaturas registradas.</td></tr>';
+                    }
                 } else {
-                    tbody.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted">No hay nomenclaturas registradas.</td></tr>';
+                    // ==========================================
+                    // SI NO TIENE PERMISO PARA LEER/MOSTRAR:
+                    // ==========================================
+                    tbody.innerHTML = `<tr><td colspan="3" class="text-center py-5 text-danger fw-bold"><i class="fas fa-lock fa-2x d-block mb-2 text-muted"></i>${data.message || 'Acceso denegado'}</td></tr>`;
+                    
+                    // Si no tiene permisos para ver, tampoco debería ver el botón de agregar
+                    if (btnAgregar) btnAgregar.style.display = 'none';
                 }
             } catch (e) {
                 console.error("Server sent invalid JSON:", text);
-                tbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">Error al procesar datos del servidor.</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="3" class="text-center text-danger">Error de formato al procesar datos del servidor.</td></tr>';
             }
         })
         .catch(error => {
