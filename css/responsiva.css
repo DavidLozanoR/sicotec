@@ -15,8 +15,8 @@
 
     /* 1. Asegurar que el color guinda se aplique al fondo y texto del badge */
     .bg-guinda {
-        background-color: #9D2449 !important;
-        color: #ffffff !important;
+        background-color: #9D2449;
+        color: #ffffff;
     }
     .text-guinda {
         color: #9D2449 !important;
