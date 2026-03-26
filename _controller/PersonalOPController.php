@@ -42,61 +42,30 @@ function __construct($slug=null){
     }
 
     private function traerContenido($model){
-        // Buscamos en la tabla Submodulos aquel que coincida con la ruta de este módulo
-        $consultaSub = $model->seleccionaRegistros("Submodulos", ["id_sub"], "slug = ?", ["$this->slug"]);
-        
-        // Si la consulta arroja resultados, extraemos el ID. Si por alguna razón falla, usamos 1 como respaldo de seguridad.
-        $id_sub_actual = (!empty($consultaSub)) ? $consultaSub[0]['id_sub'] : 1;
-        // 1. Obtener catálogos para los filtros (Selects)
-        $departamentos = $model->seleccionaRegistros("Departamentos", ["id_dep", "nom_dep"]);
-        //$segmentos = $model->seleccionaRegistros("Segmentos", ["id_seg", "ip_ini", "ip_lim"]);
+            // Buscamos en la tabla Submodulos aquel que coincida con la ruta de este módulo
+            $consultaSub = $model->seleccionaRegistros("Submodulos", ["id_sub"], "slug = ?", ["$this->slug"]);
+            $id_sub_actual = (!empty($consultaSub)) ? $consultaSub[0]['id_sub'] : 1;
+            
+            // 1. Obtener catálogos para los filtros (Selects)
+            $departamentos = $model->seleccionaRegistros("Departamentos", ["id_dep", "nom_dep"]);
 
-        // 2. Preparamos el JOIN para traer los datos del personal + el nombre de su departamento
-        $tablaPrincipal = "Personal_Operativo po";
-        $joins = [
-            "JOIN Departamentos d ON po.id_dep = d.id_dep"
-        ];
-        $campos = [
-            "po.id_po", 
-            "po.num_cobro", 
-            "po.nombres", 
-            "po.ape_pa", 
-            "po.ape_ma", 
-            "po.puesto",
-            "po.estatus",
-            "d.nom_dep" 
-        ];
-        
-        // Filtramos solo el personal activo (borrado lógico)
-        $condicion = "po.estatus = ?";
-        $params = [1];
-        
-        $lista_personal = $model->seleccionaRegistrosJoin($tablaPrincipal, $joins, $campos, $condicion, $params);
-        
-        // 3. Contar los equipos asignados a cada empleado
-        if ($lista_personal) {
-            foreach ($lista_personal as $index => $po) {
-                // Buscamos cuántos dispositivos tiene asignados este empleado
-                $equipos = $model->seleccionaRegistros(
-                    "Dispositivos", 
-                    ["id_disp"], 
-                    "asig_po_id = ? OR resp_po_id = ?", 
-                    [$po['id_po'], $po['id_po']]
-                );
-                
-                // Si la consulta devuelve resultados, contamos el arreglo, si no, es 0
-                $lista_personal[$index]['total_equipos'] = $equipos ? count($equipos) : 0;
+            // 2. Consulta optimizada usando la vista (elimina el problema N+1 y el bucle)
+            $lista_personal = $model->seleccionaRegistros(
+                "v_personal_operativo_completo", 
+                ["*"], 
+                "estatus = ?", 
+                [1]
+            );
+
+            if (!$lista_personal) {
+                $lista_personal = [];
             }
-        } else {
-            // Si no hay personal, aseguramos que sea un arreglo vacío para no romper la vista
-            $lista_personal = [];
-        }
-        return [
-            'departamentos' => $departamentos,
-            'lista_personal' => $lista_personal
-        ];
 
-    }
+            return [
+                'departamentos' => $departamentos,
+                'lista_personal' => $lista_personal
+            ];
+        }
 
 // ==========================================================
     // LÓGICA DE SEGURIDAD (RBAC)
