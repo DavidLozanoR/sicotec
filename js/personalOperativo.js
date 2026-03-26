@@ -112,41 +112,47 @@ $(document).ready(function() {
     }
 
     function dibujarPaginacion(totalPaginas, activa) {
-        $paginacionContenedor.empty();
+    $paginacionContenedor.empty();
+    if (totalPaginas <= 1) return;
 
-        if (totalPaginas <= 1) return;
+    // Configuración del rango
+    const rangoVisible = 2; // Cuántos números mostrar a los lados de la activa
+    
+    // Botón Anterior
+    $paginacionContenedor.append(`
+        <li class="page-item ${activa === 1 ? 'disabled' : ''}">
+            <button class="page-link text-guinda btn-paginacion" data-page="${activa - 1}">Anterior</button>
+        </li>
+    `);
 
-        // Botón Anterior
-        $paginacionContenedor.append(`
-            <li class="page-item ${activa === 1 ? 'disabled' : ''}">
-                <button class="page-link text-guinda btn-paginacion" data-page="${activa - 1}">Anterior</button>
-            </li>
-        `);
-
-        // Botones Numéricos
-        for (let i = 1; i <= totalPaginas; i++) {
-            if (i === activa) {
-                $paginacionContenedor.append(`
-                    <li class="page-item active">
-                        <button class="page-link bg-guinda border-guinda text-white btn-paginacion" data-page="${i}">${i}</button>
-                    </li>
-                `);
-            } else {
-                $paginacionContenedor.append(`
-                    <li class="page-item">
-                        <button class="page-link text-guinda btn-paginacion" data-page="${i}">${i}</button>
-                    </li>
-                `);
-            }
+    // Lógica de números con elipsis (...)
+    for (let i = 1; i <= totalPaginas; i++) {
+        // Siempre mostrar la primera, la última, y las cercanas a la activa
+        if (i === 1 || i === totalPaginas || (i >= activa - rangoVisible && i <= activa + rangoVisible)) {
+            const esActiva = i === activa;
+            $paginacionContenedor.append(`
+                <li class="page-item ${esActiva ? 'active' : ''}">
+                    <button class="page-link ${esActiva ? 'bg-guinda border-guinda text-white' : 'text-guinda'} btn-paginacion" data-page="${i}">${i}</button>
+                </li>
+            `);
+        } 
+        // Mostrar puntos suspensivos si hay huecos
+        else if (i === activa - rangoVisible - 1 || i === activa + rangoVisible + 1) {
+            $paginacionContenedor.append(`
+                <li class="page-item disabled">
+                    <span class="page-link border-0 text-muted">...</span>
+                </li>
+            `);
         }
-
-        // Botón Siguiente
-        $paginacionContenedor.append(`
-            <li class="page-item ${activa === totalPaginas ? 'disabled' : ''}">
-                <button class="page-link text-guinda btn-paginacion" data-page="${activa + 1}">Siguiente</button>
-            </li>
-        `);
     }
+
+    // Botón Siguiente
+    $paginacionContenedor.append(`
+        <li class="page-item ${activa === totalPaginas ? 'disabled' : ''}">
+            <button class="page-link text-guinda btn-paginacion" data-page="${activa + 1}">Siguiente</button>
+        </li>
+    `);
+}
 
     // ==========================================
     // EVENTOS DE INTERACCIÓN
