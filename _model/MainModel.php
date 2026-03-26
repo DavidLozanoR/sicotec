@@ -151,4 +151,26 @@ class MainModel {
         $res = $this->seleccionaRegistros("Submodulos", ["id_sub"], "slug = ?", [$slug]);
         return ($res && count($res) > 0) ? (int)$res[0]['id_sub'] : null;
     }
+
+
+    // Método para ejecutar consultas personalizadas (como Truncate o Bulk Insert)
+    public function ejecutarConsultaLibre($sql, $params = []) {
+        try {
+            // Llamamos al método ejecutar() que acabamos de crear en MariaDBAux
+            return $this->bd->ejecutar($sql, $params);
+        } catch (Exception $e) {
+            error_log("Error en MainModel::ejecutarConsultaLibre -> " . $e->getMessage());
+            return "ERROR_BD: " . $e->getMessage();
+        }
+    }
+    // Método para ejecutar consultas personalizadas que RETORNAN DATOS (SELECT)
+    public function consultarLibre($sql, $params = []) {
+        try {
+            return $this->bd->consultar($sql, $params);
+        } catch (Exception $e) {
+            error_log("Error en MainModel::consultarLibre -> " . $e->getMessage());
+            return [];
+        }
+    }
+    
 }

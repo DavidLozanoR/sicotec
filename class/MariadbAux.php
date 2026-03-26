@@ -207,5 +207,78 @@ class MariaDBAux {
 			return false;
 		}
 	}
-    
+    /**
+     * Ejecuta una consulta SQL genérica (INSERT masivo, UPDATE, DELETE, TRUNCATE, etc.)
+     * @param string $sql La consulta SQL completa o con placeholders (?)
+     * @param array $params Parámetros opcionales para bindValue
+     * @return bool Retorna true si la ejecución fue exitosa, false en caso contrario
+     */
+    public function ejecutar($sql, $params = []) {
+        try {
+            $cnx = $this->getConnection();
+            if ($cnx === null) return false;
+
+            // Iniciamos transacción para asegurar integridad en operaciones masivas
+            $cnx->beginTransaction();
+
+            $pcmd = $cnx->prepare($sql);
+
+            // Vinculamos parámetros si existen
+            if (!empty($params)) {
+                foreach ($params as $index => $param) {
+                    // MariaDB/MySQL maneja bien PDO::PARAM_STR para la mayoría de los casos
+                    $pcmd->bindValue($index + 1, $param, PDO::PARAM_STR);
+                }
+            }
+
+            $resultado = $pcmd->execute();
+
+            // Confirmamos la transacción
+            $cnx->commit();
+
+            // Limpieza de recursos
+            $pcmd = null;
+            $cnx = null;
+
+            return $resultado;
+        } catch (PDOException $e) {
+            // Si algo falla y hay una transacción activa, revertimos
+            if (isset($cnx) && $cnx->inTransaction()) {
+                $cnx->rollBack();
+            }
+            // Registramos el error en el log del servidor para depuración
+            error_log("Error en MariaDBAux::ejecutar -> " . $e->getMessage());
+            return "ERROR_BD: " . $e->getMessage();
+        }
+    }
+    /**
+     * SELECT LIBRE: Ejecuta un SELECT complejo y devuelve la matriz de datos.
+     */
+    public function consultar($sql, $params = []) {
+        try {
+            $cnx = $this->getConnection();
+            if ($cnx === null) return [];
+
+            $pcmd = $cnx->prepare($sql);
+
+            // Vinculamos parámetros si existen
+            if (!empty($params)) {
+                foreach ($params as $index => $param) {
+                    $pcmd->bindValue($index + 1, $param, PDO::PARAM_STR);
+                }
+            }
+            
+            $pcmd->execute();
+            // Esta es la línea mágica que extrae las filas de la base de datos
+            $res = $pcmd->fetchAll(PDO::FETCH_ASSOC); 
+
+            $pcmd = null;
+            $cnx = null;
+            
+            return $res;
+        } catch (PDOException $ex) {
+            error_log("Error en MariaDBAux::consultar -> " . $ex->getMessage());
+            return []; // Retorna arreglo vacío en caso de error para que el foreach no falle
+        }
+    }
 }

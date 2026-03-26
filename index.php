@@ -3,7 +3,7 @@
 	//verificar sesion valida
 	session_start();
 
-	ini_set("display_errors", E_ALL);
+
 
 	require_once "config/Global.php";
 
@@ -93,6 +93,12 @@
 			if($accion == ""){
                 require_once "_controller/ConsultasController.php";
                 $ctrl = new ConsultasController($slug);
+            }
+		break;
+		case "importar":
+			if($accion == ""){
+                require_once "_controller/ImportacionController.php";
+                $ctrl = new ImportacionController($slug);
             }
 		break;
         default:

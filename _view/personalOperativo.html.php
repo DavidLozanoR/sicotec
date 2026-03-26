@@ -11,6 +11,9 @@ $id_sub_actual = $id_sub_actual ?? 1; // ID del submódulo (por defecto 1 si no 
             <h2 class="h3 font-weight-bold mb-1 text-dark">Gestión de Personal Operativo</h2>
             <p class="text-muted mb-0">Administración integral del directorio de trabajadores y sus equipos</p>
         </div>
+        <a href="importar" class="btn btn-success">
+            <i class="fas fa-file-import me-2"></i> Importar Datos
+        </a>
         <a href="personal/formulario/<?php echo $id_sub_actual; ?>/" class="btn btn-inea d-flex align-items-center gap-2 px-4 shadow-sm">
             <i class="fas fa-plus"></i> Nuevo Personal
         </a>
