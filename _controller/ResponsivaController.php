@@ -62,33 +62,20 @@ class ResponsivaController {
     // CARGA INICIAL (LISTA DE PERSONAL)
     // ==========================================
     private function traerContenido($model) {
-        // Al quitar los alias como "po.", aseguramos que $po['id_po'] exista perfectamente
-        $campos = [
-            "id_po", 
-            "TRIM(CONCAT(nombres, ' ', ape_pa, ' ', COALESCE(ape_ma, ''))) AS nombre_completo", 
-            "num_cobro"
-        ];
         
-        // Usamos seleccionaRegistros (Consulta plana y segura)
-        $personal = $model->seleccionaRegistros("personal_operativo", $campos, "estatus = 1 ORDER BY nombres ASC");
+        // Consumo directo de la vista optimizada. Eliminamos el foreach y las consultas anidadas.
+        $lista_personal = $model->seleccionaRegistros(
+            "v_responsivas_personal", 
+            ["id_po", "nombre_completo", "num_cobro", "total_equipos"], 
+            "estatus = 1 ORDER BY nombre_completo ASC"
+        );
 
-        $lista_personal = [];
-
-        if ($personal) {
-            foreach ($personal as $po) {
-                // Buscamos cuántos equipos tiene a su cargo
-                $equipos = $model->seleccionaRegistros("dispositivos", ["id_disp"], "resp_po_id = ?", [$po['id_po']]);
-                
-                // Asignamos el conteo al array
-                $po['total_equipos'] = $equipos ? count($equipos) : 0;
-                
-                $lista_personal[] = $po;
-            }
+        if (!$lista_personal) {
+            $lista_personal = [];
         }
 
         return ['personal' => $lista_personal];
     }
-
     // ==========================================
     // MÉTODOS PARA ASYNC (AJAX)
     // ==========================================
