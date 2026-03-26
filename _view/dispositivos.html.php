@@ -81,7 +81,7 @@
             </div>
 
             <div class="table-responsive border rounded-3" style="max-height: 500px;">
-                <table class="table table-hover align-middle mb-0 text-nowrap">
+                <table class="table table-hover align-middle mb-0">
                     <thead class="table-light sticky-top" style="z-index: 2;">                        
                         <tr>
                             <th>Hostname</th>
@@ -120,18 +120,18 @@
                                     
                                     <td class="d-none d-lg-table-cell"><?php echo htmlspecialchars($disp['num_ser'] ?? ''); ?></td>
                                     
-                                    <td class="d-none d-md-table-cell">
+                                    <td class="d-none d-md-table-cell" style="white-space: normal; min-width: 170px;">
                                         <?php if (!empty($disp['mac_ethernet'])): ?>
-                                            <div class="text-nowrap mb-1" title="MAC Ethernet">
-                                                <i class="fas fa-ethernet text-secondary me-2"></i> 
-                                                <span class="font-monospace small fw-bold"><?php echo htmlspecialchars($disp['mac_ethernet']); ?></span>
+                                            <div title="MAC Ethernet" style="font-size: 0.8rem; line-height: 1.2;">
+                                                <i class="fas fa-ethernet text-secondary" style="width: 16px;"></i> 
+                                                <span class="font-monospace fw-bold text-dark"><?php echo htmlspecialchars($disp['mac_ethernet']); ?></span>
                                             </div>
                                         <?php endif; ?>
                                         
                                         <?php if (!empty($disp['mac_wifi'])): ?>
-                                            <div class="text-nowrap" title="MAC WiFi">
-                                                <i class="fas fa-wifi text-secondary me-2"></i> 
-                                                <span class="font-monospace small fw-bold"><?php echo htmlspecialchars($disp['mac_wifi']); ?></span>
+                                            <div title="MAC WiFi" class="<?php echo !empty($disp['mac_ethernet']) ? 'mt-1' : ''; ?>" style="font-size: 0.8rem; line-height: 1.2;">
+                                                <i class="fas fa-wifi text-secondary" style="width: 16px;"></i> 
+                                                <span class="font-monospace fw-bold text-dark"><?php echo htmlspecialchars($disp['mac_wifi']); ?></span>
                                             </div>
                                         <?php endif; ?>
 
