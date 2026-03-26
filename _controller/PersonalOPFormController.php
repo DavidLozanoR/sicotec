@@ -88,11 +88,13 @@ public function renderContent(){
                     "LEFT JOIN infraestructura_red r ON d.id_disp = r.id_disp"
                 ];
                 $camposDisp = [
-                    "d.*",               // Trae todo (incluyendo nom_host, marca, modelo, etc.)
-                    "d.mac as dir_mac",  // Asignamos alias a la MAC del equipo
-                    "r.ip as dir_ip"     // Asignamos alias a la IP de la tabla red
+                    "d.*",                                             // Trae todo
+                    "COALESCE(d.mac_ethernet, d.mac_wifi) as dir_mac", // Compatibilidad temporal con vista actual
+                    "d.mac_ethernet",                                  // Extracción directa
+                    "d.mac_wifi",                                      // Extracción directa
+                    "r.ip as dir_ip"                                   // Asignamos alias a la IP de la tabla red
                 ];
-
+                
                 // 1. Equipos que usa (Asignados)
                 $equipos_asignados = $model->seleccionaRegistrosJoin($tablaDisp, $joinsDisp, $camposDisp, "d.asig_po_id = ?", [$this->id_op]);
                 
