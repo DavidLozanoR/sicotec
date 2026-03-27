@@ -13,53 +13,87 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // 0. VALIDACIONES VISUALES Y WIZARD (PESTAÑAS)
     // ==========================================
+    const INEA_REGEX = /^INEA-I-\d{9}-\d{6}-\d{2}$/;
+
     function validarCampoUI(campo) {
-        if (campo.required && campo.value.trim() === '') {
-            campo.classList.remove('is-valid');
-            campo.classList.add('is-invalid');
-        } else {
-            if (campo.value.trim() !== '') {
-                campo.classList.remove('is-invalid');
-                campo.classList.add('is-valid');
-            } else {
-                campo.classList.remove('is-invalid', 'is-valid');
-            }
+        const valor = campo.value.trim();
+        const esInventario = campo.name === 'num_inv';
+
+        // Si el campo no es obligatorio y está vacío, lo dejamos neutral
+        if (!campo.required && valor === '') {
+            campo.classList.remove('is-valid', 'is-invalid');
+            return true; // Se considera válido para permitir continuar
         }
+
+        // Determinar validez: que no esté vacío, y si es inventario, que cumpla el Regex
+        let isValid = valor !== '';
+        if (isValid && esInventario) {
+            isValid = INEA_REGEX.test(valor);
+        }
+
+        // Aplicar clases de forma limpia
+        campo.classList.toggle('is-valid', isValid);
+        campo.classList.toggle('is-invalid', !isValid);
+
+        return isValid;
     }
 
+    // --- MÁSCARA DINÁMICA PARA NÚMERO DE INVENTARIO ---
+    const inputInv = document.querySelector('input[name="num_inv"]');
+    if (inputInv) {
+        inputInv.addEventListener('input', function() {
+            // Extraer hasta 17 dígitos
+            let nums = this.value.replace(/\D/g, '').slice(0, 17);
+
+            if (!nums) {
+                this.value = '';
+            } else {
+                // Reconstruir formato
+                let fmt = 'INEA-I-' + nums.slice(0, 9);
+                if (nums.length > 9)  fmt += '-' + nums.slice(9, 15);
+                if (nums.length > 15) fmt += '-' + nums.slice(15, 17);
+                this.value = fmt;
+            }
+            validarCampoUI(this);
+        });
+
+        inputInv.addEventListener('blur', function() {
+            if (this.value !== '' && !INEA_REGEX.test(this.value)) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: 'Formato Incorrecto',
+                    text: 'El número de inventario debe estar completo: INEA-I-000000000-000000-00',
+                    confirmButtonColor: '#9D2449'
+                });
+            }
+        });
+    }
+    // ---------------------------------------------------
+
     if (formDispositivo) {
-        const formInputs = formDispositivo.querySelectorAll('input[required], select[required], textarea[required]');
-        formInputs.forEach(input => {
-            input.addEventListener('blur', () => validarCampoUI(input));
-            input.addEventListener('change', () => validarCampoUI(input));
-            input.addEventListener('input', () => validarCampoUI(input));
+        const inputsToValidate = formDispositivo.querySelectorAll('input[required], select[required], textarea[required], input[name="num_inv"]');
+        
+        // Asignar eventos de validación en tiempo real en una sola pasada
+        ['blur', 'change', 'input'].forEach(evento => {
+            inputsToValidate.forEach(input => input.addEventListener(evento, () => validarCampoUI(input)));
         });
 
         document.querySelectorAll('.btn-siguiente').forEach(btn => {
             btn.addEventListener('click', function() {
                 const pestanaActual = this.closest('.tab-pane');
-                const nextTabId = this.getAttribute('data-next');
-                let isValid = true;
+                const inputsActuales = pestanaActual.querySelectorAll('input[required], select[required], textarea[required], input[name="num_inv"]');
+                
+                // Array.every() verifica que TODOS los campos devuelvan true en validarCampoUI
+                const todoValido = Array.from(inputsActuales).every(input => validarCampoUI(input));
 
-                const inputsActuales = pestanaActual.querySelectorAll('input[required], select[required], textarea[required]');
-                inputsActuales.forEach(input => {
-                    validarCampoUI(input);
-                    if (input.classList.contains('is-invalid') || input.value.trim() === '') {
-                        isValid = false;
-                    }
-                });
-
-                if (isValid) {
-                    const tabTarget = document.getElementById(nextTabId);
-                    if(tabTarget) {
-                        const nextTab = new bootstrap.Tab(tabTarget);
-                        nextTab.show();
-                    }
+                if (todoValido) {
+                    const tabTarget = document.getElementById(this.dataset.next);
+                    if (tabTarget) new bootstrap.Tab(tabTarget).show();
                 } else {
                     Swal.fire({
                         icon: 'warning',
                         title: 'Información Incompleta',
-                        text: 'Por favor, llene correctamente todos los campos obligatorios de esta sección antes de avanzar.',
+                        text: 'Llene correctamente todos los campos obligatorios y sin errores de formato antes de avanzar.',
                         confirmButtonColor: '#9D2449'
                     });
                 }

@@ -105,7 +105,7 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold small text-dark mb-1">Número de Inventario</label>
-                                        <input type="text" class="form-control focus-guinda border-secondary-subtle font-monospace" name="num_inv" value="<?php echo htmlspecialchars($dispositivo['num_inv'] ?? ''); ?>" maxlength="100">
+                                        <input type="text" class="form-control focus-guinda border-secondary-subtle font-monospace" name="num_inv" value="<?php echo htmlspecialchars($dispositivo['num_inv'] ?? ''); ?>" maxlength="26" placeholder="INEA-I-000000000-000000-00" pattern="^INEA-I-\d{9}-\d{6}-\d{2}$">
                                     </div>
                                     <div class="col-12">
                                         <label class="form-label fw-bold small text-dark mb-1">Especificaciones de Hardware</label>
