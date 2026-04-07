@@ -56,6 +56,7 @@ class AdminUsuariosController {
         if (!empty($password)) {
             if (strlen($password) > 8) return "La contraseña no puede tener más de 8 caracteres.";
             if (strpos($password, ' ') !== false) return "La contraseña no puede contener espacios.";
+            //if($_SESSION["usuario"]['id_rol'] === 1) return "No está permitido cambiar la contraseña a este rol."; //no se permite cambiar las credenciales del rol Administrador
         }
         return true; 
     }

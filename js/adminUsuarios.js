@@ -74,7 +74,9 @@ document.addEventListener("DOMContentLoaded", function () {
                 document.getElementById('nombres_input').value = button.getAttribute('data-nombres');
                 document.getElementById('ape_pa_input').value = button.getAttribute('data-ape_pa');
                 document.getElementById('ape_ma_input').value = button.getAttribute('data-ape_ma');
-                document.getElementById('password_input').required = false;
+                
+                const inputPassword = document.getElementById('password_input');
+                inputPassword.required = false;
 
                 const id_rol_editado = button.getAttribute('data-id_rol');
                 
@@ -85,18 +87,32 @@ document.addEventListener("DOMContentLoaded", function () {
                     selectRol.disabled = true; 
                     hiddenRol.value = '1';
                     hiddenRol.disabled = false; 
+
+                    // --- NUEVO: Bloquear la contraseña para el Administrador ---
+                    inputPassword.disabled = true;
+                    inputPassword.value = '';
+                    inputPassword.placeholder = 'Protegida (No modificable)';
                 } else {
                     optAdmin.disabled = true;
                     optAdmin.style.display = 'none';
                     selectRol.disabled = false;
                     selectRol.value = id_rol_editado;
                     hiddenRol.disabled = true;
+
+                    // --- Habilitar contraseña para otros roles ---
+                    inputPassword.disabled = false;
+                    inputPassword.placeholder = '';
                 }
             } else {
                 document.getElementById('modalUsuarioLabel').textContent = 'Nuevo Usuario';
                 document.getElementById('peticion_input').value = 'INSERT_USUARIO';
                 document.getElementById('id_usuar_input').value = '';
-                document.getElementById('password_input').required = true;
+                
+                // --- Resetear y requerir contraseña para registros nuevos ---
+                const inputPassword = document.getElementById('password_input');
+                inputPassword.required = true;
+                inputPassword.disabled = false;
+                inputPassword.placeholder = '';
 
                 optAdmin.disabled = true;
                 optAdmin.style.display = 'none';

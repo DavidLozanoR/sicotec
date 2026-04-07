@@ -44,6 +44,11 @@ switch ($peticion) {
         $ape_ma = trim($_POST['ape_ma'] ?? '');
         $password = $_POST['password'] ?? '';
         $id_rol = $_POST['id_rol'] ?? '';
+        // Si es el Administrador (rol 1), vaciamos la contraseña automáticamente
+        // para asegurar que el controlador asuma que NO hubo intento de cambio.
+        if ($id_rol == 1) {
+            $password = ''; 
+        }
 
         if (empty($id_sub) || empty($id_usuar) || empty($nom_usuar) || empty($nombres) || empty($ape_pa) || empty($id_rol)) {
             echo json_encode(["result" => 0, "msg" => "Faltan datos obligatorios para actualizar."]);
