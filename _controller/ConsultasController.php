@@ -4,7 +4,7 @@ require_once "MainModel.php";
 class ConsultasController {
 
     const VISTA = "_view/consultas.html.php";
-    const JS = "js/consultas.js";
+    const JS = 'js/consultas.js';
 
     private $slug;
     const PERMISO_CONSULTAR = 4; 
@@ -18,8 +18,8 @@ class ConsultasController {
     public function renderContent() {
         $model = new MainModel();
         
-        $consultaSub = $model->seleccionaRegistros("submodulos", ["id_sub"], "slug = ?", [$this->slug]);
-        $id_sub = (!empty($consultaSub)) ? $consultaSub[0]['id_sub'] : 5; 
+        $id_sub = $model->obtenerIdSubmoduloPorSlug($this->slug);
+        if (!$id_sub) $id_sub = 6; 
 
         if (!$this->verificarPermiso($id_sub, self::PERMISO_CONSULTAR)) {
             echo '<div class="container mt-5">
@@ -31,110 +31,123 @@ class ConsultasController {
             return; 
         }
 
-        $datos = $this->traerCatalogosFiltros($model);
-        $datos['id_sub_actual'] = $id_sub;
-        extract($datos);
-        
+        $departamentos = $model->seleccionaRegistros("departamentos", ["id_dep", "nom_dep"], "1=1 ORDER BY nom_dep ASC");
+        $servicios = $model->seleccionaRegistros("servicios", ["id_serv", "nom", "tipo_serv"], "estatus = 1 ORDER BY tipo_serv, nom ASC");
+        $vlans = $model->seleccionaRegistros("vlans", ["id_vlan", "nom_vlan"], "1=1 ORDER BY nom_vlan ASC");
+        $usuarios = $model->seleccionaRegistros("usuarios", ["id_usuar", "nom_usuar"], "status = 1 ORDER BY nom_usuar ASC");
+
         include self::VISTA;
     }
-
-    public function renderJS() {
+    public function renderJS(){ 
         if (file_exists(self::JS)) { include self::JS; }
     }
 
-    public function verificarPermiso($id_sub, $id_permiso) {
-        $model = new MainModel();
-        $id_rol = $_SESSION['usuario']['id_rol'];
-        $permiso = $model->seleccionaRegistros(
-            "rol_submodulo_permiso", 
-            ["id_perm"], 
-            "id_rol = ? AND id_sub = ? AND id_perm = ?", 
-            [$id_rol, $id_sub, $id_permiso]
-        );
-        return ($permiso && count($permiso) > 0);
-    }
-
-    private function traerCatalogosFiltros($model) {
-        $departamentos = $model->seleccionaRegistros("departamentos", ["id_dep", "nom_dep"], "1=1 ORDER BY nom_dep ASC");
-        // Filtramos para que solo salgan los servicios activos según la nueva columna estatus
-        $servicios = $model->seleccionaRegistros("servicios", ["id_serv", "nom"], "estatus = 1 ORDER BY nom ASC");
-        
-        return [
-            'departamentos' => $departamentos ?: [],
-            'servicios' => $servicios ?: []
-        ];
-    }
-
-    // ==========================================
-    // MOTOR DE AUDITORÍA CRUZADA (AJAX)
-    // ==========================================
     public function ejecutarConsulta($filtros) {
         $model = new MainModel();
-
-        $tabla = "dispositivos d";
         
-        // CORRECCIÓN DE ESTRUCTURA:
-        // 1. infraestructura_red tiene el id_disp, no al revés.
-        // 2. El personal operativo se enlaza al resp_po_id
-        $joins = [
-            "LEFT JOIN personal_operativo po ON d.resp_po_id = po.id_po",
-            "LEFT JOIN infraestructura_red r ON d.id_disp = r.id_disp", 
-            "LEFT JOIN segmentos seg ON r.id_seg = seg.id_seg",
-            "LEFT JOIN departamentos dep ON seg.id_dep = dep.id_dep"
-        ];
+        $sql = "SELECT 
+                    d.id_disp, d.nom_host, d.marca, d.modelo, d.num_ser, d.num_inv,
+                    CONCAT(po.nombres, ' ', IFNULL(po.ape_pa,'')) AS responsable,
+                    de.nom_dep AS departamento, 
+                    red.ip,
+                    vlan.nom_vlan ";
         
-        $campos = [
-            "d.id_disp", "d.nom_host", "d.marca", "d.modelo", "d.num_inv",
-            "TRIM(CONCAT(po.nombres, ' ', po.ape_pa, ' ', COALESCE(po.ape_ma, ''))) AS responsable",
-            "r.ip", "dep.nom_dep AS departamento"
-        ];
-
-        $condicion = "1=1";
+        $from = " FROM dispositivos d
+                  LEFT JOIN personal_operativo po ON d.resp_po_id = po.id_po
+                  LEFT JOIN departamentos de ON po.id_dep = de.id_dep
+                  LEFT JOIN infraestructura_red red ON d.id_disp = red.id_disp
+                  LEFT JOIN segmentos seg ON red.id_seg = seg.id_seg
+                  LEFT JOIN vlans vlan ON seg.id_vlan = vlan.id_vlan ";
+                  
+        $where = " WHERE 1=1 ";
         $parametros = [];
 
-        // 1. FILTRO DE ASIGNACIÓN (Ocioso vs Asignado)
-        if (!empty($filtros['estado_asig']) && $filtros['estado_asig'] !== 'todos') {
-            if ($filtros['estado_asig'] === 'sin_asignar') {
-                $condicion .= " AND d.resp_po_id IS NULL";
-            } else if ($filtros['estado_asig'] === 'asignados') {
-                $condicion .= " AND d.resp_po_id IS NOT NULL";
-            }
+        if ($filtros['estado_asig'] === 'asignados') {
+            $where .= " AND d.resp_po_id IS NOT NULL ";
+        } else if ($filtros['estado_asig'] === 'almacen') {
+            $where .= " AND d.resp_po_id IS NULL ";
         }
 
-        // 2. FILTRO DE UBICACIÓN / DEPARTAMENTO
         if (!empty($filtros['id_dep'])) {
-            $condicion .= " AND seg.id_dep = ?";
+            $where .= " AND po.id_dep = ? ";
             $parametros[] = $filtros['id_dep'];
         }
 
-        // 3. FILTRO DE SOFTWARE Y OBSOLESCENCIA
-        if (!empty($filtros['id_serv'])) {
-            // Añadimos los JOINs de software dinámicamente solo si el usuario audita un programa
-            $joins[] = "JOIN dispositivo_servicio ds ON d.id_disp = ds.id_disp";
-            $joins[] = "JOIN versiones v ON ds.id_ver_instalada = v.id_ver";
-            $joins[] = "JOIN servicios s ON ds.id_serv = s.id_serv";
-            
-            $condicion .= " AND ds.id_serv = ?";
-            $parametros[] = $filtros['id_serv'];
-
-            // Evaluamos la obsolescencia usando la columna 'obs' de tu tabla versiones
-            if (!empty($filtros['estado_soft']) && $filtros['estado_soft'] !== 'todos') {
-                if ($filtros['estado_soft'] === 'obsoleto') {
-                    $condicion .= " AND v.obs = 1";
-                } else if ($filtros['estado_soft'] === 'actualizado') {
-                    $condicion .= " AND v.obs = 0";
-                }
-            }
-
-            $campos[] = "s.nom AS nombre_software";
-            $campos[] = "v.ver AS version_instalada";
-            $campos[] = "v.obs AS es_obsoleta";
+        if (!empty($filtros['id_vlan'])) {
+            $where .= " AND vlan.id_vlan = ? ";
+            $parametros[] = $filtros['id_vlan'];
         }
 
-        // Ejecutamos la super consulta
-        $resultados = $model->seleccionaRegistrosJoin($tabla, $joins, $campos, $condicion, $parametros);
+        if (!empty($filtros['id_serv'])) {
+            $from .= " JOIN dispositivo_servicio ds ON d.id_disp = ds.id_disp
+                       JOIN versiones v ON ds.id_ver_instalada = v.id_ver
+                       JOIN servicios s ON ds.id_serv = s.id_serv ";
+            
+            $sql .= ", s.nom AS nombre_software, v.ver AS version_instalada, v.obs AS es_obsoleto ";
+            
+            $where .= " AND ds.id_serv = ? ";
+            $parametros[] = $filtros['id_serv'];
+
+            if (!empty($filtros['estado_soft']) && $filtros['estado_soft'] !== 'todos') {
+                if ($filtros['estado_soft'] === 'obsoleto') {
+                    $where .= " AND v.obs = 1 ";
+                } else if ($filtros['estado_soft'] === 'actualizado') {
+                    $where .= " AND v.obs = 0 ";
+                }
+            }
+        }
+
+        $queryFinal = $sql . $from . $where;
+        $res = $model->consultarLibre($queryFinal, $parametros);
+
+        if (is_array($res)) {
+            return ["result" => 1, "data" => $res];
+        } else {
+            return ["result" => 0, "msg" => "Error al ejecutar la consulta de equipos."];
+        }
+    }
+
+    public function obtenerBitacora($filtros) {
+        $model = new MainModel();
         
-        return ["result" => 1, "data" => $resultados ?: []];
+        $sql = "SELECT 
+                    b.id_bitacora, u.nom_usuar, s.nom_sub, b.accion, b.detalle, 
+                    DATE_FORMAT(b.fecha, '%d/%m/%Y') AS fecha_fmt, b.hora
+                FROM bitacora b
+                JOIN usuarios u ON b.id_usuar = u.id_usuar
+                JOIN submodulos s ON b.id_sub = s.id_sub
+                WHERE 1=1 ";
+        
+        $parametros = [];
+
+        if (!empty($filtros['fecha_ini']) && !empty($filtros['fecha_fin'])) {
+            $sql .= " AND b.fecha BETWEEN ? AND ? ";
+            $parametros[] = $filtros['fecha_ini'];
+            $parametros[] = $filtros['fecha_fin'];
+        }
+
+        if (!empty($filtros['id_usuar'])) {
+            $sql .= " AND b.id_usuar = ? ";
+            $parametros[] = $filtros['id_usuar'];
+        }
+
+        $sql .= " ORDER BY b.fecha DESC, b.hora DESC LIMIT 1000";
+        $res = $model->consultarLibre($sql, $parametros);
+
+        if (is_array($res)) {
+            return ["result" => 1, "data" => $res];
+        } else {
+            return ["result" => 0, "msg" => "Error al obtener los registros de la bitácora."];
+        }
+    }
+
+    private function verificarPermiso($id_sub, $id_perm) {
+        if (!isset($_SESSION['usuario']['id_rol'])) return false;
+        $id_rol = $_SESSION['usuario']['id_rol'];
+        
+        $model = new MainModel();
+        $res = $model->seleccionaRegistros("rol_submodulo_permiso", ["1"], "id_rol = ? AND id_sub = ? AND id_perm = ?", [$id_rol, $id_sub, $id_perm]);
+        return !empty($res);
     }
 }
 ?>
