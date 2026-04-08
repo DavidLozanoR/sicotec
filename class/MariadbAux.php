@@ -218,35 +218,45 @@ class MariaDBAux {
             $cnx = $this->getConnection();
             if ($cnx === null) return false;
 
-            // Iniciamos transacción para asegurar integridad en operaciones masivas
+            // Iniciamos transacción
             $cnx->beginTransaction();
 
             $pcmd = $cnx->prepare($sql);
 
-            // Vinculamos parámetros si existen
+            // Vinculamos parámetros
             if (!empty($params)) {
                 foreach ($params as $index => $param) {
-                    // MariaDB/MySQL maneja bien PDO::PARAM_STR para la mayoría de los casos
                     $pcmd->bindValue($index + 1, $param, PDO::PARAM_STR);
                 }
             }
 
             $resultado = $pcmd->execute();
 
-            // Confirmamos la transacción
-            $cnx->commit();
+            // ==========================================
+            // NUEVO BLINDAJE PARA MARIA DB Y COMMITS IMPLÍCITOS
+            // ==========================================
+            if ($cnx->inTransaction()) {
+                try {
+                    $cnx->commit();
+                } catch (PDOException $commitEx) {
+                    // Si MariaDB ya cerró la transacción por su cuenta (ej. al hacer un TRUNCATE),
+                    // simplemente ignoramos la advertencia, pues el comando sí tuvo éxito.
+                    if (strpos($commitEx->getMessage(), 'There is no active transaction') === false) {
+                        throw $commitEx;
+                    }
+                }
+            }
 
-            // Limpieza de recursos
             $pcmd = null;
             $cnx = null;
 
             return $resultado;
+            
         } catch (PDOException $e) {
-            // Si algo falla y hay una transacción activa, revertimos
+            // Rollback seguro si algo falla
             if (isset($cnx) && $cnx->inTransaction()) {
-                $cnx->rollBack();
+                try { $cnx->rollBack(); } catch (Exception $ex) {}
             }
-            // Registramos el error en el log del servidor para depuración
             error_log("Error en MariaDBAux::ejecutar -> " . $e->getMessage());
             return "ERROR_BD: " . $e->getMessage();
         }
