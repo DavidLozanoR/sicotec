@@ -228,9 +228,6 @@ class ImportacionController {
         ];
     }
 
-
-    // ... dentro de la clase ImportacionController ...
-
     /**
      * Obtiene discrepancias de departamentos y personal que ya no está en el CSV
      */
@@ -273,20 +270,22 @@ class ImportacionController {
     }
 
     /**
-     * Procesa las resoluciones del usuario y ejecuta el Procedimiento Almacenado final
+     * Procesa las resoluciones del usuario, ejecuta el SP final y registra en bitácora
      */
-    /**
-     * Procesa las resoluciones del usuario y ejecuta el Procedimiento Almacenado final
-     */
-    public function finalizarSincronizacion($resolucionesDepts, $numCobrosBaja) {
+    public function finalizarSincronizacion($resolucionesDepts, $numCobrosBaja, $id_sub = null) {
         $model = new MainModel();
 
-        // A. Resolver EXCEPCIONES de Departamentos (Solo lo que el usuario eligió manualmente en pantalla)
+        // Si no se pasó el id_sub (llamada antigua desde el router), lo resolvemos
+        if (!$id_sub) {
+            $id_sub = $model->obtenerIdSubmoduloPorSlug('personal') ?? 1;
+        }
+
+        // A. Resolver EXCEPCIONES de Departamentos
         foreach ($resolucionesDepts as $res) {
             if ($res['accion'] === 'CREAR') {
                 // Creamos el departamento nuevo
                 $id_nuevo = $model->agregaRegistro("departamentos", ["clave_dep", "nom_dep"], [$res['clave'], $res['nombre']]);
-                // Usamos clave y nombre para ser 100% exactos en el UPDATE
+                // Usamos clave y nombre para ser exactos en el UPDATE
                 $model->ejecutarConsultaLibre("UPDATE temp_importacion_po SET id_dep_final = ? WHERE clave_dep_raw = ? AND nom_dep_raw = ?", [$id_nuevo, $res['clave'], $res['nombre']]);
             } else {
                 // Es VINCULAR_ID (ej. VINCULAR_15)
@@ -294,10 +293,8 @@ class ImportacionController {
                 $model->ejecutarConsultaLibre("UPDATE temp_importacion_po SET id_dep_final = ? WHERE clave_dep_raw = ? AND nom_dep_raw = ?", [$id_existente, $res['clave'], $res['nombre']]);
             }
         }
-        
-        // (Eliminamos el auto-vínculo de PHP, porque el SP ya tiene su Fase 1 para encargarse de eso)
 
-        // B. Llamar al Procedimiento Almacenado de Upsert (Él hará el auto-vínculo y la sincronización masiva)
+        // B. Llamar al Procedimiento Almacenado de Upsert
         $exito_sp = $model->ejecutarConsultaLibre("CALL sp_sincronizar_personal_csv()");
         if (is_string($exito_sp) && strpos($exito_sp, 'ERROR_BD') !== false) {
             return ["status" => "error", "msg" => "Error SQL: " . $exito_sp];
@@ -312,6 +309,20 @@ class ImportacionController {
                 $model->ejecutarConsultaLibre("UPDATE personal_operativo SET estatus = 0 WHERE num_cobro = ?", [$cobro]);
             }
         }
+
+        // =========================================================
+        // D. REGISTRO EN BITÁCORA (INTEGRADO EN EL CONTROLADOR)
+        // =========================================================
+        $id_usuario  = $_SESSION['usuario']['id_usuar'] ?? 1;
+        $total_bajas = is_array($numCobrosBaja) ? count($numCobrosBaja) : 0;
+        $total_depts = is_array($resolucionesDepts) ? count($resolucionesDepts) : 0;
+        
+        $detalle = "Sincronizó masivamente al Personal Operativo vía CSV. (Bajas procesadas: $total_bajas | Resoluciones de departamentos: $total_depts)";
+        
+        $model->agregaRegistro("bitacora", 
+            ["id_usuar", "id_sub", "accion", "detalle", "fecha", "hora"], 
+            [$id_usuario, $id_sub, 'IMPORT', $detalle, date('Y-m-d'), date('H:i:s')]
+        );
 
         return ["status" => "success", "msg" => "Sincronización finalizada exitosamente."];
     }
