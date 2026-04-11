@@ -14,7 +14,7 @@ $id_sub_actual = $id_sub_actual ?? 1; // ID del submódulo (por defecto 1 si no 
         <a href="importar" class="btn btn-success">
             <i class="fas fa-file-import me-2"></i> Importar Datos
         </a>
-        <a href="personal/formulario/<?php echo $id_sub_actual; ?>/" class="btn btn-inea d-flex align-items-center gap-2 px-4 shadow-sm">
+        <a href="personal/formulario/<?php echo $id_sub_actual; ?>/" class="btn btn-inea d-flex justify-content-center align-items-center gap-2 px-4 shadow-sm">
             <i class="fas fa-plus"></i> Nuevo Personal
         </a>
     </div>
@@ -36,18 +36,34 @@ $id_sub_actual = $id_sub_actual ?? 1; // ID del submódulo (por defecto 1 si no 
                 </div>
 
                 <div class="col-12 col-sm-6 col-md-3">
-                    <div class="d-flex align-items-center gap-2">
-                        <label class="small fw-bold text-nowrap mb-0 text-muted">Depto:</label>
-                        <select class="form-select focus-guinda shadow-sm" id="filtroDepartamento">
-                            <option value="all">Todos los departamentos</option>
-                            <?php foreach($departamentos as $dep): ?>
-                                <option value="<?php echo htmlspecialchars(strtolower($dep['nom_dep'])); ?>">
-                                    <?php echo htmlspecialchars($dep['nom_dep']); ?>
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                </div>
+    <div class="d-flex align-items-center gap-2">
+        <label class="small fw-bold text-nowrap mb-0 text-muted">Depto:</label>
+        
+        <div class="dropdown w-100">
+            <button class="btn btn-white border w-100 d-flex justify-content-between align-items-center shadow-sm focus-guinda bg-white" type="button" id="btnDropdownDepto" data-bs-toggle="dropdown" aria-expanded="false" style="padding: 0.375rem 0.75rem;">
+                <span id="textoSelectDepto" class="text-truncate text-start" style="font-size: clamp(0.8rem, 2.5vw, 0.95rem);">Todos los departamentos</span>
+                <i class="fas fa-chevron-down ms-2 text-muted" style="font-size: 0.7rem;"></i>
+            </button>
+            
+            <ul class="dropdown-menu w-100 shadow" aria-labelledby="btnDropdownDepto" style="max-height: 50vh; overflow-y: auto;">
+                <li>
+                    <a class="dropdown-item item-depto-custom active bg-light text-dark" href="#" data-value="all" style="white-space: normal; word-wrap: break-word; font-size: clamp(0.8rem, 3vw, 0.9rem); padding: 10px 12px; border-bottom: 1px solid #f1f1f1;">
+                        <strong>Todos los departamentos</strong>
+                    </a>
+                </li>
+                <?php foreach($departamentos as $dep): ?>
+                    <li>
+                        <a class="dropdown-item item-depto-custom text-wrap" href="#" data-value="<?php echo htmlspecialchars(strtolower($dep['nom_dep'])); ?>" style="white-space: normal; word-wrap: break-word; font-size: clamp(0.8rem, 3vw, 0.9rem); padding: 10px 12px; border-bottom: 1px solid #f1f1f1; line-height: 1.3;">
+                            <?php echo htmlspecialchars($dep['nom_dep']); ?>
+                        </a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+            
+            <input type="hidden" id="filtroDepartamento" value="all">
+        </div>
+        </div>
+</div>
 
                 <div class="col-12 col-sm-6 col-md-3">
                     <div class="input-group shadow-sm">
@@ -61,7 +77,9 @@ $id_sub_actual = $id_sub_actual ?? 1; // ID del submódulo (por defecto 1 si no 
                         <i class="fas fa-eraser me-1"></i> Limpiar
                     </button>
                 </div>
-                <div class="d-flex justify-content-between align-items-center mb-2 px-1">
+            </div>
+            
+            <div class="d-flex flex-column flex-md-row justify-content-between align-items-md-center mb-3 px-1 gap-3">
                 <div class="d-flex align-items-center gap-2">
                     <label class="small text-muted mb-0">Mostrar</label>
                     <select class="form-select form-select-sm shadow-sm focus-guinda" id="selectorRegistros" style="width: 80px;">
@@ -74,12 +92,11 @@ $id_sub_actual = $id_sub_actual ?? 1; // ID del submódulo (por defecto 1 si no 
                     <label class="small text-muted mb-0">registros</label>
                 </div>
                 
-                <nav aria-label="Navegación de registros">
-                    <ul class="pagination pagination-sm mb-0 shadow-sm" id="paginacionTabla">
+                <nav aria-label="Navegación de registros" class="align-self-end align-self-md-auto overflow-auto" style="max-width: 100%;">
+                    <ul class="pagination pagination-sm mb-0 shadow-sm flex-nowrap" id="paginacionTabla">
                         </ul>
                 </nav>
             </div>
-
             <div class="table-responsive border rounded shadow-sm">
                 <table class="table table-hover align-middle mb-0" id="tablaPersonal">
                     <thead class="table-light text-muted small">

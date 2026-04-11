@@ -245,6 +245,7 @@ class ImportacionController {
         if($conflictosDepts) {
             foreach($conflictosDepts as $conf) {
                 // Buscamos si la clave ya existe (sugerencia para vincular)
+                $sugerencia = [];
                 $sugerencia = $model->seleccionaRegistros("departamentos", ["id_dep", "nom_dep AS nom"], "clave_dep = ?", [$conf['clave_dep_raw']]);
                 $listaDepts[] = [
                     "clave_dep_raw" => $conf['clave_dep_raw'],
@@ -261,11 +262,13 @@ class ImportacionController {
                        LEFT JOIN temp_importacion_po t ON po.num_cobro = t.num_cobro
                        WHERE t.num_cobro IS NULL AND po.estatus = 1";
         $bajas = $model->consultarLibre($queryBajas);
-
+        // 3. Extraer TODO el catálogo de departamentos para el selector manual
+        $catalogo_completo = $model->seleccionaRegistros("departamentos", ["id_dep", "clave_dep", "nom_dep"], "1=1 ORDER BY nom_dep ASC");
         return [
             "status" => "success",
             "depts" => $listaDepts,
-            "bajas" => $bajas ?: []
+            "bajas" => $bajas ?: [],
+            "catalogo_depts" => $catalogo_completo ?: [] // Lo enviamos al frontend
         ];
     }
 
@@ -304,9 +307,7 @@ class ImportacionController {
             }
         }
 
-        // =========================================================
         // D. REGISTRO EN BITÁCORA (INTEGRADO EN EL CONTROLADOR)
-        // =========================================================
         $id_usuario  = $_SESSION['usuario']['id_usuar'] ?? 1;
         $total_bajas = is_array($numCobrosBaja) ? count($numCobrosBaja) : 0;
         $total_depts = is_array($resolucionesDepts) ? count($resolucionesDepts) : 0;

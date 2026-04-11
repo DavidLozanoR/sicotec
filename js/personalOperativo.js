@@ -121,7 +121,7 @@ $(document).ready(function() {
     // Botón Anterior
     $paginacionContenedor.append(`
         <li class="page-item ${activa === 1 ? 'disabled' : ''}">
-            <button class="page-link text-guinda btn-paginacion" data-page="${activa - 1}">Anterior</button>
+            <button class="page-link text-guinda btn-paginacion" data-page="${activa - 1}"><span aria-hidden="true">&laquo;</span></button>
         </li>
     `);
 
@@ -149,7 +149,7 @@ $(document).ready(function() {
     // Botón Siguiente
     $paginacionContenedor.append(`
         <li class="page-item ${activa === totalPaginas ? 'disabled' : ''}">
-            <button class="page-link text-guinda btn-paginacion" data-page="${activa + 1}">Siguiente</button>
+            <button class="page-link text-guinda btn-paginacion" data-page="${activa + 1}"><span aria-hidden="true">&raquo;</span></button>
         </li>
     `);
 }
@@ -176,7 +176,13 @@ $(document).ready(function() {
     $btnLimpiar.on('click', function() {
         $inputCobroNombre.val('');
         $inputPuesto.val('');
-        $selectDepartamento.val('all');
+        
+        // Resetear el Dropdown custom
+        $('#filtroDepartamento').val('all');
+        $('#textoSelectDepto').text('Todos los departamentos');
+        $('.item-depto-custom').removeClass('active bg-light fw-bold');
+        $('.item-depto-custom[data-value="all"]').addClass('active bg-light fw-bold');
+        
         if ($selectRegistros.length) $selectRegistros.val('10');
         paginaActual = 1;
         actualizarTabla(); 
@@ -186,6 +192,22 @@ $(document).ready(function() {
     if ($selectRegistros.length) {
         actualizarTabla();
     }
+    // ==========================================
+    // LÓGICA DEL NUEVO DROPDOWN DE DEPARTAMENTOS
+    // ==========================================
+    $('.item-depto-custom').on('click', function(e) {
+        e.preventDefault();
+        
+        // 1. Quitar selección anterior y marcar el nuevo
+        $('.item-depto-custom').removeClass('active bg-light fw-bold');
+        $(this).addClass('active bg-light fw-bold');
+        
+        // 2. Cambiar el texto que se muestra en el botón principal
+        $('#textoSelectDepto').text($(this).text().trim());
+        
+        // 3. Pasar el valor al input oculto y forzar el cambio en la tabla
+        $('#filtroDepartamento').val($(this).data('value')).trigger('change');
+    });
 
 
     // ==========================================
