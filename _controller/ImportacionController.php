@@ -282,13 +282,7 @@ class ImportacionController {
 
         // A. Resolver EXCEPCIONES de Departamentos
         foreach ($resolucionesDepts as $res) {
-            if ($res['accion'] === 'CREAR') {
-                // Creamos el departamento nuevo
-                $id_nuevo = $model->agregaRegistro("departamentos", ["clave_dep", "nom_dep"], [$res['clave'], $res['nombre']]);
-                // Usamos clave y nombre para ser exactos en el UPDATE
-                $model->ejecutarConsultaLibre("UPDATE temp_importacion_po SET id_dep_final = ? WHERE clave_dep_raw = ? AND nom_dep_raw = ?", [$id_nuevo, $res['clave'], $res['nombre']]);
-            } else {
-                // Es VINCULAR_ID (ej. VINCULAR_15)
+            if ($res['accion'] !== 'CREAR' && strpos($res['accion'], 'VINCULAR_') === 0) {
                 $id_existente = str_replace('VINCULAR_', '', $res['accion']);
                 $model->ejecutarConsultaLibre("UPDATE temp_importacion_po SET id_dep_final = ? WHERE clave_dep_raw = ? AND nom_dep_raw = ?", [$id_existente, $res['clave'], $res['nombre']]);
             }
