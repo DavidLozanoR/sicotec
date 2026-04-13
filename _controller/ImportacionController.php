@@ -163,29 +163,49 @@ class ImportacionController {
     // ==========================================
 
     private function limpiarTexto($texto) {
-        $texto = mb_convert_encoding(trim($texto), 'UTF-8', 'auto');
-        return str_replace('"', '', $texto);
+        if (!is_string($texto)) return '';
+        
+        // 1. Quitar comillas dobles que suele poner Excel
+        $texto = str_replace('"', '', trim($texto));
+        
+        // 2. Pasar a mayúsculas
+        $texto = mb_strtoupper($texto, 'UTF-8');
+        
+        // 3. Forzar el paso por tu limpiador de acentos y caracteres raros
+        $texto = $this->quitarAcentos($texto);
+        
+        return $texto;
     }
 
     private function buscarIndiceColumna($encabezados, $palabras_clave) {
-        foreach ($encabezados as $index => $encabezado) {
-            $enc_limpio = strtolower($this->quitarAcentos($encabezado));
-            foreach ($palabras_clave as $clave) {
-                if (strpos($enc_limpio, $clave) !== false) { return $index; }
+            foreach ($encabezados as $index => $encabezado) {
+                // El encabezado ya viene limpio de la función limpiarTexto
+                $enc_limpio = strtoupper($encabezado); 
+                
+                foreach ($palabras_clave as $clave) {
+                    // Pasamos la clave a buscar también a mayúsculas
+                    if (strpos($enc_limpio, strtoupper($clave)) !== false) { 
+                        return $index; 
+                    }
+                }
             }
+            return -1;
         }
-        return -1;
-    }
 
     private function quitarAcentos($cadena) {
+        // Añadimos los caracteres corruptos de Excel MS-DOS al inicio de la lista
         $originales = [
-        'À','Á','Â','Ã','Ä','Å','Æ','Ç','È','É','Ê','Ë','Ì','Í','Î','Ï','Ð','Ñ','Ò','Ó','Ô','Õ','Ö','Ø','Ù','Ú','Û','Ü','Ý','Þ','ß',
-        'à','á','â','ã','ä','å','æ','ç','è','é','ê','ë','ì','í','î','ï','ð','ñ','ò','ó','ô','õ','ö','ø','ù','ú','û','ü','ý','þ','ÿ'
+            'à','','µ','¥','¢','¡','£','¤','¦','§',
+            'À','Á','Â','Ã','Ä','Å','Æ','Ç','È','É','Ê','Ë','Ì','Í','Î','Ï','Ð','Ñ','Ò','Ó','Ô','Õ','Ö','Ø','Ù','Ú','Û','Ü','Ý','Þ','ß',
+            'á','â','ã','ä','å','æ','ç','è','é','ê','ë','ì','í','î','ï','ð','ñ','ò','ó','ô','õ','ö','ø','ù','ú','û','ü','ý','þ','ÿ'
         ];
+        
         $modificadas = [
+            'O','E','A','N','O','I','U','N','A','O',
             'A','A','A','A','A','A','AE','C','E','E','E','E','I','I','I','I','D','N','O','O','O','O','O','O','U','U','U','U','Y','TH','ss',
-            'a','a','a','a','a','a','ae','c','e','e','e','e','i','i','i','i','d','n','o','o','o','o','o','o','u','u','u','u','y','th','y'
+            'a','a','a','a','a','ae','c','e','e','e','e','i','i','i','i','d','n','o','o','o','o','o','o','u','u','u','u','y','th','y'
         ];
+        
         return str_replace($originales, $modificadas, $cadena);
     }
 
