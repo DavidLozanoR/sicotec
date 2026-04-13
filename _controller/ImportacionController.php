@@ -88,7 +88,7 @@ class ImportacionController {
         $idx_nombre = $this->buscarIndiceColumna($encabezados, ['nombre', 'empleado', 'personal']);
         $idx_puesto = $this->buscarIndiceColumna($encabezados, ['puesto', 'cargo', 'funcion']);
         $idx_correo = $this->buscarIndiceColumna($encabezados, ['correo', 'email', 'e-mail']);
-        $idx_dep    = $this->buscarIndiceColumna($encabezados, ['area', 'departamento', 'depto', 'adscripcion']);
+        $idx_dep    = $this->buscarIndiceColumna($encabezados, ['area', 'departamento', 'depto', 'adscrip']);
 
         if ($idx_cobro === -1 || $idx_nombre === -1) {
             fclose($archivo);
@@ -244,8 +244,6 @@ class ImportacionController {
         $listaDepts = [];
         if($conflictosDepts) {
             foreach($conflictosDepts as $conf) {
-                // Buscamos si la clave ya existe (sugerencia para vincular)
-                $sugerencia = [];
                 $sugerencia = $model->seleccionaRegistros("departamentos", ["id_dep", "nom_dep AS nom"], "clave_dep = ?", [$conf['clave_dep_raw']]);
                 $listaDepts[] = [
                     "clave_dep_raw" => $conf['clave_dep_raw'],
@@ -262,13 +260,24 @@ class ImportacionController {
                        LEFT JOIN temp_importacion_po t ON po.num_cobro = t.num_cobro
                        WHERE t.num_cobro IS NULL AND po.estatus = 1";
         $bajas = $model->consultarLibre($queryBajas);
-        // 3. Extraer TODO el catálogo de departamentos para el selector manual
+        
+        // 3. Catálogo completo
         $catalogo_completo = $model->seleccionaRegistros("departamentos", ["id_dep", "clave_dep", "nom_dep"], "1=1 ORDER BY nom_dep ASC");
+
+        // --- 4. NUEVO: DIAGNÓSTICO DE LA TABLA TEMPORAL ---
+        $resumen = $model->consultarLibre("SELECT COUNT(*) as total_filas, SUM(CASE WHEN nom_dep_raw = '' THEN 1 ELSE 0 END) as sin_depto FROM temp_importacion_po");
+        $muestra = $model->consultarLibre("SELECT DISTINCT clave_dep_raw, nom_dep_raw FROM temp_importacion_po LIMIT 5");
+
         return [
             "status" => "success",
             "depts" => $listaDepts,
             "bajas" => $bajas ?: [],
-            "catalogo_depts" => $catalogo_completo ?: [] // Lo enviamos al frontend
+            "catalogo_depts" => $catalogo_completo ?: [],
+            "diagnostico" => [
+                "total" => $resumen[0]['total_filas'] ?? 0,
+                "vacios" => $resumen[0]['sin_depto'] ?? 0,
+                "muestra" => $muestra ?: []
+            ]
         ];
     }
 

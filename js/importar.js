@@ -70,7 +70,56 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    function renderizarTablas(data) {
+  function renderizarTablas(data) {
+        // --- INICIO MÓDULO DE DIAGNÓSTICO VISUAL ---
+        const containerResolucion = document.getElementById('section_resolucion');
+        
+        // 1. Limpiar panel anterior si existe para evitar duplicados al re-analizar
+        const oldPanel = document.getElementById('panel-diagnostico');
+        if (oldPanel) oldPanel.remove();
+
+        // 2. Construir el panel si el backend envió la información de diagnóstico
+        if (data.diagnostico) {
+            const diag = data.diagnostico;
+            
+            let htmlMuestra = '';
+            if (diag.muestra && diag.muestra.length > 0) {
+                htmlMuestra = diag.muestra.map(d => 
+                    `<li>Clave: <b class="text-primary">"${d.clave_dep_raw || ''}"</b> | Nombre: <b>"${d.nom_dep_raw || ''}"</b></li>`
+                ).join('');
+            } else {
+                htmlMuestra = '<li><i class="text-muted">(Ningún dato leído)</i></li>';
+            }
+
+            const isWarning = diag.vacios > 0;
+            const panelDiv = document.createElement('div');
+            panelDiv.id = 'panel-diagnostico';
+            panelDiv.className = `alert ${isWarning ? 'alert-warning' : 'alert-info'} mb-4 shadow-sm border`;
+            
+            panelDiv.innerHTML = `
+                <h6 class="alert-heading fw-bold"><i class="fas fa-microscope me-2"></i>Diagnóstico de Memoria (Datos detectados en el CSV)</h6>
+                <hr class="my-2">
+                <div class="row small">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Total de registros en memoria:</strong> ${diag.total}</p>
+                        <p class="mb-0 ${isWarning ? 'text-danger fw-bold' : ''}"><strong>Registros SIN departamento asignado:</strong> ${diag.vacios} de ${diag.total}</p>
+                        ${diag.vacios == diag.total && diag.total > 0 ? '<p class="text-danger mt-2 mb-0"><i class="fas fa-exclamation-triangle"></i> <b>Fallo de Mapeo:</b> El sistema no encontró la columna de departamentos, o los datos vienen vacíos.</p>' : ''}
+                    </div>
+                    <div class="col-md-6 border-start">
+                        <strong>Muestra de lo leído en la columna "Departamento":</strong>
+                        <ul class="mb-0 ps-3 mt-1" style="max-height: 80px; overflow-y: auto;">
+                            ${htmlMuestra}
+                        </ul>
+                    </div>
+                </div>
+            `;
+            
+            // Insertar al inicio de la sección de resolución
+            containerResolucion.insertBefore(panelDiv, containerResolucion.firstChild);
+        }
+        // --- FIN MÓDULO DE DIAGNÓSTICO VISUAL ---
+
+
         // Guardamos el catálogo para la lista responsiva
         catalogoDepartamentosGlobal = data.catalogo_depts || [];
 
@@ -136,6 +185,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    
     // --- EVENTO PARA DETECTAR CUANDO EL USUARIO ELIGE "BUSCAR OTRO" ---
     tbodyDepts.addEventListener('change', (e) => {
         if (e.target.classList.contains('res-dept')) {
