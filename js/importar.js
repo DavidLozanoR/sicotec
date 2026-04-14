@@ -1,341 +1,328 @@
+/**
+ * Módulo de Importación Masiva (SICOSTE)
+ * Arquitectura: Event-Driven & Modular DOM Manipulation
+ */
+
 document.addEventListener('DOMContentLoaded', () => {
-    // --- Elementos de la Interfaz ---
-    const sectionUpload = document.getElementById('section_upload');
-    const sectionResolucion = document.getElementById('section_resolucion');
-    const btnIniciar = document.getElementById('btnIniciarAnalisis');
-    const btnFinalizar = document.getElementById('btnFinalizarImportacion');
-    const inputArchivo = document.getElementById('inputArchivoMasivo'); // Modificado
-    const progress = document.getElementById('upload_progress');
+    // ==========================================
+    // 1. CACHÉ DE ELEMENTOS DOM
+    // ==========================================
+    const UI = {
+        views: {
+            upload: document.getElementById('section_upload'),
+            resolution: document.getElementById('section_resolucion')
+        },
+        inputs: {
+            file: document.getElementById('inputArchivoMasivo')
+        },
+        buttons: {
+            start: document.getElementById('btnIniciarAnalisis'),
+            finalize: document.getElementById('btnFinalizarImportacion')
+        },
+        indicators: {
+            progress: document.getElementById('upload_progress'),
+            badgeDepts: document.getElementById('badge-conflictos-dep'),
+            badgeBajas: document.getElementById('badge-bajas')
+        },
+        tables: {
+            depts: document.getElementById('tbodyConflictosDep'),
+            bajas: document.getElementById('tbodyBajasDetectadas')
+        }
+    };
 
-    // --- Tablas y Badges ---
-    const tbodyDepts = document.getElementById('tbodyConflictosDep');
-    const tbodyBajas = document.getElementById('tbodyBajasDetectadas');
-    const badgeDepts = document.getElementById('badge-conflictos-dep');
-    const badgeBajas = document.getElementById('badge-bajas');
+    let catalogoGlobal = []; // Estado local para búsqueda en modal
 
-    // Variable global para almacenar el catálogo
-    let catalogoDepartamentosGlobal = [];
+    // ==========================================
+    // 2. CONTROLADORES DE EVENTOS PRINCIPALES
+    // ==========================================
 
-    // --- LÓGICA PASO 1: SUBIR Y ANALIZAR ---
-    btnIniciar.addEventListener('click', () => {
-        const archivo = inputArchivo.files[0];
+    UI.buttons.start.addEventListener('click', procesarArchivo);
+    UI.buttons.finalize.addEventListener('click', ejecutarSincronizacion);
+    
+    // Delegación de eventos para el select dinámico de departamentos
+    UI.tables.depts.addEventListener('change', (e) => {
+        if (e.target.classList.contains('res-dept') && e.target.value === 'VINCULAR_EXISTENTE') {
+            abrirModalBusqueda(e.target);
+        }
+    });
+
+    // ==========================================
+    // 3. LÓGICA DE NEGOCIO: PASO 1 (SUBIDA)
+    // ==========================================
+
+    async function procesarArchivo() {
+        const archivo = UI.inputs.file.files[0];
+        
         if (!archivo) {
-            return Swal.fire('Error', 'Por favor seleccione un archivo para importar.', 'error');
+            return Swal.fire('Archivo requerido', 'Seleccione un documento para analizar.', 'warning');
         }
 
-        // VALIDACIÓN FRONTEND DE EXTENSIÓN
+        // Validación estricta de extensiones permitidas
         const ext = archivo.name.split('.').pop().toLowerCase();
-        const permitidos = ['csv', 'xlsx', 'xls', 'xml'];
-        if (!permitidos.includes(ext)) {
-            return Swal.fire('Formato no válido', 'Solo se aceptan archivos: Excel, CSV, o XML.', 'error');
+        if (!['xlsx', 'csv', 'xml'].includes(ext)) {
+            return Swal.fire('Formato restringido', 'Asegure que su archivo sea del tipo .xlsx, .csv o .xml', 'error');
         }
 
         const formData = new FormData();
-        formData.append('archivo_masivo', archivo); // Nueva variable
-        formData.append('id_sub', ID_SUB_PERSONAL);
-        formData.append('peticion', 'SUBIR_ARCHIVO'); // Nueva petición
+        formData.append('archivo_masivo', archivo);
+        formData.append('id_sub', ID_SUB_PERSONAL); // Asume inyección global desde vista
+        formData.append('peticion', 'SUBIR_ARCHIVO');
 
-        btnIniciar.disabled = true;
-        progress.classList.remove('d-none');
+        cambiarEstadoCarga(true);
 
-        fetch('_controller/ImportacionAsync.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
+        try {
+            const res = await fetch('_controller/ImportacionAsync.php', { method: 'POST', body: formData });
+            const data = await parseJSON(res);
+
             if (data.status === 'success') {
-                obtenerResultadosAnalisis();
+                obtenerConflictos();
             } else {
-                Swal.fire('Error de Análisis', data.msg, 'error');
-                btnIniciar.disabled = false;
-                progress.classList.add('d-none');
+                Swal.fire('Fallo de Análisis', data.msg, 'error');
+                cambiarEstadoCarga(false);
             }
-        })
-        .catch(err => {
-            console.error(err);
-            Swal.fire('Error', 'No se pudo comunicar con el servidor.', 'error');
-            btnIniciar.disabled = false;
-        });
-    });
-
-    // --- LÓGICA PASO 2: OBTENER CONFLICTOS DEL SERVIDOR ---
-    function obtenerResultadosAnalisis() {
-        fetch('_controller/ImportacionAsync.php', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                peticion: 'GET_CONFLICTOS', 
-                id_sub: ID_SUB_PERSONAL 
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            renderizarTablas(data);
-            sectionUpload.classList.add('d-none');
-            sectionResolucion.classList.remove('d-none');
-
-            // ALERTA SI SE DETECTARON SÍMBOLOS RAROS
-            if (data.alerta_csv) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: '⚠️ Cuidado con el formato',
-                    html: 'Se detectaron símbolos raros o caracteres corruptos.<br><br>Para evitar que los nombres se guarden mal, te sugerimos cancelar y guardar tu archivo original como <b>Excel (.xlsx) o CSV UTF-8</b>.',
-                    confirmButtonColor: '#f39c12'
-                });
-            }
-        });
+        } catch (error) {
+            Swal.fire('Error Crítico', error.message, 'error');
+            cambiarEstadoCarga(false);
+        }
     }
 
-  function renderizarTablas(data) {
-        // --- INICIO MÓDULO DE DIAGNÓSTICO VISUAL ---
-        const containerResolucion = document.getElementById('section_resolucion');
-        
+    // ==========================================
+    // 4. LÓGICA DE NEGOCIO: PASO 2 (CONFLICTOS)
+    // ==========================================
+
+    async function obtenerConflictos() {
+        try {
+            const res = await fetch('_controller/ImportacionAsync.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ peticion: 'GET_CONFLICTOS', id_sub: ID_SUB_PERSONAL })
+            });
+            const data = await parseJSON(res);
+
+            catalogoGlobal = data.catalogo_depts || [];
+            
+            // Transición de Vistas y Renderizado
+            UI.views.upload.classList.add('d-none');
+            UI.views.resolution.classList.remove('d-none');
+            
+            renderizarDiagnostico(data.diagnostico);
+            renderizarTablaDepartamentos(data.depts);
+            renderizarTablaBajas(data.bajas);
+
+            if (data.alerta_csv) {
+                Swal.fire('Codificación Detectada', 'El sistema normalizó caracteres especiales. Revise los departamentos generados.', 'info');
+            }
+
+        } catch (error) {
+            Swal.fire('Error al procesar conflictos', error.message, 'error');
+        }
+    }
+
+    async function ejecutarSincronizacion() {
+        // Recolección de resoluciones de DOM
+        const resolucionesDepts = Array.from(document.querySelectorAll('.res-dept')).map(sel => ({
+            clave: sel.dataset.clave,
+            nombre: sel.dataset.nombre,
+            accion: sel.value 
+        }));
+
+        const numCobrosBaja = Array.from(document.querySelectorAll('.check-baja:checked')).map(chk => chk.value);
+
+        const confirmar = await Swal.fire({
+            title: '¿Ejecutar Sincronización?',
+            text: "Esta acción afectará la base de datos de producción.",
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Sí, sincronizar'
+        });
+
+        if (!confirmar.isConfirmed) return;
+
+        UI.buttons.finalize.disabled = true;
+        UI.buttons.finalize.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ejecutando...';
+
+        try {
+            const res = await fetch('_controller/ImportacionAsync.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ peticion: 'EJECUTAR_FINAL', id_sub: ID_SUB_PERSONAL, resolucionesDepts, numCobrosBaja })
+            });
+            const data = await parseJSON(res);
+
+            if (data.status === 'success') {
+                await Swal.fire('Completado', data.msg, 'success');
+                window.location.href = 'personal';
+            } else {
+                throw new Error(data.msg);
+            }
+        } catch (error) {
+            Swal.fire('Fallo en Sincronización', error.message, 'error');
+            UI.buttons.finalize.disabled = false;
+            UI.buttons.finalize.innerText = 'Ejecutar Sincronización Final';
+        }
+    }
+
+    // ==========================================
+    // 5. MOTORES DE RENDERIZADO (UI)
+    // ==========================================
+
+    function renderizarDiagnostico(diag) {
         const oldPanel = document.getElementById('panel-diagnostico');
         if (oldPanel) oldPanel.remove();
+        if (!diag) return;
 
-        if (data.diagnostico) {
-            const diag = data.diagnostico;
-            
-            let htmlMuestra = '';
-            if (diag.muestra && diag.muestra.length > 0) {
-                htmlMuestra = diag.muestra.map(d => 
-                    `<li>Clave: <b class="text-primary">"${d.clave_dep_raw || ''}"</b> | Nombre: <b>"${d.nom_dep_raw || ''}"</b></li>`
-                ).join('');
-            } else {
-                htmlMuestra = '<li><i class="text-muted">(Ningún dato leído)</i></li>';
-            }
+        const htmlMuestra = (diag.muestra && diag.muestra.length > 0) 
+            ? diag.muestra.map(d => `<li>[${d.clave_dep_raw || 'S/C'}] ${d.nom_dep_raw || 'Vacío'}</li>`).join('')
+            : '<li><i class="text-muted">(Sin datos)</i></li>';
 
-            const isWarning = diag.vacios > 0;
-            const panelDiv = document.createElement('div');
-            panelDiv.id = 'panel-diagnostico';
-            panelDiv.className = `alert ${isWarning ? 'alert-warning' : 'alert-info'} mb-4 shadow-sm border`;
-            
-            panelDiv.innerHTML = `
-                <h6 class="alert-heading fw-bold"><i class="fas fa-microscope me-2"></i>Diagnóstico de Memoria (Datos detectados)</h6>
-                <hr class="my-2">
-                <div class="row small">
-                    <div class="col-md-6">
-                        <p class="mb-1"><strong>Total de registros leídos:</strong> ${diag.total}</p>
-                        <p class="mb-0 ${isWarning ? 'text-danger fw-bold' : ''}"><strong>Registros SIN departamento asignado:</strong> ${diag.vacios} de ${diag.total}</p>
-                        ${diag.vacios == diag.total && diag.total > 0 ? '<p class="text-danger mt-2 mb-0"><i class="fas fa-exclamation-triangle"></i> <b>Fallo de Mapeo:</b> El sistema no encontró la columna de departamentos, o los datos vienen vacíos.</p>' : ''}
-                    </div>
-                    <div class="col-md-6 border-start">
-                        <strong>Muestra de lo leído en la columna "Departamento":</strong>
-                        <ul class="mb-0 ps-3 mt-1" style="max-height: 80px; overflow-y: auto;">
-                            ${htmlMuestra}
-                        </ul>
-                    </div>
-                </div>
-            `;
-            
-            containerResolucion.insertBefore(panelDiv, containerResolucion.firstChild);
-        }
-
-        catalogoDepartamentosGlobal = data.catalogo_depts || [];
-
-        // 1. Departamentos
-        tbodyDepts.innerHTML = '';
-        badgeDepts.innerText = data.depts.length;
+        const isWarning = diag.vacios > 0;
+        const panelDiv = document.createElement('div');
+        panelDiv.id = 'panel-diagnostico';
+        panelDiv.className = `alert ${isWarning ? 'alert-warning' : 'alert-info'} mb-4 shadow-sm`;
         
-        data.depts.forEach(d => {
-            let opcionesHTML = '<option value="CREAR" class="fw-bold text-success">✨ Crear nuevo</option>';
-            
-            if (d.sugerencias && d.sugerencias.length > 0) {
-                opcionesHTML += '<optgroup label="Sugerido por el sistema">';
-                d.sugerencias.forEach(s => {
-                    let nomCorto = s.nom.length > 28 ? s.nom.substring(0, 28) + '...' : s.nom;
-                    opcionesHTML += '<option value="VINCULAR_' + s.id_dep + '" selected>🔗 ' + nomCorto + '</option>';
-                });
-                opcionesHTML += '</optgroup>';
-            }
-
-            opcionesHTML += '<option value="VINCULAR_EXISTENTE" class="text-primary fw-bold">🔍 Buscar otro...</option>';
-
-            const tr = document.createElement('tr');
-            tr.className = 'conflict-row';
-            tr.innerHTML = `
-                <td style="width: 25%;"><b class="text-primary">${d.clave_dep_raw || 'Sin Clave'}</b></td>
-                <td style="width: 35%; max-width: 100px;" class="text-truncate">${d.nom_dep_raw}</td>
-                <td style="width: 40%;">
-                    <select class="form-select form-select-sm res-dept border-primary" style="text-overflow: ellipsis; white-space: nowrap;" data-clave="${d.clave_dep_raw}" data-nombre="${d.nom_dep_raw}">
-                        ${opcionesHTML}
-                    </select>
-                </td>
-            `;
-            tbodyDepts.appendChild(tr);
-        });
-
-        // 2. Bajas
-        tbodyBajas.innerHTML = '';
-        badgeBajas.innerText = data.bajas.length;
-        data.bajas.forEach(b => {
-            const tieneEquipos = parseInt(b.total_dispositivos) > 0;
-            const tr = document.createElement('tr');
-            tr.innerHTML = `
-                <td>${b.num_cobro}</td>
-                <td>${b.nombres} ${b.ape_pa} ${b.ape_ma}</td>
-                <td>
-                    <span class="badge ${tieneEquipos ? 'bg-danger' : 'bg-success'} badge-responsiva">
-                        ${tieneEquipos ? '<i class="fas fa-laptop me-1"></i> ' + b.total_dispositivos + ' Equipos' : 'Sin equipos'}
-                    </span>
-                </td>
-                <td class="text-center">
-                    <div class="form-check form-switch d-inline-block">
-                        <input class="form-check-input check-baja" type="checkbox" 
-                               value="${b.num_cobro}" ${tieneEquipos ? 'disabled' : ''}>
-                    </div>
-                </td>
-            `;
-            tbodyBajas.appendChild(tr);
-        });
+        panelDiv.innerHTML = `
+            <h6 class="fw-bold"><i class="fas fa-microscope me-2"></i>Análisis de Memoria</h6>
+            <div class="row small mt-2">
+                <div class="col-md-6">
+                    <p class="mb-1">Total procesados: <b>${diag.total}</b></p>
+                    <p class="mb-0 text-${isWarning ? 'danger' : 'success'}">
+                        Registros sin área asignada: <b>${diag.vacios}</b>
+                    </p>
+                </div>
+                <div class="col-md-6 border-start">
+                    Muestra de departamentos leídos:
+                    <ul class="mb-0 ps-3 mt-1" style="max-height: 80px; overflow-y: auto;">${htmlMuestra}</ul>
+                </div>
+            </div>
+        `;
+        UI.views.resolution.prepend(panelDiv);
     }
 
-    // --- BÚSQUEDA MODAL ---
-    tbodyDepts.addEventListener('change', (e) => {
-        if (e.target.classList.contains('res-dept')) {
-            if (e.target.value === 'VINCULAR_EXISTENTE') {
-                abrirModalBuscadorDepartamentos(e.target);
+    function renderizarTablaDepartamentos(depts) {
+        UI.indicators.badgeDepts.innerText = depts.length;
+        UI.tables.depts.innerHTML = depts.map(d => {
+            
+            // Construcción modular de <options>
+            let opciones = '<option value="CREAR" class="text-success">✨ Crear como nuevo</option>';
+            if (d.sugerencias?.length) {
+                opciones += '<optgroup label="Sugerencias">';
+                d.sugerencias.forEach(s => {
+                    const texto = s.nom.length > 28 ? s.nom.substring(0,28)+'...' : s.nom;
+                    opciones += `<option value="VINCULAR_${s.id_dep}" selected>🔗 ${texto}</option>`;
+                });
+                opciones += '</optgroup>';
             }
-        }
-    });
+            opciones += '<option value="VINCULAR_EXISTENTE" class="text-primary fw-bold">🔍 Buscar catálogo...</option>';
 
-    function abrirModalBuscadorDepartamentos(selectElement) {
-        let htmlContenido = `
-        <div class="mb-3">
-            <input type="text" id="swal-search-dept" class="form-control form-control-lg border-primary shadow-sm" placeholder="🔍 Buscar nombre o clave..." autocomplete="off">
-        </div>
-        <div id="lista-swal-depts" class="text-start" style="max-height: 60vh; overflow-y: auto; overflow-x: hidden; padding-right: 5px;">
-        `;
-
-        catalogoDepartamentosGlobal.forEach(dep => {
-            htmlContenido += `
-                <div class="d-flex justify-content-between align-items-center border-bottom py-3 item-dept">
-                    <div class="pe-2 flex-grow-1" style="min-width: 0;">
-                        <span class="badge bg-secondary mb-1">${dep.clave_dep || 'Sin Clave'}</span><br>
-                        <span class="fw-bold text-dark d-block text-wrap lh-sm" style="font-size: clamp(0.8rem, 3.5vw, 0.95rem); word-break: break-word;">
-                            ${dep.nom_dep}
-                        </span>
-                    </div>
-                    <div class="flex-shrink-0 ms-2">
-                        <button class="btn btn-primary btn-sm btn-seleccionar-dept" 
-                                data-id="${dep.id_dep}" 
-                                data-nombre="${dep.nom_dep}">
-                            <i class="fas fa-check"></i> Elegir
-                        </button>
-                    </div>
-                </div>
+            return `
+                <tr>
+                    <td width="25%"><b>${d.clave_dep_raw || 'N/A'}</b></td>
+                    <td width="35%" class="text-truncate" style="max-width:150px;">${d.nom_dep_raw}</td>
+                    <td width="40%">
+                        <select class="form-select form-select-sm res-dept" data-clave="${d.clave_dep_raw}" data-nombre="${d.nom_dep_raw}">
+                            ${opciones}
+                        </select>
+                    </td>
+                </tr>
             `;
-        });
+        }).join('');
+    }
 
-        htmlContenido += `</div>`;
+    function renderizarTablaBajas(bajas) {
+        UI.indicators.badgeBajas.innerText = bajas.length;
+        UI.tables.bajas.innerHTML = bajas.map(b => {
+            const equipos = parseInt(b.total_dispositivos);
+            const bloqueado = equipos > 0 ? 'disabled' : '';
+            const badge = equipos > 0 ? `<span class="badge bg-danger">${equipos} Equipos</span>` : `<span class="badge bg-success">Libre</span>`;
+            
+            return `
+                <tr>
+                    <td>${b.num_cobro}</td>
+                    <td>${b.nombres} ${b.ape_pa} ${b.ape_ma}</td>
+                    <td>${badge}</td>
+                    <td class="text-center">
+                        <input class="form-check-input check-baja" type="checkbox" value="${b.num_cobro}" ${bloqueado}>
+                    </td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    // ==========================================
+    // 6. CONTROLADOR DE MODAL (BÚSQUEDA)
+    // ==========================================
+
+    function abrirModalBusqueda(selectTrigger) {
+        const listaHTML = catalogoGlobal.map(dep => `
+            <div class="d-flex justify-content-between align-items-center border-bottom py-2 modal-item">
+                <div class="pe-2 text-truncate">
+                    <span class="badge bg-secondary">${dep.clave_dep || 'N/A'}</span> 
+                    <span class="small fw-bold">${dep.nom_dep}</span>
+                </div>
+                <button class="btn btn-sm btn-outline-primary btn-select" data-id="${dep.id_dep}" data-nom="${dep.nom_dep}">
+                    Elegir
+                </button>
+            </div>
+        `).join('');
 
         Swal.fire({
-            title: '<h5 class="fw-bold mb-0">Seleccionar Departamento</h5>',
-            html: htmlContenido,
-            width: '100%',
-            padding: '1em',
+            title: 'Catálogo de Departamentos',
+            html: `
+                <input type="text" id="buscador-modal" class="form-control mb-3" placeholder="Filtrar..." autocomplete="off">
+                <div id="contenedor-lista" style="max-height: 50vh; overflow-y: auto; text-align: left;">${listaHTML}</div>
+            `,
             showConfirmButton: false,
             showCloseButton: true,
             didOpen: () => {
-                const inputSearch = document.getElementById('swal-search-dept');
-                const contenedorLista = document.getElementById('lista-swal-depts');
-                const items = contenedorLista.querySelectorAll('.item-dept');
-
-                inputSearch.addEventListener('input', function() {
-                    const term = this.value.toLowerCase().trim();
-                    items.forEach(item => {
-                        const text = item.innerText.toLowerCase();
-                        if (text.includes(term)) {
-                            item.classList.remove('d-none');
-                            item.classList.add('d-flex');
-                        } else {
-                            item.classList.remove('d-flex');
-                            item.classList.add('d-none');
-                        }
-                    });
+                const input = document.getElementById('buscador-modal');
+                const items = document.querySelectorAll('.modal-item');
+                
+                // Lógica de filtrado en tiempo real
+                input.addEventListener('input', (e) => {
+                    const term = e.target.value.toLowerCase();
+                    items.forEach(el => el.style.display = el.innerText.toLowerCase().includes(term) ? 'flex' : 'none');
                 });
 
-                document.querySelectorAll('.btn-seleccionar-dept').forEach(btn => {
-                    btn.addEventListener('click', (ev) => {
-                        const btnTarget = ev.currentTarget;
-                        const selectedId = btnTarget.getAttribute('data-id');
-                        const selectedNombre = btnTarget.getAttribute('data-nombre');
-
-                        let selectorString = 'option[value="VINCULAR_' + selectedId + '"]';
-                        let existingOpt = selectElement.querySelector(selectorString);
+                // Selección de elemento
+                document.getElementById('contenedor-lista').addEventListener('click', (e) => {
+                    if(e.target.closest('.btn-select')) {
+                        const btn = e.target.closest('.btn-select');
+                        const id = btn.dataset.id;
+                        const nom = btn.dataset.nom.substring(0, 25) + '...';
                         
-                        if (!existingOpt) {
-                            existingOpt = document.createElement('option');
-                            existingOpt.value = 'VINCULAR_' + selectedId;
-                            let nomCortoSelect = selectedNombre.length > 25 ? selectedNombre.substring(0, 25) + '...' : selectedNombre;
-                            existingOpt.text = '🔗 Vinculado a: ' + nomCortoSelect;
-                            selectElement.appendChild(existingOpt);
+                        // Agregar opción al select si no existe y seleccionarla
+                        if (!selectTrigger.querySelector(`option[value="VINCULAR_${id}"]`)) {
+                            const newOption = new Option(`🔗 Vinculado: ${nom}`, `VINCULAR_${id}`);
+                            selectTrigger.add(newOption);
                         }
-                        
-                        selectElement.value = 'VINCULAR_' + selectedId;
-                        Swal.close(); 
-                    });
-                });
-            }
-        }).then(() => {
-            if (!selectElement.value.startsWith('VINCULAR_') || selectElement.value === 'VINCULAR_EXISTENTE') {
-                selectElement.value = 'CREAR';
-            }
-        });
-    }
-
-    // --- LÓGICA FINAL: SINCRONIZACIÓN ---
-    btnFinalizar.addEventListener('click', () => {
-        const resolucionesDepts = [];
-        document.querySelectorAll('.res-dept').forEach(sel => {
-            resolucionesDepts.push({
-                clave: sel.dataset.clave,
-                nombre: sel.dataset.nombre,
-                accion: sel.value 
-            });
-        });
-
-        const numCobrosBaja = [];
-        document.querySelectorAll('.check-baja:checked').forEach(chk => {
-            numCobrosBaja.push(chk.value);
-        });
-
-        Swal.fire({
-            title: '¿Confirmar Sincronización?',
-            text: "Se actualizará la base de datos de personal y se procesarán las bajas seleccionadas.",
-            icon: 'question',
-            showCancelButton: true,
-            confirmButtonColor: '#198754',
-            confirmButtonText: 'Sí, ejecutar'
-        }).then((result) => {
-            if (result.isConfirmed) {
-                btnFinalizar.disabled = true;
-                btnFinalizar.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
-
-                fetch('_controller/ImportacionAsync.php', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        peticion: 'EJECUTAR_FINAL',
-                        id_sub: ID_SUB_PERSONAL,
-                        resolucionesDepts,
-                        numCobrosBaja
-                    })
-                })
-                .then(res => res.json())
-                .then(data => {
-                    if (data.status === 'success') {
-                        Swal.fire('¡Éxito!', data.msg, 'success').then(() => {
-                            window.location.href = 'personal';
-                        });
-                    } else {
-                        Swal.fire('Error', data.msg, 'error');
-                        btnFinalizar.disabled = false;
-                        btnFinalizar.innerText = 'Ejecutar Sincronización Final';
+                        selectTrigger.value = `VINCULAR_${id}`;
+                        Swal.close();
                     }
                 });
             }
+        }).then(() => {
+            // Revertir a "CREAR" si el usuario cerró el modal sin elegir nada
+            if (selectTrigger.value === 'VINCULAR_EXISTENTE') selectTrigger.value = 'CREAR';
         });
-    });
+    }
+
+    // ==========================================
+    // 7. UTILERÍAS
+    // ==========================================
+
+    function cambiarEstadoCarga(activo) {
+        UI.buttons.start.disabled = activo;
+        activo ? UI.indicators.progress.classList.remove('d-none') : UI.indicators.progress.classList.add('d-none');
+    }
+
+    async function parseJSON(response) {
+        const text = await response.text();
+        try {
+            return JSON.parse(text);
+        } catch (e) {
+            console.error("Respuesta cruda:", text);
+            throw new Error("El servidor devolvió un error interno de sistema.");
+        }
+    }
+
 });
