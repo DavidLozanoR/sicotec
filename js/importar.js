@@ -4,7 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const sectionResolucion = document.getElementById('section_resolucion');
     const btnIniciar = document.getElementById('btnIniciarAnalisis');
     const btnFinalizar = document.getElementById('btnFinalizarImportacion');
-    const inputCSV = document.getElementById('inputArchivoCSV');
+    const inputArchivo = document.getElementById('inputArchivoMasivo'); // Modificado
     const progress = document.getElementById('upload_progress');
 
     // --- Tablas y Badges ---
@@ -13,20 +13,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const badgeDepts = document.getElementById('badge-conflictos-dep');
     const badgeBajas = document.getElementById('badge-bajas');
 
-    // Variable global para almacenar el catálogo y usarlo en el Modal
+    // Variable global para almacenar el catálogo
     let catalogoDepartamentosGlobal = [];
 
     // --- LÓGICA PASO 1: SUBIR Y ANALIZAR ---
     btnIniciar.addEventListener('click', () => {
-        const archivo = inputCSV.files[0];
+        const archivo = inputArchivo.files[0];
         if (!archivo) {
-            return Swal.fire('Error', 'Por favor seleccione un archivo .csv', 'error');
+            return Swal.fire('Error', 'Por favor seleccione un archivo para importar.', 'error');
+        }
+
+        // VALIDACIÓN FRONTEND DE EXTENSIÓN
+        const ext = archivo.name.split('.').pop().toLowerCase();
+        const permitidos = ['csv', 'xlsx', 'xls', 'xml'];
+        if (!permitidos.includes(ext)) {
+            return Swal.fire('Formato no válido', 'Solo se aceptan archivos: Excel, CSV, o XML.', 'error');
         }
 
         const formData = new FormData();
-        formData.append('archivo_csv', archivo);
+        formData.append('archivo_masivo', archivo); // Nueva variable
         formData.append('id_sub', ID_SUB_PERSONAL);
-        formData.append('peticion', 'SUBIR_CSV');
+        formData.append('peticion', 'SUBIR_ARCHIVO'); // Nueva petición
 
         btnIniciar.disabled = true;
         progress.classList.remove('d-none');
@@ -67,6 +74,16 @@ document.addEventListener('DOMContentLoaded', () => {
             renderizarTablas(data);
             sectionUpload.classList.add('d-none');
             sectionResolucion.classList.remove('d-none');
+
+            // ALERTA SI SE DETECTARON SÍMBOLOS RAROS
+            if (data.alerta_csv) {
+                Swal.fire({
+                    icon: 'warning',
+                    title: '⚠️ Cuidado con el formato',
+                    html: 'Se detectaron símbolos raros o caracteres corruptos.<br><br>Para evitar que los nombres se guarden mal, te sugerimos cancelar y guardar tu archivo original como <b>Excel (.xlsx) o CSV UTF-8</b>.',
+                    confirmButtonColor: '#f39c12'
+                });
+            }
         });
     }
 
@@ -74,11 +91,9 @@ document.addEventListener('DOMContentLoaded', () => {
         // --- INICIO MÓDULO DE DIAGNÓSTICO VISUAL ---
         const containerResolucion = document.getElementById('section_resolucion');
         
-        // 1. Limpiar panel anterior si existe para evitar duplicados al re-analizar
         const oldPanel = document.getElementById('panel-diagnostico');
         if (oldPanel) oldPanel.remove();
 
-        // 2. Construir el panel si el backend envió la información de diagnóstico
         if (data.diagnostico) {
             const diag = data.diagnostico;
             
@@ -97,11 +112,11 @@ document.addEventListener('DOMContentLoaded', () => {
             panelDiv.className = `alert ${isWarning ? 'alert-warning' : 'alert-info'} mb-4 shadow-sm border`;
             
             panelDiv.innerHTML = `
-                <h6 class="alert-heading fw-bold"><i class="fas fa-microscope me-2"></i>Diagnóstico de Memoria (Datos detectados en el CSV)</h6>
+                <h6 class="alert-heading fw-bold"><i class="fas fa-microscope me-2"></i>Diagnóstico de Memoria (Datos detectados)</h6>
                 <hr class="my-2">
                 <div class="row small">
                     <div class="col-md-6">
-                        <p class="mb-1"><strong>Total de registros en memoria:</strong> ${diag.total}</p>
+                        <p class="mb-1"><strong>Total de registros leídos:</strong> ${diag.total}</p>
                         <p class="mb-0 ${isWarning ? 'text-danger fw-bold' : ''}"><strong>Registros SIN departamento asignado:</strong> ${diag.vacios} de ${diag.total}</p>
                         ${diag.vacios == diag.total && diag.total > 0 ? '<p class="text-danger mt-2 mb-0"><i class="fas fa-exclamation-triangle"></i> <b>Fallo de Mapeo:</b> El sistema no encontró la columna de departamentos, o los datos vienen vacíos.</p>' : ''}
                     </div>
@@ -114,13 +129,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 </div>
             `;
             
-            // Insertar al inicio de la sección de resolución
             containerResolucion.insertBefore(panelDiv, containerResolucion.firstChild);
         }
-        // --- FIN MÓDULO DE DIAGNÓSTICO VISUAL ---
 
-
-        // Guardamos el catálogo para la lista responsiva
         catalogoDepartamentosGlobal = data.catalogo_depts || [];
 
         // 1. Departamentos
@@ -128,26 +139,21 @@ document.addEventListener('DOMContentLoaded', () => {
         badgeDepts.innerText = data.depts.length;
         
         data.depts.forEach(d => {
-            // Opción base acortada para móviles
             let opcionesHTML = '<option value="CREAR" class="fw-bold text-success">✨ Crear nuevo</option>';
             
-            // Sugerencias automáticas truncadas para que no rompan el <select>
             if (d.sugerencias && d.sugerencias.length > 0) {
                 opcionesHTML += '<optgroup label="Sugerido por el sistema">';
                 d.sugerencias.forEach(s => {
-                    // Si el nombre es larguísimo, lo cortamos visualmente a 28 caracteres
                     let nomCorto = s.nom.length > 28 ? s.nom.substring(0, 28) + '...' : s.nom;
                     opcionesHTML += '<option value="VINCULAR_' + s.id_dep + '" selected>🔗 ' + nomCorto + '</option>';
                 });
                 opcionesHTML += '</optgroup>';
             }
 
-            // Agregamos la opción manual acortada
             opcionesHTML += '<option value="VINCULAR_EXISTENTE" class="text-primary fw-bold">🔍 Buscar otro...</option>';
 
             const tr = document.createElement('tr');
             tr.className = 'conflict-row';
-            // Controlamos los anchos de las celdas (25%, 35%, 40%) para evitar desbordes
             tr.innerHTML = `
                 <td style="width: 25%;"><b class="text-primary">${d.clave_dep_raw || 'Sin Clave'}</b></td>
                 <td style="width: 35%; max-width: 100px;" class="text-truncate">${d.nom_dep_raw}</td>
@@ -185,8 +191,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    
-    // --- EVENTO PARA DETECTAR CUANDO EL USUARIO ELIGE "BUSCAR OTRO" ---
+    // --- BÚSQUEDA MODAL ---
     tbodyDepts.addEventListener('change', (e) => {
         if (e.target.classList.contains('res-dept')) {
             if (e.target.value === 'VINCULAR_EXISTENTE') {
@@ -195,7 +200,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- LÓGICA DEL MODAL RESPONSIVO (DISEÑO MÓVIL FLEXBOX & CLAMP) ---
     function abrirModalBuscadorDepartamentos(selectElement) {
         let htmlContenido = `
         <div class="mb-3">
@@ -238,38 +242,32 @@ document.addEventListener('DOMContentLoaded', () => {
                 const contenedorLista = document.getElementById('lista-swal-depts');
                 const items = contenedorLista.querySelectorAll('.item-dept');
 
-                // --- SOLUCIÓN DE BÚSQUEDA ---
                 inputSearch.addEventListener('input', function() {
                     const term = this.value.toLowerCase().trim();
                     items.forEach(item => {
                         const text = item.innerText.toLowerCase();
                         if (text.includes(term)) {
-                            // Usamos las clases de Bootstrap para sobreescribir el display
                             item.classList.remove('d-none');
                             item.classList.add('d-flex');
                         } else {
-                            // Ocultamos el elemento eliminando el d-flex
                             item.classList.remove('d-flex');
                             item.classList.add('d-none');
                         }
                     });
                 });
 
-                // Clic en elegir
                 document.querySelectorAll('.btn-seleccionar-dept').forEach(btn => {
                     btn.addEventListener('click', (ev) => {
                         const btnTarget = ev.currentTarget;
                         const selectedId = btnTarget.getAttribute('data-id');
                         const selectedNombre = btnTarget.getAttribute('data-nombre');
 
-                        // Creamos la opción en el select si no existía
                         let selectorString = 'option[value="VINCULAR_' + selectedId + '"]';
                         let existingOpt = selectElement.querySelector(selectorString);
                         
                         if (!existingOpt) {
                             existingOpt = document.createElement('option');
                             existingOpt.value = 'VINCULAR_' + selectedId;
-                            // Acortamos el texto para que el select no se expanda al regresar
                             let nomCortoSelect = selectedNombre.length > 25 ? selectedNombre.substring(0, 25) + '...' : selectedNombre;
                             existingOpt.text = '🔗 Vinculado a: ' + nomCortoSelect;
                             selectElement.appendChild(existingOpt);
@@ -281,7 +279,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
             }
         }).then(() => {
-            // Manejo de cancelación si el usuario toca fuera del modal
             if (!selectElement.value.startsWith('VINCULAR_') || selectElement.value === 'VINCULAR_EXISTENTE') {
                 selectElement.value = 'CREAR';
             }

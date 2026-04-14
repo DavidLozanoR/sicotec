@@ -1,53 +1,45 @@
 <?php
+ini_set('display_errors', 1);
+ini_set('display_startup_errors', 1);
+error_reporting(E_ALL);
+// NOTA IMPORTANTE: Esta ruta asume que instalaste Composer dentro de SiCoSoTe
+require_once __DIR__ . "/../vendor/autoload.php"; 
 require_once "MainModel.php";
+
+use OpenSpout\Reader\CSV\Reader as CSVReader;
+use OpenSpout\Reader\XLSX\Reader as XLSXReader;
+use OpenSpout\Reader\ODS\Reader as ODSReader;
 
 class ImportacionController {
 
-    // Definición de constantes para rutas
     const VISTA = "_view/importar.html.php";
     const JS    = "js/importar.js";
 
     private $slug;
 
-    // Constructor estándar para validación de sesión
     function __construct($slug = null) { 
         if (session_status() === PHP_SESSION_NONE) { session_start(); }
         if (!isset($_SESSION['usuario'])) { die("Error: Sesión expirada."); }
         $this->slug = $slug;
     }
 
-    /**
-     * Renderiza el contenido HTML de la vista
-     */
     public function renderContent() {
         $model = new MainModel();
-        
-        // Buscamos el ID del submódulo padre para heredar sus permisos o contexto
         $id_sub_personal = $model->obtenerIdSubmoduloPorSlug('personalop');
         
-        // Definimos los datos que la vista necesitará
         $datos = [
             'id_sub_personal' => $id_sub_personal,
             'slug'            => $this->slug
         ];
 
-        // Extraemos las variables para que estén disponibles directamente en el include
         extract($datos);
         include self::VISTA;
     }
 
-    /**
-     * Incluye el archivo JavaScript correspondiente
-     */
     public function renderJS() {
-        if (file_exists(self::JS)) { 
-            include self::JS; 
-        }
+        if (file_exists(self::JS)) { include self::JS; }
     }
 
-    // ==========================================
-    // MANEJO DE PERMISOS (RBAC)
-    // ==========================================
     public function verificarPermiso($id_sub, $id_permiso) {
         $model = new MainModel();
         $id_rol = $_SESSION['usuario']['id_rol'] ?? null;
@@ -63,50 +55,113 @@ class ImportacionController {
     }
 
     // ==========================================
-    // PROCESAMIENTO TÉCNICO DEL CSV
+    // PROCESAMIENTO MULTIFORMATO (Excel, CSV, ODS, JSON, XML)
     // ==========================================
-    public function procesarCSV($ruta_temporal, $id_sub) {
+    public function procesarArchivoMasivo($ruta_temporal, $nombre_archivo_original, $id_sub) {
         $model = new MainModel();
 
-        // 1. Limpiar la "Aduana" antes de recibir nueva carga
+        // 1. Limpiar la tabla temporal
         $model->ejecutarConsultaLibre("TRUNCATE TABLE temp_importacion_po");
 
-        // 2. Abrir y leer el archivo
-        $archivo = fopen($ruta_temporal, "r");
-        if (!$archivo) return ["status" => "error", "msg" => "No se pudo leer el archivo CSV."];
+        // 2. Detectar la extensión real del archivo
+        $extension = strtolower(pathinfo($nombre_archivo_original, PATHINFO_EXTENSION));
+        $datosCrudos = [];
 
-        // 3. Leer la primera línea (Encabezados)
-        $encabezados_crudos = fgetcsv($archivo, 10000, ",");
-        $encabezados = array_map([$this, 'limpiarTexto'], $encabezados_crudos);
+        try {
+            // --- RUTA A: EXCEL, CSV, ODS (Vía Openspout) ---
+            if (in_array($extension, ['xlsx', 'csv'])) {
+                
+                // Le decimos a Openspout qué lector usar
+                if ($extension === 'csv') {
+                    $reader = new CSVReader();;
+                } else {
+                    $reader = new XLSXReader();
+                }
 
-        // 4. Análisis Heurístico de columnas
-        // Detectamos el consecutivo estrictamente para usarlo como filtro
+                $reader->open($ruta_temporal);
+                foreach ($reader->getSheetIterator() as $sheet) {
+                    foreach ($sheet->getRowIterator() as $row) {
+                        $datosCrudos[] = $row->toArray();
+                    }
+                    break; // Solo leemos la primera pestaña del documento
+                }
+                $reader->close();
+            }
+             // RUTA B: EXCEL ANTIGUO 
+            elseif ($extension === 'xls') {
+                return [
+                    "status" => "error", 
+                    "msg" => "El formato Excel antiguo (.xls) no está soportado. Por favor, abre tu archivo original, ve a 'Guardar como' y elige 'Libro de Excel (*.xlsx)' o 'CSV UTF-8'."
+                ];
+            }
+            
+            // --- RUTA C: XML (Vía PHP Nativo) ---
+            elseif ($extension === 'xml') {
+                $xml = simplexml_load_file($ruta_temporal);
+                $datos_json = json_decode(json_encode($xml), true);
+                
+                // Normalmente el XML viene envuelto en un nodo padre, esto toma los datos internos
+                $datosCrudos = is_array(reset($datos_json)) ? reset($datos_json) : $datos_json;
+            } 
+            else {
+                return ["status" => "error", "msg" => "Formato de archivo no soportado ($extension)."];
+            }
+
+        } catch (\Exception $e) {
+            return ["status" => "error", "msg" => "Error al leer el archivo: " . $e->getMessage()];
+        }
+
+        if (empty($datosCrudos) || !is_array($datosCrudos)) {
+            return ["status" => "error", "msg" => "El archivo está vacío o tiene una estructura inválida."];
+        }
+
+        // 3. Normalizar Encabezados y Datos
+        $encabezados = [];
+        $filas_datos = [];
+
+        if (in_array($extension, ['xlsx', 'csv', 'ods'])) {
+            $encabezados_crudos = array_shift($datosCrudos); // Extrae la fila 1 como encabezados
+            $encabezados = array_map([$this, 'limpiarTexto'], $encabezados_crudos);
+            $filas_datos = $datosCrudos;
+        } else {
+            // Para JSON/XML, asumimos que los encabezados son las llaves del primer objeto
+            $primer_registro = reset($datosCrudos);
+            if (is_array($primer_registro)) {
+                $encabezados_crudos = array_keys($primer_registro);
+                $encabezados = array_map([$this, 'limpiarTexto'], $encabezados_crudos);
+                $filas_datos = $datosCrudos;
+            } else {
+                return ["status" => "error", "msg" => "El XML no tiene un formato tabular válido."];
+            }
+        }
+
+        // 4. Búsqueda Heurística de Índices
         $idx_consecutivo = $this->buscarIndiceColumna($encabezados, ['consecutivo']);
-        
-        // DEJAMOS SOLO 'cobro' para que apunte directamente a "No. De cobro" y no se confunda
-        $idx_cobro  = $this->buscarIndiceColumna($encabezados, ['cobro']);
-        $idx_nombre = $this->buscarIndiceColumna($encabezados, ['nombre', 'empleado', 'personal']);
-        $idx_puesto = $this->buscarIndiceColumna($encabezados, ['puesto', 'cargo', 'funcion']);
-        $idx_correo = $this->buscarIndiceColumna($encabezados, ['correo', 'email', 'e-mail']);
-        $idx_dep    = $this->buscarIndiceColumna($encabezados, ['area', 'departamento', 'depto', 'adscrip']);
+        $idx_cobro       = $this->buscarIndiceColumna($encabezados, ['cobro']);
+        $idx_nombre      = $this->buscarIndiceColumna($encabezados, ['nombre', 'empleado', 'personal']);
+        $idx_puesto      = $this->buscarIndiceColumna($encabezados, ['puesto', 'cargo', 'funcion']);
+        $idx_correo      = $this->buscarIndiceColumna($encabezados, ['correo', 'email', 'e-mail']);
+        $idx_dep         = $this->buscarIndiceColumna($encabezados, ['area', 'departamento', 'depto', 'adscrip']);
 
         if ($idx_cobro === -1 || $idx_nombre === -1) {
-            fclose($archivo);
-            return ["status" => "error", "msg" => "El CSV no tiene las columnas mínimas (Cobro y Nombre)."];
+            return ["status" => "error", "msg" => "El archivo no cuenta con las columnas mínimas obligatorias (Cobro y Nombre)."];
         }
 
         $registros_validos = 0;
         $valores_insert = [];
 
-        // 5. Lectura fila por fila
-        while (($fila = fgetcsv($archivo, 10000, ",")) !== FALSE) {
-            // --- NUEVO FILTRO MATA-FANTASMAS ---
-            // Si existe la columna Consecutivo, y está vacía, sabemos que es un título de Departamento. La ignoramos.
+        // 5. Procesamiento y Extracción Fila por Fila
+        foreach ($filas_datos as $fila_cruda) {
+            
+            // Truco: Convierte llaves {"cobro":"123"} a array posicional [0 => "123"] para compatibilidad
+            $fila = array_values($fila_cruda);
+
+            if (empty(array_filter($fila))) continue; // Saltar filas completamente vacías
+
+            // Filtro Mata-Fantasmas de Excel (saltar títulos intermedios)
             if ($idx_consecutivo !== -1) {
                 $val_consecutivo = trim($fila[$idx_consecutivo] ?? '');
-                if (empty($val_consecutivo)) {
-                    continue;
-                }
+                if (empty($val_consecutivo)) continue;
             }
 
             $num_cobro = $this->limpiarTexto($fila[$idx_cobro] ?? '');
@@ -132,19 +187,18 @@ class ImportacionController {
             $valores_insert[] = "('$num_cobro_esc', '$nombres_esc', '$ape_pa_esc', '$ape_ma_esc', '$puesto_esc', '$correo_esc', '$clave_dep_esc', '$nom_dep_esc')";
             $registros_validos++;
         }
-        fclose($archivo);
 
         if ($registros_validos === 0) {
-            return ["status" => "error", "msg" => "No se encontraron registros válidos."];
+            return ["status" => "error", "msg" => "No se encontraron registros válidos para importar."];
         }
 
-        // 6. Volcado Masivo (Bulk Insert)
+        // 6. Volcado Masivo (Bulk Insert) a Temporal
         $queryBulk = "INSERT INTO temp_importacion_po (num_cobro, nombres, ape_pa, ape_ma, puesto, correo, clave_dep_raw, nom_dep_raw) VALUES " . implode(", ", $valores_insert);
         
         $exito_volcado = $model->ejecutarConsultaLibre($queryBulk);
 
         if (is_string($exito_volcado) && strpos($exito_volcado, 'ERROR_BD') !== false) {
-            return ["status" => "error", "msg" => "Fallo al insertar en Temporal: " . $exito_volcado];
+            return ["status" => "error", "msg" => "Fallo al insertar en la tabla Temporal: " . $exito_volcado];
         }
 
         if ($exito_volcado) {
@@ -154,7 +208,7 @@ class ImportacionController {
                 "total_procesados" => $registros_validos
             ];
         } else {
-            return ["status" => "error", "msg" => "Error desconocido al volcar los datos a la tabla temporal."];
+            return ["status" => "error", "msg" => "Error desconocido al volcar los datos a la base de datos."];
         }
     }
 
@@ -165,35 +219,30 @@ class ImportacionController {
     private function limpiarTexto($texto) {
         if (!is_string($texto)) return '';
         
-        // 1. Quitar comillas dobles que suele poner Excel
+        // --- DETECTOR DE SÍMBOLOS RAROS ---
+        if (strpos($texto, '') !== false || strpos($texto, 'Ã') !== false) {
+            $_SESSION['alerta_csv_formato'] = true;
+        }
+
         $texto = str_replace('"', '', trim($texto));
-        
-        // 2. Pasar a mayúsculas
         $texto = mb_strtoupper($texto, 'UTF-8');
-        
-        // 3. Forzar el paso por tu limpiador de acentos y caracteres raros
         $texto = $this->quitarAcentos($texto);
-        
         return $texto;
     }
 
     private function buscarIndiceColumna($encabezados, $palabras_clave) {
-            foreach ($encabezados as $index => $encabezado) {
-                // El encabezado ya viene limpio de la función limpiarTexto
-                $enc_limpio = strtoupper($encabezado); 
-                
-                foreach ($palabras_clave as $clave) {
-                    // Pasamos la clave a buscar también a mayúsculas
-                    if (strpos($enc_limpio, strtoupper($clave)) !== false) { 
-                        return $index; 
-                    }
+        foreach ($encabezados as $index => $encabezado) {
+            $enc_limpio = strtoupper($encabezado); 
+            foreach ($palabras_clave as $clave) {
+                if (strpos($enc_limpio, strtoupper($clave)) !== false) { 
+                    return $index; 
                 }
             }
-            return -1;
         }
+        return -1;
+    }
 
     private function quitarAcentos($cadena) {
-        // Añadimos los caracteres corruptos de Excel MS-DOS al inicio de la lista
         $originales = [
             'à','','µ','¥','¢','¡','£','¤','¦','§',
             'À','Á','Â','Ã','Ä','Å','Æ','Ç','È','É','Ê','Ë','Ì','Í','Î','Ï','Ð','Ñ','Ò','Ó','Ô','Õ','Ö','Ø','Ù','Ú','Û','Ü','Ý','Þ','ß',
@@ -248,13 +297,9 @@ class ImportacionController {
         ];
     }
 
-    /**
-     * Obtiene discrepancias de departamentos y personal que ya no está en el CSV
-     */
     public function obtenerConflictos() {
         $model = new MainModel();
 
-        // 1. Departamentos: Buscamos claves/nombres en temp que no existen en la tabla real
         $queryDepts = "SELECT DISTINCT clave_dep_raw, nom_dep_raw 
                        FROM temp_importacion_po t
                        LEFT JOIN departamentos d ON t.clave_dep_raw = d.clave_dep AND t.nom_dep_raw = d.nom_dep
@@ -273,7 +318,6 @@ class ImportacionController {
             }
         }
 
-        // 2. Bajas: Personal con estatus 1 que no vino en el archivo temporal
         $queryBajas = "SELECT po.id_po, po.num_cobro, po.nombres, po.ape_pa, po.ape_ma,
                        (SELECT COUNT(*) FROM dispositivos d WHERE d.asig_po_id = po.id_po OR d.resp_po_id = po.id_po) as total_dispositivos
                        FROM personal_operativo po
@@ -281,12 +325,16 @@ class ImportacionController {
                        WHERE t.num_cobro IS NULL AND po.estatus = 1";
         $bajas = $model->consultarLibre($queryBajas);
         
-        // 3. Catálogo completo
         $catalogo_completo = $model->seleccionaRegistros("departamentos", ["id_dep", "clave_dep", "nom_dep"], "1=1 ORDER BY nom_dep ASC");
 
-        // --- 4. NUEVO: DIAGNÓSTICO DE LA TABLA TEMPORAL ---
         $resumen = $model->consultarLibre("SELECT COUNT(*) as total_filas, SUM(CASE WHEN nom_dep_raw = '' THEN 1 ELSE 0 END) as sin_depto FROM temp_importacion_po");
         $muestra = $model->consultarLibre("SELECT DISTINCT clave_dep_raw, nom_dep_raw FROM temp_importacion_po LIMIT 5");
+
+        $alerta = false;
+        if (isset($_SESSION['alerta_csv_formato'])) {
+            $alerta = true;
+            unset($_SESSION['alerta_csv_formato']);
+        }
 
         return [
             "status" => "success",
@@ -297,22 +345,18 @@ class ImportacionController {
                 "total" => $resumen[0]['total_filas'] ?? 0,
                 "vacios" => $resumen[0]['sin_depto'] ?? 0,
                 "muestra" => $muestra ?: []
-            ]
+            ],
+            "alerta_csv" => $alerta
         ];
     }
 
-    /**
-     * Procesa las resoluciones del usuario, ejecuta el SP final y registra en bitácora
-     */
     public function finalizarSincronizacion($resolucionesDepts, $numCobrosBaja, $id_sub = null) {
         $model = new MainModel();
 
-        // Si no se pasó el id_sub (llamada antigua desde el router), lo resolvemos
         if (!$id_sub) {
             $id_sub = $model->obtenerIdSubmoduloPorSlug('personal') ?? 1;
         }
 
-        // A. Resolver EXCEPCIONES de Departamentos
         foreach ($resolucionesDepts as $res) {
             if ($res['accion'] !== 'CREAR' && strpos($res['accion'], 'VINCULAR_') === 0) {
                 $id_existente = str_replace('VINCULAR_', '', $res['accion']);
@@ -320,7 +364,6 @@ class ImportacionController {
             }
         }
 
-        // B. Llamar al Procedimiento Almacenado de Upsert
         $exito_sp = $model->ejecutarConsultaLibre("CALL sp_sincronizar_personal_csv()");
         if (is_string($exito_sp) && strpos($exito_sp, 'ERROR_BD') !== false) {
             return ["status" => "error", "msg" => "Error SQL: " . $exito_sp];
@@ -329,19 +372,17 @@ class ImportacionController {
             return ["status" => "error", "msg" => "Hubo un problema al ejecutar el motor de sincronización en la base de datos."];
         }
 
-        // C. Aplicar Bajas seleccionadas manualmente
         if (!empty($numCobrosBaja)) {
             foreach($numCobrosBaja as $cobro) {
                 $model->ejecutarConsultaLibre("UPDATE personal_operativo SET estatus = 0 WHERE num_cobro = ?", [$cobro]);
             }
         }
 
-        // D. REGISTRO EN BITÁCORA (INTEGRADO EN EL CONTROLADOR)
         $id_usuario  = $_SESSION['usuario']['id_usuar'] ?? 1;
         $total_bajas = is_array($numCobrosBaja) ? count($numCobrosBaja) : 0;
         $total_depts = is_array($resolucionesDepts) ? count($resolucionesDepts) : 0;
         
-        $detalle = "Sincronizó masivamente al Personal Operativo vía CSV. (Bajas procesadas: $total_bajas | Resoluciones de departamentos: $total_depts)";
+        $detalle = "Sincronizó masivamente al Personal Operativo (Multiformato). Bajas procesadas: $total_bajas | Resoluciones: $total_depts";
         
         $model->agregaRegistro("bitacora", 
             ["id_usuar", "id_sub", "accion", "detalle", "fecha", "hora"], 

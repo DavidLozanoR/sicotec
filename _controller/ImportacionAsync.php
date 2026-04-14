@@ -6,7 +6,7 @@ if (session_status() === PHP_SESSION_NONE) { session_start(); }
 
 require_once __DIR__ . "/../config/Global.php";
 require_once "ImportacionController.php";
-require_once "MainModel.php"; // Requerido para buscar el id_sub en caso de emergencia
+require_once "MainModel.php";
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -26,26 +26,25 @@ $modelo = new MainModel();
 // Obtención inteligente del submódulo
 $id_sub = $_POST['id_sub'] ?? ($input['id_sub'] ?? null);
 if (!$id_sub) {
-    // Si no llega por POST/JSON, lo buscamos por su slug exacto en la base de datos
     $id_sub = $modelo->obtenerIdSubmoduloPorSlug('personal') ?? 1;
 }
 
-// =========================================================
-// VALIDACIÓN DE PERMISOS (RBAC)
-// Permiso 2 = Agregar / Importar
-// =========================================================
+// Validación de Permisos
 if (!$controller->verificarPermiso($id_sub, 2)) {
     echo json_encode(["status" => "error", "msg" => "Acceso denegado: No cuenta con los privilegios para importar registros."]);
     exit;
 }
 
 switch ($peticion) {
-    case 'SUBIR_CSV':
-        if (!isset($_FILES['archivo_csv'])) {
+    case 'SUBIR_ARCHIVO': // Modificado para aceptar múltiples formatos
+        if (!isset($_FILES['archivo_masivo'])) {
             echo json_encode(["status" => "error", "msg" => "No se recibió el archivo."]);
             exit;
         }
-        echo json_encode($controller->procesarCSV($_FILES['archivo_csv']['tmp_name'], $id_sub));
+        $ruta_temporal = $_FILES['archivo_masivo']['tmp_name'];
+        $nombre_original = $_FILES['archivo_masivo']['name'];
+        
+        echo json_encode($controller->procesarArchivoMasivo($ruta_temporal, $nombre_original, $id_sub));
         break;
 
     case 'GET_CONFLICTOS':
@@ -56,7 +55,6 @@ switch ($peticion) {
         $resDepts = $input['resolucionesDepts'] ?? [];
         $bajas = $input['numCobrosBaja'] ?? [];
         
-        // Pasamos el id_sub al controlador para que lo use al momento de guardar en la bitácora
         echo json_encode($controller->finalizarSincronizacion($resDepts, $bajas, $id_sub));
         break;
 

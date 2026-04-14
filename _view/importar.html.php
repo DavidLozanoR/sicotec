@@ -16,14 +16,15 @@
             
             <div id="section_upload" class="py-5 text-center">
                 <div class="mb-4">
-                    <i class="fas fa-file-csv fa-5x text-success opacity-25"></i>
+                    <i class="fas fa-file-excel fa-5x text-success opacity-25"></i>
                 </div>
-                <h3>Paso 1: Cargar Archivo CSV</h3>
-                <p class="text-muted">Asegúrese de que el archivo contenga las columnas de <b>Nombre</b> y <b>Número de Cobro</b>.</p>
+                <h3>Paso 1: Cargar Archivo de Datos</h3>
+                <p class="text-muted">Asegúrese de que el archivo contenga las columnas de <b>Nombre</b> y <b>Número de Cobro</b>.<br>
+                <small>Formatos permitidos: Excel (.xlsx), CSV, XML.</small></p>
                 
                 <div class="col-md-5 mx-auto mt-4">
                     <div class="input-group">
-                        <input type="file" class="form-control" id="inputArchivoCSV" accept=".csv">
+                        <input type="file" class="form-control" id="inputArchivoMasivo" accept=".csv, .xlsx, .xml, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet, application/vnd.ms-excel, application/vnd.oasis.opendocument.spreadsheet, application/json, application/xml, text/xml">
                         <button class="btn btn-primary" id="btnIniciarAnalisis">
                             <i class="fas fa-search me-2"></i> Analizar
                         </button>
@@ -59,14 +60,14 @@
                         
                         <div class="tab-pane fade show active" id="tab-depts" role="tabpanel">
                             <div class="alert alert-info">
-                                <i class="fas fa-info-circle me-2"></i> Los siguientes departamentos en el CSV no coinciden exactamente con la base de datos. Elija una acción.
+                                <i class="fas fa-info-circle me-2"></i> Los siguientes departamentos en el archivo no coinciden exactamente con la base de datos. Elija una acción.
                             </div>
                             <div class="table-responsive">
                                 <table class="table table-sm table-hover align-middle">
                                     <thead class="table-light">
                                         <tr>
-                                            <th>Clave CSV</th>
-                                            <th>Nombre en CSV</th>
+                                            <th>Clave Origen</th>
+                                            <th>Nombre en Origen</th>
                                             <th>Sugerencia / Acción</th>
                                         </tr>
                                     </thead>
@@ -78,7 +79,7 @@
 
                         <div class="tab-pane fade" id="tab-bajas" role="tabpanel">
                             <div class="alert alert-warning text-dark">
-                                <i class="fas fa-exclamation-triangle me-2"></i> Estos usuarios activos en el sistema NO están en el archivo CSV de hoy. Seleccione a quiénes dar de baja.
+                                <i class="fas fa-exclamation-triangle me-2"></i> Estos usuarios activos en el sistema NO están en el archivo de hoy. Seleccione a quiénes dar de baja.
                             </div>
                             <div class="table-responsive">
                                 <table class="table table-sm table-hover align-middle">
