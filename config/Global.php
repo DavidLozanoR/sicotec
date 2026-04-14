@@ -16,7 +16,7 @@
 
     //variables de entorno
 
- define("SITE_URL", "http://localhost/seguimiento-inea/Seguimiento%20INEA/sicosote/");
+ define("SITE_URL", "http://localhost/sico/seguimiento-inea/Seguimiento%20INEA/sicosote/");
     define("RUTA_DEFAULT", "inicio");
     define("DB_HOST", "192.168.250.24");
     define("DB_PORT", "5075");

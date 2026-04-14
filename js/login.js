@@ -1,5 +1,24 @@
 $(document).ready(function() {
-    // Enviar formulario de inicio de sesión
+    
+    // ==========================================
+    // VALIDACIÓN REACTIVA: Campo Contraseña
+    // ==========================================
+    $('#pass').on('input', function() {
+        // Reemplaza cualquier espacio en blanco (\s) con una cadena vacía ('') inmediatamente
+        let valorSinEspacios = $(this).val().replace(/\s/g, '');
+        $(this).val(valorSinEspacios);
+    });
+
+    // Opcional: También es buena práctica quitar los espacios del campo usuario
+    $('#usr').on('input', function() {
+        let valorSinEspacios = $(this).val().replace(/\s/g, '');
+        $(this).val(valorSinEspacios);
+    });
+
+
+    // ==========================================
+    // ENVÍO DEL FORMULARIO
+    // ==========================================
     $('#login-form').submit(function(event) {
         event.preventDefault();
         
