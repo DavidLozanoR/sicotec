@@ -1,47 +1,59 @@
 <?php
-// Ocultar advertencias de PHP para evitar que corrompan la respuesta JSON
-error_reporting(0);
+// Configuración estricta para evitar salidas de texto que corrompan el JSON
+error_reporting(E_ALL);
+ini_set('display_errors', 0);
+header('Content-Type: application/json; charset=utf-8');
 
-if (session_status() === PHP_SESSION_NONE) { session_start(); }
+if (session_status() === PHP_SESSION_NONE) { 
+    session_start(); 
+}
 
 require_once __DIR__ . "/../config/Global.php";
 require_once "ImportacionController.php";
 require_once "MainModel.php";
 
-header('Content-Type: application/json; charset=utf-8');
+// Manejador global de excepciones para asegurar que siempre se responda un JSON
+set_exception_handler(function($e) {
+    echo json_encode(["status" => "error", "msg" => "Error interno: " . $e->getMessage()]);
+    exit;
+});
 
-// Validación de sesión activa
+// 1. Validación de sesión activa
 if (!isset($_SESSION['usuario'])) {
-    echo json_encode(["status" => "error", "msg" => "Sesión expirada."]);
+    echo json_encode(["status" => "error", "msg" => "Sesión expirada o no iniciada."]);
     exit;
 }
 
-// Captura de entrada JSON para peticiones fetch
-$input = json_decode(file_get_contents('php://input'), true);
-$peticion = $_POST['peticion'] ?? ($input['peticion'] ?? '');
+// 2. Consolidación de entradas (Soporta fetch JSON y FormData tradicional)
+$input_json = json_decode(file_get_contents('php://input'), true) ?? [];
+$peticion   = $_POST['peticion'] ?? $input_json['peticion'] ?? '';
+$id_sub     = $_POST['id_sub']   ?? $input_json['id_sub']   ?? null;
 
 $controller = new ImportacionController();
-$modelo = new MainModel();
+$modelo     = new MainModel();
 
-// Obtención inteligente del submódulo
-$id_sub = $_POST['id_sub'] ?? ($input['id_sub'] ?? null);
+// 3. Resolución automática del submódulo si no se provee en la petición
 if (!$id_sub) {
     $id_sub = $modelo->obtenerIdSubmoduloPorSlug('personal') ?? 1;
 }
 
-// Validación de Permisos
+// 4. Validación centralizada de permisos (Permiso 2: Crear/Importar)
 if (!$controller->verificarPermiso($id_sub, 2)) {
-    echo json_encode(["status" => "error", "msg" => "Acceso denegado: No cuenta con los privilegios para importar registros."]);
+    echo json_encode(["status" => "error", "msg" => "Acceso denegado: Privilegios insuficientes para importar."]);
     exit;
 }
 
+// 5. Enrutador de peticiones
 switch ($peticion) {
-    case 'SUBIR_ARCHIVO': // Modificado para aceptar múltiples formatos
-        if (!isset($_FILES['archivo_masivo'])) {
-            echo json_encode(["status" => "error", "msg" => "No se recibió el archivo."]);
+    
+    case 'SUBIR_ARCHIVO':
+        // Validación de existencia e integridad del archivo subido
+        if (!isset($_FILES['archivo_masivo']) || $_FILES['archivo_masivo']['error'] !== UPLOAD_ERR_OK) {
+            echo json_encode(["status" => "error", "msg" => "Archivo no recibido o corrupto durante la transmisión."]);
             exit;
         }
-        $ruta_temporal = $_FILES['archivo_masivo']['tmp_name'];
+        
+        $ruta_temporal   = $_FILES['archivo_masivo']['tmp_name'];
         $nombre_original = $_FILES['archivo_masivo']['name'];
         
         echo json_encode($controller->procesarArchivoMasivo($ruta_temporal, $nombre_original, $id_sub));
@@ -52,14 +64,15 @@ switch ($peticion) {
         break;
 
     case 'EJECUTAR_FINAL':
-        $resDepts = $input['resolucionesDepts'] ?? [];
-        $bajas = $input['numCobrosBaja'] ?? [];
+        // Extracción directa desde el payload JSON
+        $resDepts = $input_json['resolucionesDepts'] ?? [];
+        $bajas    = $input_json['numCobrosBaja']     ?? [];
         
         echo json_encode($controller->finalizarSincronizacion($resDepts, $bajas, $id_sub));
         break;
 
     default:
-        echo json_encode(["status" => "error", "msg" => "Petición '$peticion' no reconocida."]);
+        echo json_encode(["status" => "error", "msg" => "Petición '$peticion' no reconocida por el servidor."]);
         break;
 }
 ?>
