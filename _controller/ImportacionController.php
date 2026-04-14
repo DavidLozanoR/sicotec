@@ -2,7 +2,7 @@
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
-// NOTA IMPORTANTE: Esta ruta asume que instalaste Composer dentro de SiCoSoTe
+
 require_once __DIR__ . "/../vendor/autoload.php"; 
 require_once "MainModel.php";
 
@@ -15,23 +15,22 @@ class ImportacionController {
     const VISTA = "_view/importar.html.php";
     const JS    = "js/importar.js";
 
+    private $model;
     private $slug;
 
-    function __construct($slug = null) { 
+    public function __construct($slug = null) { 
         if (session_status() === PHP_SESSION_NONE) { session_start(); }
         if (!isset($_SESSION['usuario'])) { die("Error: Sesión expirada."); }
+        $this->model = new MainModel();
         $this->slug = $slug;
     }
 
     public function renderContent() {
-        $model = new MainModel();
-        $id_sub_personal = $model->obtenerIdSubmoduloPorSlug('personalop');
-        
+        $id_sub_personal = $this->model->obtenerIdSubmoduloPorSlug('personalop');
         $datos = [
             'id_sub_personal' => $id_sub_personal,
             'slug'            => $this->slug
         ];
-
         extract($datos);
         include self::VISTA;
     }
@@ -41,11 +40,10 @@ class ImportacionController {
     }
 
     public function verificarPermiso($id_sub, $id_permiso) {
-        $model = new MainModel();
         $id_rol = $_SESSION['usuario']['id_rol'] ?? null;
         if (!$id_rol) return false;
 
-        $permiso = $model->seleccionaRegistros(
+        $permiso = $this->model->seleccionaRegistros(
             "rol_submodulo_permiso", 
             ["id_perm"], 
             "id_rol = ? AND id_sub = ? AND id_perm = ?", 
@@ -54,26 +52,18 @@ class ImportacionController {
         return ($permiso && count($permiso) > 0);
     }
 
-    // ==========================================
-    // PROCESAMIENTO MULTIFORMATO (Excel, CSV, ODS, JSON, XML)
-    // ==========================================
     public function procesarArchivoMasivo($ruta_temporal, $nombre_archivo_original, $id_sub) {
-        $model = new MainModel();
+        $this->model->ejecutarConsultaLibre("TRUNCATE TABLE temp_importacion_po");
 
-        // 1. Limpiar la tabla temporal
-        $model->ejecutarConsultaLibre("TRUNCATE TABLE temp_importacion_po");
-
-        // 2. Detectar la extensión real del archivo
         $extension = strtolower(pathinfo($nombre_archivo_original, PATHINFO_EXTENSION));
         $datosCrudos = [];
 
         try {
-            // --- RUTA A: EXCEL, CSV, ODS (Vía Openspout) ---
-            if (in_array($extension, ['xlsx', 'csv'])) {
-                
-                // Le decimos a Openspout qué lector usar
+            if (in_array($extension, ['xlsx', 'csv', 'ods'])) {
                 if ($extension === 'csv') {
-                    $reader = new CSVReader();;
+                    $reader = new CSVReader();
+                } elseif ($extension === 'ods') {
+                    $reader = new ODSReader();
                 } else {
                     $reader = new XLSXReader();
                 }
@@ -83,30 +73,24 @@ class ImportacionController {
                     foreach ($sheet->getRowIterator() as $row) {
                         $datosCrudos[] = $row->toArray();
                     }
-                    break; // Solo leemos la primera pestaña del documento
+                    break; 
                 }
                 $reader->close();
-            }
-             // RUTA B: EXCEL ANTIGUO 
+            } 
             elseif ($extension === 'xls') {
                 return [
                     "status" => "error", 
                     "msg" => "El formato Excel antiguo (.xls) no está soportado. Por favor, abre tu archivo original, ve a 'Guardar como' y elige 'Libro de Excel (*.xlsx)' o 'CSV UTF-8'."
                 ];
             }
-            
-            // --- RUTA C: XML (Vía PHP Nativo) ---
             elseif ($extension === 'xml') {
                 $xml = simplexml_load_file($ruta_temporal);
                 $datos_json = json_decode(json_encode($xml), true);
-                
-                // Normalmente el XML viene envuelto en un nodo padre, esto toma los datos internos
                 $datosCrudos = is_array(reset($datos_json)) ? reset($datos_json) : $datos_json;
             } 
             else {
                 return ["status" => "error", "msg" => "Formato de archivo no soportado ($extension)."];
             }
-
         } catch (\Exception $e) {
             return ["status" => "error", "msg" => "Error al leer el archivo: " . $e->getMessage()];
         }
@@ -115,16 +99,14 @@ class ImportacionController {
             return ["status" => "error", "msg" => "El archivo está vacío o tiene una estructura inválida."];
         }
 
-        // 3. Normalizar Encabezados y Datos
         $encabezados = [];
         $filas_datos = [];
 
         if (in_array($extension, ['xlsx', 'csv', 'ods'])) {
-            $encabezados_crudos = array_shift($datosCrudos); // Extrae la fila 1 como encabezados
+            $encabezados_crudos = array_shift($datosCrudos);
             $encabezados = array_map([$this, 'limpiarTexto'], $encabezados_crudos);
             $filas_datos = $datosCrudos;
         } else {
-            // Para JSON/XML, asumimos que los encabezados son las llaves del primer objeto
             $primer_registro = reset($datosCrudos);
             if (is_array($primer_registro)) {
                 $encabezados_crudos = array_keys($primer_registro);
@@ -135,7 +117,6 @@ class ImportacionController {
             }
         }
 
-        // 4. Búsqueda Heurística de Índices
         $idx_consecutivo = $this->buscarIndiceColumna($encabezados, ['consecutivo']);
         $idx_cobro       = $this->buscarIndiceColumna($encabezados, ['cobro']);
         $idx_nombre      = $this->buscarIndiceColumna($encabezados, ['nombre', 'empleado', 'personal']);
@@ -150,15 +131,11 @@ class ImportacionController {
         $registros_validos = 0;
         $valores_insert = [];
 
-        // 5. Procesamiento y Extracción Fila por Fila
         foreach ($filas_datos as $fila_cruda) {
-            
-            // Truco: Convierte llaves {"cobro":"123"} a array posicional [0 => "123"] para compatibilidad
             $fila = array_values($fila_cruda);
 
-            if (empty(array_filter($fila))) continue; // Saltar filas completamente vacías
+            if (empty(array_filter($fila))) continue;
 
-            // Filtro Mata-Fantasmas de Excel (saltar títulos intermedios)
             if ($idx_consecutivo !== -1) {
                 $val_consecutivo = trim($fila[$idx_consecutivo] ?? '');
                 if (empty($val_consecutivo)) continue;
@@ -192,10 +169,9 @@ class ImportacionController {
             return ["status" => "error", "msg" => "No se encontraron registros válidos para importar."];
         }
 
-        // 6. Volcado Masivo (Bulk Insert) a Temporal
         $queryBulk = "INSERT INTO temp_importacion_po (num_cobro, nombres, ape_pa, ape_ma, puesto, correo, clave_dep_raw, nom_dep_raw) VALUES " . implode(", ", $valores_insert);
         
-        $exito_volcado = $model->ejecutarConsultaLibre($queryBulk);
+        $exito_volcado = $this->model->ejecutarConsultaLibre($queryBulk);
 
         if (is_string($exito_volcado) && strpos($exito_volcado, 'ERROR_BD') !== false) {
             return ["status" => "error", "msg" => "Fallo al insertar en la tabla Temporal: " . $exito_volcado];
@@ -212,14 +188,9 @@ class ImportacionController {
         }
     }
 
-    // ==========================================
-    // AYUDANTES (HELPERS)
-    // ==========================================
-
     private function limpiarTexto($texto) {
         if (!is_string($texto)) return '';
         
-        // --- DETECTOR DE SÍMBOLOS RAROS ---
         if (strpos($texto, '') !== false || strpos($texto, 'Ã') !== false) {
             $_SESSION['alerta_csv_formato'] = true;
         }
@@ -298,18 +269,16 @@ class ImportacionController {
     }
 
     public function obtenerConflictos() {
-        $model = new MainModel();
-
         $queryDepts = "SELECT DISTINCT clave_dep_raw, nom_dep_raw 
                        FROM temp_importacion_po t
                        LEFT JOIN departamentos d ON t.clave_dep_raw = d.clave_dep AND t.nom_dep_raw = d.nom_dep
                        WHERE d.id_dep IS NULL AND t.clave_dep_raw != ''";
-        $conflictosDepts = $model->consultarLibre($queryDepts);
+        $conflictosDepts = $this->model->consultarLibre($queryDepts);
         
         $listaDepts = [];
         if($conflictosDepts) {
             foreach($conflictosDepts as $conf) {
-                $sugerencia = $model->seleccionaRegistros("departamentos", ["id_dep", "nom_dep AS nom"], "clave_dep = ?", [$conf['clave_dep_raw']]);
+                $sugerencia = $this->model->seleccionaRegistros("departamentos", ["id_dep", "nom_dep AS nom"], "clave_dep = ?", [$conf['clave_dep_raw']]);
                 $listaDepts[] = [
                     "clave_dep_raw" => $conf['clave_dep_raw'],
                     "nom_dep_raw" => $conf['nom_dep_raw'],
@@ -323,12 +292,12 @@ class ImportacionController {
                        FROM personal_operativo po
                        LEFT JOIN temp_importacion_po t ON po.num_cobro = t.num_cobro
                        WHERE t.num_cobro IS NULL AND po.estatus = 1";
-        $bajas = $model->consultarLibre($queryBajas);
+        $bajas = $this->model->consultarLibre($queryBajas);
         
-        $catalogo_completo = $model->seleccionaRegistros("departamentos", ["id_dep", "clave_dep", "nom_dep"], "1=1 ORDER BY nom_dep ASC");
+        $catalogo_completo = $this->model->seleccionaRegistros("departamentos", ["id_dep", "clave_dep", "nom_dep"], "1=1 ORDER BY nom_dep ASC");
 
-        $resumen = $model->consultarLibre("SELECT COUNT(*) as total_filas, SUM(CASE WHEN nom_dep_raw = '' THEN 1 ELSE 0 END) as sin_depto FROM temp_importacion_po");
-        $muestra = $model->consultarLibre("SELECT DISTINCT clave_dep_raw, nom_dep_raw FROM temp_importacion_po LIMIT 5");
+        $resumen = $this->model->consultarLibre("SELECT COUNT(*) as total_filas, SUM(CASE WHEN nom_dep_raw = '' THEN 1 ELSE 0 END) as sin_depto FROM temp_importacion_po");
+        $muestra = $this->model->consultarLibre("SELECT DISTINCT clave_dep_raw, nom_dep_raw FROM temp_importacion_po LIMIT 5");
 
         $alerta = false;
         if (isset($_SESSION['alerta_csv_formato'])) {
@@ -351,20 +320,18 @@ class ImportacionController {
     }
 
     public function finalizarSincronizacion($resolucionesDepts, $numCobrosBaja, $id_sub = null) {
-        $model = new MainModel();
-
         if (!$id_sub) {
-            $id_sub = $model->obtenerIdSubmoduloPorSlug('personal') ?? 1;
+            $id_sub = $this->model->obtenerIdSubmoduloPorSlug('personal') ?? 1;
         }
 
         foreach ($resolucionesDepts as $res) {
             if ($res['accion'] !== 'CREAR' && strpos($res['accion'], 'VINCULAR_') === 0) {
                 $id_existente = str_replace('VINCULAR_', '', $res['accion']);
-                $model->ejecutarConsultaLibre("UPDATE temp_importacion_po SET id_dep_final = ? WHERE clave_dep_raw = ? AND nom_dep_raw = ?", [$id_existente, $res['clave'], $res['nombre']]);
+                $this->model->ejecutarConsultaLibre("UPDATE temp_importacion_po SET id_dep_final = ? WHERE clave_dep_raw = ? AND nom_dep_raw = ?", [$id_existente, $res['clave'], $res['nombre']]);
             }
         }
 
-        $exito_sp = $model->ejecutarConsultaLibre("CALL sp_sincronizar_personal_csv()");
+        $exito_sp = $this->model->ejecutarConsultaLibre("CALL sp_sincronizar_personal_csv()");
         if (is_string($exito_sp) && strpos($exito_sp, 'ERROR_BD') !== false) {
             return ["status" => "error", "msg" => "Error SQL: " . $exito_sp];
         }
@@ -374,7 +341,7 @@ class ImportacionController {
 
         if (!empty($numCobrosBaja)) {
             foreach($numCobrosBaja as $cobro) {
-                $model->ejecutarConsultaLibre("UPDATE personal_operativo SET estatus = 0 WHERE num_cobro = ?", [$cobro]);
+                $this->model->ejecutarConsultaLibre("UPDATE personal_operativo SET estatus = 0 WHERE num_cobro = ?", [$cobro]);
             }
         }
 
@@ -384,13 +351,12 @@ class ImportacionController {
         
         $detalle = "Sincronizó masivamente al Personal Operativo (Multiformato). Bajas procesadas: $total_bajas | Resoluciones: $total_depts";
         
-        $model->agregaRegistro("bitacora", 
+        $this->model->agregaRegistro("bitacora", 
             ["id_usuar", "id_sub", "accion", "detalle", "fecha", "hora"], 
             [$id_usuario, $id_sub, 'IMPORT', $detalle, date('Y-m-d'), date('H:i:s')]
         );
 
         return ["status" => "success", "msg" => "Sincronización finalizada exitosamente."];
     }
-
 }
 ?>
