@@ -52,194 +52,199 @@ class ImportacionController {
         return ($permiso && count($permiso) > 0);
     }
 
+    // ==========================================
+    // FASE 1: CONTROLADOR PRINCIPAL DE IMPORTACIÓN
+    // ==========================================
     public function procesarArchivoMasivo($ruta_temporal, $nombre_archivo_original, $id_sub) {
         $this->model->ejecutarConsultaLibre("TRUNCATE TABLE temp_importacion_po");
 
         $extension = strtolower(pathinfo($nombre_archivo_original, PATHINFO_EXTENSION));
-        $datosCrudos = [];
 
-        try {
-            if (in_array($extension, ['xlsx', 'csv', 'ods'])) {
-                if ($extension === 'csv') {
-                    $reader = new CSVReader();
-                } elseif ($extension === 'ods') {
-                    $reader = new ODSReader();
-                } else {
-                    $reader = new XLSXReader();
-                }
-
-                $reader->open($ruta_temporal);
-                foreach ($reader->getSheetIterator() as $sheet) {
-                    foreach ($sheet->getRowIterator() as $row) {
-                        $datosCrudos[] = $row->toArray();
-                    }
-                    break; 
-                }
-                $reader->close();
-            } 
-            elseif ($extension === 'xls') {
-                return [
-                    "status" => "error", 
-                    "msg" => "El formato Excel antiguo (.xls) no está soportado. Por favor, abre tu archivo original, ve a 'Guardar como' y elige 'Libro de Excel (*.xlsx)' o 'CSV UTF-8'."
-                ];
-            }
-            elseif ($extension === 'xml') {
-                $xml = simplexml_load_file($ruta_temporal);
-                $datos_json = json_decode(json_encode($xml), true);
-                $datosCrudos = is_array(reset($datos_json)) ? reset($datos_json) : $datos_json;
-            } 
-            else {
-                return ["status" => "error", "msg" => "Formato de archivo no soportado ($extension)."];
-            }
-        } catch (\Exception $e) {
-            return ["status" => "error", "msg" => "Error al leer el archivo: " . $e->getMessage()];
-        }
+        // 1. Extracción de datos crudos
+        $datosCrudos = $this->extraerDatosNativos($ruta_temporal, $extension);
+        if (isset($datosCrudos['status'])) return $datosCrudos; // Retorna si hay error
 
         if (empty($datosCrudos) || !is_array($datosCrudos)) {
             return ["status" => "error", "msg" => "El archivo está vacío o tiene una estructura inválida."];
         }
 
-        $encabezados = [];
-        $filas_datos = [];
+        // 2. Separación de Encabezados y Datos
+        $estructura = $this->estructurarMatriz($datosCrudos, $extension);
+        if (isset($estructura['status'])) return $estructura; // Error formato XML
 
-        if (in_array($extension, ['xlsx', 'csv', 'ods'])) {
-            $encabezados_crudos = array_shift($datosCrudos);
-            $encabezados = array_map([$this, 'limpiarTexto'], $encabezados_crudos);
-            $filas_datos = $datosCrudos;
-        } else {
-            $primer_registro = reset($datosCrudos);
-            if (is_array($primer_registro)) {
-                $encabezados_crudos = array_keys($primer_registro);
-                $encabezados = array_map([$this, 'limpiarTexto'], $encabezados_crudos);
-                $filas_datos = $datosCrudos;
-            } else {
-                return ["status" => "error", "msg" => "El XML no tiene un formato tabular válido."];
-            }
-        }
-
-        $idx_consecutivo = $this->buscarIndiceColumna($encabezados, ['consecutivo']);
-        $idx_cobro       = $this->buscarIndiceColumna($encabezados, ['cobro']);
-        $idx_nombre      = $this->buscarIndiceColumna($encabezados, ['nombre', 'empleado', 'personal']);
-        $idx_puesto      = $this->buscarIndiceColumna($encabezados, ['puesto', 'cargo', 'funcion']);
-        $idx_correo      = $this->buscarIndiceColumna($encabezados, ['correo', 'email', 'e-mail']);
-        $idx_dep         = $this->buscarIndiceColumna($encabezados, ['area', 'departamento', 'depto', 'adscrip']);
-
-        if ($idx_cobro === -1 || $idx_nombre === -1) {
+        // 3. Mapeo Heurístico (Inteligencia de columnas)
+        $indices = $this->mapearIndicesColumnas($estructura['encabezados']);
+        if ($indices['cobro'] === -1 || $indices['nombre'] === -1) {
             return ["status" => "error", "msg" => "El archivo no cuenta con las columnas mínimas obligatorias (Cobro y Nombre)."];
         }
 
-        $registros_validos = 0;
+        // 4. Transformación y Limpieza de Filas
         $valores_insert = [];
-
-        foreach ($filas_datos as $fila_cruda) {
+        foreach ($estructura['filas'] as $fila_cruda) {
             $fila = array_values($fila_cruda);
+            if (empty(array_filter($fila))) continue; // Salta filas vacías
 
-            if (empty(array_filter($fila))) continue;
-
-            if ($idx_consecutivo !== -1) {
-                $val_consecutivo = trim($fila[$idx_consecutivo] ?? '');
-                if (empty($val_consecutivo)) continue;
+            $registroSQL = $this->procesarFilaSQL($fila, $indices);
+            if ($registroSQL) {
+                $valores_insert[] = $registroSQL;
             }
-
-            $num_cobro = $this->limpiarTexto($fila[$idx_cobro] ?? '');
-            if (empty($num_cobro) || !is_numeric($num_cobro)) continue;
-
-            $nombre_completo    = $this->limpiarTexto($fila[$idx_nombre] ?? '');
-            $puesto             = ($idx_puesto !== -1) ? $this->limpiarTexto($fila[$idx_puesto] ?? '') : '';
-            $correo             = ($idx_correo !== -1) ? $this->limpiarTexto($fila[$idx_correo] ?? '') : '';
-            $departamento_crudo = ($idx_dep    !== -1) ? $this->limpiarTexto($fila[$idx_dep]    ?? '') : '';
-
-            $nombres_separados = $this->dividirNombreEspacial($nombre_completo);
-            $dep_separado      = $this->dividirDepartamento($departamento_crudo);
-
-            $num_cobro_esc = addslashes($num_cobro);
-            $nombres_esc   = addslashes($nombres_separados['nombres']);
-            $ape_pa_esc    = addslashes($nombres_separados['ape_pa']);
-            $ape_ma_esc    = addslashes($nombres_separados['ape_ma']);
-            $puesto_esc    = addslashes($puesto);
-            $correo_esc    = addslashes($correo);
-            $clave_dep_esc = addslashes($dep_separado['clave']);
-            $nom_dep_esc   = addslashes($dep_separado['nombre']);
-
-            $valores_insert[] = "('$num_cobro_esc', '$nombres_esc', '$ape_pa_esc', '$ape_ma_esc', '$puesto_esc', '$correo_esc', '$clave_dep_esc', '$nom_dep_esc')";
-            $registros_validos++;
         }
 
-        if ($registros_validos === 0) {
+        if (empty($valores_insert)) {
             return ["status" => "error", "msg" => "No se encontraron registros válidos para importar."];
         }
 
+        // 5. Carga (Volcado Masivo BD)
         $queryBulk = "INSERT INTO temp_importacion_po (num_cobro, nombres, ape_pa, ape_ma, puesto, correo, clave_dep_raw, nom_dep_raw) VALUES " . implode(", ", $valores_insert);
-        
         $exito_volcado = $this->model->ejecutarConsultaLibre($queryBulk);
 
         if (is_string($exito_volcado) && strpos($exito_volcado, 'ERROR_BD') !== false) {
             return ["status" => "error", "msg" => "Fallo al insertar en la tabla Temporal: " . $exito_volcado];
         }
 
-        if ($exito_volcado) {
-            return [
-                "status" => "success", 
-                "msg" => "Archivo procesado correctamente.", 
-                "total_procesados" => $registros_validos
-            ];
-        } else {
-            return ["status" => "error", "msg" => "Error desconocido al volcar los datos a la base de datos."];
+        return $exito_volcado 
+            ? ["status" => "success", "msg" => "Archivo procesado correctamente.", "total_procesados" => count($valores_insert)]
+            : ["status" => "error", "msg" => "Error desconocido al volcar los datos a la base de datos."];
+    }
+
+    // ==========================================
+    // FASE 2: MÉTODOS PRIVADOS DE EXTRACCIÓN Y MAPEO (ETL)
+    // ==========================================
+
+    private function extraerDatosNativos($ruta, $extension) {
+        try {
+            if (in_array($extension, ['xlsx', 'csv', 'ods'])) {
+                if ($extension === 'csv') { $reader = new CSVReader(); } 
+                elseif ($extension === 'ods') { $reader = new ODSReader(); } 
+                else { $reader = new XLSXReader(); }
+
+                $reader->open($ruta);
+                $datos = [];
+                foreach ($reader->getSheetIterator() as $sheet) {
+                    foreach ($sheet->getRowIterator() as $row) {
+                        $datos[] = $row->toArray();
+                    }
+                    break; 
+                }
+                $reader->close();
+                return $datos;
+            } 
+            elseif ($extension === 'xls') {
+                return ["status" => "error", "msg" => "Formato Excel antiguo (.xls) no soportado."];
+            } 
+            elseif ($extension === 'xml') {
+                $xml = simplexml_load_file($ruta);
+                $json = json_decode(json_encode($xml), true);
+                return is_array(reset($json)) ? reset($json) : $json;
+            } 
+            return ["status" => "error", "msg" => "Formato de archivo no soportado ($extension)."];
+        } catch (\Exception $e) {
+            return ["status" => "error", "msg" => "Error al leer el archivo: " . $e->getMessage()];
         }
     }
 
+    private function estructurarMatriz($datosCrudos, $extension) {
+        $encabezados = [];
+        $filas = [];
+
+        if (in_array($extension, ['xlsx', 'csv', 'ods'])) {
+            $encabezados = array_map([$this, 'limpiarTexto'], array_shift($datosCrudos));
+            $filas = $datosCrudos;
+        } else {
+            $primer_registro = reset($datosCrudos);
+            if (is_array($primer_registro)) {
+                $encabezados = array_map([$this, 'limpiarTexto'], array_keys($primer_registro));
+                $filas = $datosCrudos;
+            } else {
+                return ["status" => "error", "msg" => "El XML no tiene un formato tabular válido."];
+            }
+        }
+        return ['encabezados' => $encabezados, 'filas' => $filas];
+    }
+
+    private function mapearIndicesColumnas($encabezados) {
+        return [
+            'consecutivo' => $this->buscarIndiceColumna($encabezados, ['consecutivo']),
+            'cobro'       => $this->buscarIndiceColumna($encabezados, ['cobro']),
+            'nombre'      => $this->buscarIndiceColumna($encabezados, ['nombre', 'empleado', 'personal']),
+            'puesto'      => $this->buscarIndiceColumna($encabezados, ['puesto', 'cargo', 'funcion']),
+            'correo'      => $this->buscarIndiceColumna($encabezados, ['correo', 'email', 'e-mail']),
+            'dep'         => $this->buscarIndiceColumna($encabezados, ['area', 'departamento', 'depto', 'adscrip'])
+        ];
+    }
+
+    private function procesarFilaSQL($fila, $idx) {
+        // Validación de Consecutivo Fantasma
+        if ($idx['consecutivo'] !== -1 && empty(trim($fila[$idx['consecutivo']] ?? ''))) return null;
+
+        $num_cobro = $this->limpiarTexto($fila[$idx['cobro']] ?? '');
+        if (empty($num_cobro) || !is_numeric($num_cobro)) return null;
+
+        // Extracción
+        $nombre_full = $this->limpiarTexto($fila[$idx['nombre']] ?? '');
+        $puesto      = ($idx['puesto'] !== -1) ? $this->limpiarTexto($fila[$idx['puesto']] ?? '') : '';
+        $correo      = ($idx['correo'] !== -1) ? $this->limpiarTexto($fila[$idx['correo']] ?? '') : '';
+        $dep_crudo   = ($idx['dep']    !== -1) ? $this->limpiarTexto($fila[$idx['dep']]    ?? '') : '';
+
+        // Transformación
+        $nombres = $this->dividirNombreEspacial($nombre_full);
+        $depto   = $this->dividirDepartamento($dep_crudo);
+
+        // Construcción de registro para Query
+        return sprintf(
+            "('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')",
+            addslashes($num_cobro),
+            addslashes($nombres['nombres']),
+            addslashes($nombres['ape_pa']),
+            addslashes($nombres['ape_ma']),
+            addslashes($puesto),
+            addslashes($correo),
+            addslashes($depto['clave']),
+            addslashes($depto['nombre'])
+        );
+    }
+
+    // ==========================================
+    // FASE 3: HELPERS DE TEXTO Y REGLAS DE NEGOCIO
+    // ==========================================
+
     private function limpiarTexto($texto) {
         if (!is_string($texto)) return '';
-        
         if (strpos($texto, '') !== false || strpos($texto, 'Ã') !== false) {
             $_SESSION['alerta_csv_formato'] = true;
         }
-
         $texto = str_replace('"', '', trim($texto));
-        $texto = mb_strtoupper($texto, 'UTF-8');
-        $texto = $this->quitarAcentos($texto);
-        return $texto;
+        return $this->quitarAcentos(mb_strtoupper($texto, 'UTF-8'));
     }
 
     private function buscarIndiceColumna($encabezados, $palabras_clave) {
         foreach ($encabezados as $index => $encabezado) {
             $enc_limpio = strtoupper($encabezado); 
             foreach ($palabras_clave as $clave) {
-                if (strpos($enc_limpio, strtoupper($clave)) !== false) { 
-                    return $index; 
-                }
+                if (strpos($enc_limpio, strtoupper($clave)) !== false) return $index; 
             }
         }
         return -1;
     }
 
     private function quitarAcentos($cadena) {
-        $originales = [
-            'à','','µ','¥','¢','¡','£','¤','¦','§',
-            'À','Á','Â','Ã','Ä','Å','Æ','Ç','È','É','Ê','Ë','Ì','Í','Î','Ï','Ð','Ñ','Ò','Ó','Ô','Õ','Ö','Ø','Ù','Ú','Û','Ü','Ý','Þ','ß',
-            'á','â','ã','ä','å','æ','ç','è','é','ê','ë','ì','í','î','ï','ð','ñ','ò','ó','ô','õ','ö','ø','ù','ú','û','ü','ý','þ','ÿ'
-        ];
-        
-        $modificadas = [
-            'O','E','A','N','O','I','U','N','A','O',
-            'A','A','A','A','A','A','AE','C','E','E','E','E','I','I','I','I','D','N','O','O','O','O','O','O','U','U','U','U','Y','TH','ss',
-            'a','a','a','a','a','ae','c','e','e','e','e','i','i','i','i','d','n','o','o','o','o','o','o','u','u','u','u','y','th','y'
-        ];
-        
+        $originales = ['À','Á','Â','Ã','Ä','Å','Æ','Ç','È','É','Ê','Ë','Ì','Í','Î','Ï','Ð','Ñ','Ò','Ó','Ô','Õ','Ö','Ø','Ù','Ú','Û','Ü','Ý','Þ','ß'];
+        $modificadas = ['A','A','A','A','A','A','AE','C','E','E','E','E','I','I','I','I','D','N','O','O','O','O','O','O','U','U','U','U','Y','TH','ss'];
+        // Se omiten minúsculas en el array de búsqueda por rendimiento, ya que limpiarTexto hace mb_strtoupper primero.
         return str_replace($originales, $modificadas, $cadena);
     }
 
     private function dividirDepartamento($texto_dept) {
         $resultado = ['clave' => '', 'nombre' => $texto_dept];
         if (preg_match('/^(\d+)\s*(?:-)?\s*(.+)$/', $texto_dept, $coincidencias)) {
-            $resultado['clave'] = trim($coincidencias[1]);
+            $resultado['clave']  = trim($coincidencias[1]);
             $resultado['nombre'] = trim($coincidencias[2]);
         }
         return $resultado;
     }
 
     private function dividirNombreEspacial($nombre_completo) {
-        $nombre_completo = mb_strtoupper(trim($nombre_completo), 'UTF-8');
+        $nombre_completo = trim($nombre_completo);
         $prefijos = ['DE LAS ', 'DE LOS ', 'DE LA ', 'DEL ', 'DE ', 'SAN ', 'MAC ', 'MC '];
         foreach ($prefijos as $prefijo) {
             $prefijo_unido = str_replace(' ', '_', trim($prefijo)) . '_';
@@ -268,6 +273,10 @@ class ImportacionController {
         ];
     }
 
+    // ==========================================
+    // FASE 4: MÉTODOS DE SINCRONIZACIÓN Y CONSULTA
+    // ==========================================
+
     public function obtenerConflictos() {
         $queryDepts = "SELECT DISTINCT clave_dep_raw, nom_dep_raw 
                        FROM temp_importacion_po t
@@ -281,8 +290,8 @@ class ImportacionController {
                 $sugerencia = $this->model->seleccionaRegistros("departamentos", ["id_dep", "nom_dep AS nom"], "clave_dep = ?", [$conf['clave_dep_raw']]);
                 $listaDepts[] = [
                     "clave_dep_raw" => $conf['clave_dep_raw'],
-                    "nom_dep_raw" => $conf['nom_dep_raw'],
-                    "sugerencias" => $sugerencia ?: []
+                    "nom_dep_raw"   => $conf['nom_dep_raw'],
+                    "sugerencias"   => $sugerencia ?: []
                 ];
             }
         }
@@ -295,7 +304,6 @@ class ImportacionController {
         $bajas = $this->model->consultarLibre($queryBajas);
         
         $catalogo_completo = $this->model->seleccionaRegistros("departamentos", ["id_dep", "clave_dep", "nom_dep"], "1=1 ORDER BY nom_dep ASC");
-
         $resumen = $this->model->consultarLibre("SELECT COUNT(*) as total_filas, SUM(CASE WHEN nom_dep_raw = '' THEN 1 ELSE 0 END) as sin_depto FROM temp_importacion_po");
         $muestra = $this->model->consultarLibre("SELECT DISTINCT clave_dep_raw, nom_dep_raw FROM temp_importacion_po LIMIT 5");
 
@@ -306,16 +314,16 @@ class ImportacionController {
         }
 
         return [
-            "status" => "success",
-            "depts" => $listaDepts,
-            "bajas" => $bajas ?: [],
+            "status"         => "success",
+            "depts"          => $listaDepts,
+            "bajas"          => $bajas ?: [],
             "catalogo_depts" => $catalogo_completo ?: [],
-            "diagnostico" => [
-                "total" => $resumen[0]['total_filas'] ?? 0,
-                "vacios" => $resumen[0]['sin_depto'] ?? 0,
+            "diagnostico"    => [
+                "total"   => $resumen[0]['total_filas'] ?? 0,
+                "vacios"  => $resumen[0]['sin_depto']   ?? 0,
                 "muestra" => $muestra ?: []
             ],
-            "alerta_csv" => $alerta
+            "alerta_csv"     => $alerta
         ];
     }
 
