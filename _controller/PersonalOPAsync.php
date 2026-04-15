@@ -15,7 +15,7 @@ $id_sub = $_POST['id_sub'] ?? '';
 switch ($peticion) {
     case 'INSERT_PO':
         // Verificación estricta de permiso por Rol (Permiso 2 = Agregar)
-        if (!$controller->verificarPermiso($id_sub, 2)) {
+        if (!$controller->verificarPermiso($id_sub, PERM_AGREGAR)) {
             echo json_encode(["result" => 0, "msg" => "Acceso denegado: No cuenta con permisos para agregar personal."]);
             exit;
         }
@@ -52,7 +52,7 @@ switch ($peticion) {
 
     case 'UPDATE_PO':
         // Verificación estricta de permiso por Rol (Permiso 1 = Editar)
-        if (!$controller->verificarPermiso($id_sub, 1)) {
+        if (!$controller->verificarPermiso($id_sub, PERM_EDITAR)) {
             echo json_encode(["result" => 0, "msg" => "Acceso denegado: No cuenta con permisos para editar personal."]);
             exit;
         }
@@ -89,7 +89,7 @@ switch ($peticion) {
 
     case 'BAJA_PO':
         // Verificación estricta de permiso por Rol (Permiso 3 = Eliminar/Baja)
-        if (!$controller->verificarPermiso($id_sub, 3)) {
+        if (!$controller->verificarPermiso($id_sub, PERM_ELIMINAR)) {
             echo json_encode(["result" => 0, "msg" => "Acceso denegado: No cuenta con permisos para dar de baja."]);
             exit;
         }
@@ -104,7 +104,7 @@ switch ($peticion) {
         break;
 case 'DESVINCULAR_EQUIPO':
         // Verificación de permiso (Usamos el Permiso 1 = Editar)
-        if (!$controller->verificarPermiso($id_sub, 1)) {
+        if (!$controller->verificarPermiso($id_sub, PERM_EDITAR)) {
             echo json_encode(["result" => 0, "msg" => "Acceso denegado: No cuenta con permisos para modificar las asignaciones de los empleados."]);
             exit;
         }

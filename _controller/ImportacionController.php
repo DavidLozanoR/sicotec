@@ -6,9 +6,9 @@ error_reporting(E_ALL);
 require_once __DIR__ . "/../vendor/autoload.php"; 
 require_once "MainModel.php";
 
-use OpenSpout\Reader\CSV\Reader as CSVReader;
+// Importamos los lectores de Excel y CSV
 use OpenSpout\Reader\XLSX\Reader as XLSXReader;
-use OpenSpout\Reader\ODS\Reader as ODSReader;
+use OpenSpout\Reader\CSV\Reader as CSVReader;
 
 class ImportacionController {
 
@@ -113,10 +113,15 @@ class ImportacionController {
 
     private function extraerDatosNativos($ruta, $extension) {
         try {
-            if (in_array($extension, ['xlsx', 'csv', 'ods'])) {
-                if ($extension === 'csv') { $reader = new CSVReader(); } 
-                elseif ($extension === 'ods') { $reader = new ODSReader(); } 
-                else { $reader = new XLSXReader(); }
+            // Agregamos CSV a la lista de admitidos junto con XLSX
+            if (in_array($extension, ['xlsx', 'csv'])) {
+                
+                // Instanciamos el lector correcto dependiendo de la extensión
+                if ($extension === 'csv') {
+                    $reader = new CSVReader(); 
+                } else {
+                    $reader = new XLSXReader(); 
+                }
 
                 $reader->open($ruta);
                 $datos = [];
@@ -124,20 +129,22 @@ class ImportacionController {
                     foreach ($sheet->getRowIterator() as $row) {
                         $datos[] = $row->toArray();
                     }
-                    break; 
+                    break; // Solo leemos la primera hoja
                 }
                 $reader->close();
                 return $datos;
-            } 
-            elseif ($extension === 'xls') {
-                return ["status" => "error", "msg" => "Formato Excel antiguo (.xls) no soportado."];
             } 
             elseif ($extension === 'xml') {
                 $xml = simplexml_load_file($ruta);
                 $json = json_decode(json_encode($xml), true);
                 return is_array(reset($json)) ? reset($json) : $json;
             } 
-            return ["status" => "error", "msg" => "Formato de archivo no soportado ($extension)."];
+            elseif ($extension === 'xls') {
+                return ["status" => "error", "msg" => "Formato Excel antiguo (.xls) no soportado. Por favor guarde el archivo como Libro de Excel (.xlsx) o CSV."];
+            } 
+            
+            return ["status" => "error", "msg" => "Formato no soportado ($extension). Solo se aceptan archivos Excel (.xlsx), CSV y XML."];
+            
         } catch (\Exception $e) {
             return ["status" => "error", "msg" => "Error al leer el archivo: " . $e->getMessage()];
         }
@@ -147,10 +154,12 @@ class ImportacionController {
         $encabezados = [];
         $filas = [];
 
-        if (in_array($extension, ['xlsx', 'csv', 'ods'])) {
+        // Validamos que CSV y XLSX se procesen como tabla normal
+        if (in_array($extension, ['xlsx', 'csv'])) {
             $encabezados = array_map([$this, 'limpiarTexto'], array_shift($datosCrudos));
             $filas = $datosCrudos;
         } else {
+            // Lógica para XML
             $primer_registro = reset($datosCrudos);
             if (is_array($primer_registro)) {
                 $encabezados = array_map([$this, 'limpiarTexto'], array_keys($primer_registro));
@@ -183,7 +192,7 @@ class ImportacionController {
         // Extracción
         $nombre_full = $this->limpiarTexto($fila[$idx['nombre']] ?? '');
         $puesto      = ($idx['puesto'] !== -1) ? $this->limpiarTexto($fila[$idx['puesto']] ?? '') : '';
-        $correo      = ($idx['correo'] !== -1) ? $this->limpiarTexto($fila[$idx['correo']] ?? '') : '';
+        $correo      = ($idx['correo'] !== -1) ? $this->limpiarTexto($fila[$idx['correo']] ?? '', false) : ''; // false = minúsculas
         $dep_crudo   = ($idx['dep']    !== -1) ? $this->limpiarTexto($fila[$idx['dep']]    ?? '') : '';
 
         // Transformación
@@ -208,13 +217,29 @@ class ImportacionController {
     // FASE 3: HELPERS DE TEXTO Y REGLAS DE NEGOCIO
     // ==========================================
 
-    private function limpiarTexto($texto) {
-        if (!is_string($texto)) return '';
+    private function limpiarTexto($texto, $forzar_mayusculas = true) {
+        // 1. Openspout lee números como escalares, forzamos a string
+        if (is_scalar($texto)) {
+            $texto = (string) $texto;
+        }
+
+        if (!is_string($texto)) return ''; 
+
+        // 2. Detección de caracteres corruptos
         if (strpos($texto, '') !== false || strpos($texto, 'Ã') !== false) {
             $_SESSION['alerta_csv_formato'] = true;
         }
+        
         $texto = str_replace('"', '', trim($texto));
-        return $this->quitarAcentos(mb_strtoupper($texto, 'UTF-8'));
+
+        // 3. Forzar TODO a mayúsculas PRIMERO (para que quitarAcentos detecte las letras)
+        $texto = mb_strtoupper($texto, 'UTF-8');
+
+        // 4. Quitar los acentos (que ahora son mayúsculas garantizadas)
+        $texto = $this->quitarAcentos($texto);
+
+        // 5. Devolver en mayúsculas o minúsculas según se pida
+        return $forzar_mayusculas ? $texto : mb_strtolower($texto, 'UTF-8');
     }
 
     private function buscarIndiceColumna($encabezados, $palabras_clave) {
@@ -228,9 +253,9 @@ class ImportacionController {
     }
 
     private function quitarAcentos($cadena) {
+        // Solo evalúa mayúsculas por rendimiento
         $originales = ['À','Á','Â','Ã','Ä','Å','Æ','Ç','È','É','Ê','Ë','Ì','Í','Î','Ï','Ð','Ñ','Ò','Ó','Ô','Õ','Ö','Ø','Ù','Ú','Û','Ü','Ý','Þ','ß'];
         $modificadas = ['A','A','A','A','A','A','AE','C','E','E','E','E','I','I','I','I','D','N','O','O','O','O','O','O','U','U','U','U','Y','TH','ss'];
-        // Se omiten minúsculas en el array de búsqueda por rendimiento, ya que limpiarTexto hace mb_strtoupper primero.
         return str_replace($originales, $modificadas, $cadena);
     }
 

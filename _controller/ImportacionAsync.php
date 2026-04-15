@@ -38,7 +38,7 @@ if (!$id_sub) {
 }
 
 // 4. Validación centralizada de permisos (Permiso 2: Crear/Importar)
-if (!$controller->verificarPermiso($id_sub, 2)) {
+if (!$controller->verificarPermiso($id_sub, PERM_AGREGAR)) {
     echo json_encode(["status" => "error", "msg" => "Acceso denegado: Privilegios insuficientes para importar."]);
     exit;
 }

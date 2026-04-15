@@ -92,9 +92,6 @@ class LoginModel {
         }
     }
 
-    /**
-     * Construye la estructura jerárquica del menú y el diccionario de permisos
-     */
     private function buildSessionMenu($bd, $id_rol) {
         $tablaMod = "Rol_Modulo RM";
         $joinsMod = [
@@ -103,10 +100,12 @@ class LoginModel {
             "LEFT JOIN Rol_Submodulo_Permiso RSP ON RSP.id_sub = S.id_sub AND RSP.id_rol = RM.id_rol",
             "LEFT JOIN Permisos P ON P.id_perm = RSP.id_perm"
         ];
+        
+        // 1. Añadimos P.id_perm a la consulta para poder validarlo con nuestra constante
         $camposMod = [
             "M.id_mod", "M.nom_mod", "M.descripcion", "M.icono",
             "S.id_sub", "S.nom_sub", "S.slug", "S.mostrar_en_menu",
-            "P.nom_perm"
+            "P.id_perm", "P.nom_perm" 
         ];
         
         $condicionMod = "RM.id_rol = ? ORDER BY M.orden, S.orden";
@@ -125,34 +124,61 @@ class LoginModel {
                 // A. Crear o encontrar el Módulo Principal en el array
                 if (!isset($menu[$id_mod])) {
                     $menu[$id_mod] = [
-                        'nombre' => $fila['nom_mod'],
-                        'descripcion'=> $fila['descripcion'],
-                        'icono'  => $fila['icono'],
-                        'hijos'  => []
+                        'nombre'      => $fila['nom_mod'],
+                        'descripcion' => $fila['descripcion'],
+                        'icono'       => $fila['icono'],
+                        'hijos'       => []
                     ];
                 }
 
-                // B. Agregar Submódulos a su padre
                 if (!empty($slug)) {
-                    if (!isset($menu[$id_mod]['hijos'][$slug])) {
-                        $menu[$id_mod]['hijos'][$slug] = [
-                            'nombre'  => $fila['nom_sub'],
-                            'mostrar' => $fila['mostrar_en_menu']
-                        ];
-                    }
-                    
-                    // C. Diccionario Rápido de Permisos por Slug
+                    // B. Diccionario Rápido de Permisos por Slug
                     if (!isset($permisos_slug[$slug])) {
                         $permisos_slug[$slug] = [];
                     }
                     if (!empty($fila['nom_perm']) && !in_array($fila['nom_perm'], $permisos_slug[$slug])) {
                         $permisos_slug[$slug][] = $fila['nom_perm'];
                     }
+
+                    // C. Agregar Submódulos a su padre (con bandera temporal de acceso)
+                    if (!isset($menu[$id_mod]['hijos'][$slug])) {
+                        $menu[$id_mod]['hijos'][$slug] = [
+                            'nombre'  => $fila['nom_sub'],
+                            'mostrar' => $fila['mostrar_en_menu'],
+                            'acceso'  => false // Asumimos falso hasta demostrar lo contrario
+                        ];
+                    }
+                    
+                    // D. Si la fila actual tiene el permiso de Consultar, le damos luz verde
+                    if ($fila['id_perm'] == PERM_CONSULTAR) {
+                        $menu[$id_mod]['hijos'][$slug]['acceso'] = true;
+                    }
                 }
             }
         }
 
-        // Variable 1: Dibuja el NavMenu.php dinámicamente
+        // ====================================================================
+        // FASE DE LIMPIEZA: Podar lo que no tiene permiso
+        // ====================================================================
+        foreach ($menu as $id_mod => $modulo) {
+            foreach ($modulo['hijos'] as $slug => $submod) {
+                if ($submod['acceso'] === false) {
+                    // Si nunca encontró el permiso de consultar, lo destruimos del menú
+                    unset($menu[$id_mod]['hijos'][$slug]);
+                } else {
+                    // Si sí tiene permiso, solo le borramos la bandera para que no ensucie la sesión
+                    unset($menu[$id_mod]['hijos'][$slug]['acceso']);
+                }
+            }
+
+            // EXTRA: Si después de limpiar submódulos, el módulo padre se quedó vacío, 
+            // también lo eliminamos para que no se dibuje un módulo inútil en la vista.
+            if (empty($menu[$id_mod]['hijos'])) {
+                unset($menu[$id_mod]);
+            }
+        }
+
+        // Variable 1: Dibuja el NavMenu dinámicamente y ya filtrado
         $_SESSION["menu"] = $menu;            
         
         // Variable 2: Diccionario plano rápido

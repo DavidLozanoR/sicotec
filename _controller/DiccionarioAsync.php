@@ -54,7 +54,7 @@ $verificarPermiso = function($id_permiso) use ($modelo, $id_sub_diccionario) {
 switch ($action) {
     case 'leer':
         // Validación Permiso 4 = Consultar
-        if (!$verificarPermiso(4)) {
+        if (!$verificarPermiso(PERM_CONSULTAR)) {
             echo json_encode(['status' => 'error', 'message' => 'Acceso denegado: No cuenta con permisos para consultar nomenclaturas.']);
             exit;
         }
@@ -66,7 +66,7 @@ switch ($action) {
 
     case 'insertar':
         // Validación Permiso 2 = Agregar / Insertar
-        if (!$verificarPermiso(2)) {
+        if (!$verificarPermiso(PERM_AGREGAR)) {
             echo json_encode(['status' => 'error', 'message' => 'Acceso denegado: No cuenta con permisos para agregar nomenclaturas.']);
             exit;
         }
@@ -83,7 +83,7 @@ switch ($action) {
     
     case 'actualizar':
         // Validación Permiso 1 = Editar / Actualizar
-        if (!$verificarPermiso(1)) {
+        if (!$verificarPermiso(PERM_EDITAR)) {
             echo json_encode(['status' => 'error', 'message' => 'Acceso denegado: No cuenta con permisos para editar nomenclaturas.']);
             exit;
         }
@@ -111,7 +111,7 @@ switch ($action) {
 
     case 'borrar':
         // Validación Permiso 3 = Eliminar / Dar de Baja
-        if (!$verificarPermiso(3)) {
+        if (!$verificarPermiso(PERM_ELIMINAR)) {
             echo json_encode(['status' => 'error', 'message' => 'Acceso denegado: No cuenta con los privilegios para eliminar nomenclaturas.']);
             exit;
         }

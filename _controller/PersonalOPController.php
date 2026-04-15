@@ -26,6 +26,19 @@ function __construct($slug=null){
 
     public function renderContent(){
         $model = new MainModel();
+
+        $id_sub = $model->obtenerIdSubmoduloPorSlug($this->slug);
+        if (!$id_sub) $id_sub = 1; 
+
+        if (!$this->verificarPermiso($id_sub,PERM_CONSULTAR )) {
+            echo '<div class="container mt-5">
+                    <div class="alert alert-danger shadow-sm border-0 border-start border-5 border-danger">
+                        <h4 class="alert-heading fw-bold"><i class="fas fa-lock me-2"></i>Acceso Denegado</h4>
+                        <p>No cuenta con los privilegios necesarios para acceder al Personal Operativo.</p>
+                    </div>
+                  </div>';
+            return; 
+        }
         
         $datos= $this->traerContenido($model);//trae el contenido a renderizar
         //estraemos los datos para consumirlos es la vista

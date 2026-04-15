@@ -29,7 +29,7 @@ $id_disp = $input['id_disp'] ?? null;
 switch ($peticion) {
     
     case 'INSERT':
-        if (!$controller->verificarPermiso($id_sub, 2)) {
+        if (!$controller->verificarPermiso($id_sub, PERM_AGREGAR)) {
             echo json_encode(["status" => "error", "msg" => "Acceso denegado: No cuenta con permisos para agregar nuevos dispositivos."]);
             exit;
         }
@@ -39,7 +39,7 @@ switch ($peticion) {
         break;
 
     case 'UPDATE':
-        if (!$controller->verificarPermiso($id_sub, 1)) {
+        if (!$controller->verificarPermiso($id_sub, PERM_EDITAR)) {
             echo json_encode(["status" => "error", "msg" => "Acceso denegado: No cuenta con permisos para editar dispositivos."]);
             exit;
         }
@@ -53,7 +53,7 @@ switch ($peticion) {
         break;
 
     case 'BAJA_DISP':
-        if (!$controller->verificarPermiso($id_sub, 3)) {
+        if (!$controller->verificarPermiso($id_sub, PERM_ELIMINAR)) {
             echo json_encode(["status" => "error", "msg" => "Acceso denegado: No cuenta con los privilegios para dar de baja equipos."]);
             exit;
         }
@@ -74,7 +74,7 @@ switch ($peticion) {
         break;
 
     case 'UPDATE_VERSION_DISPOSITIVO':
-        if (!$controller->verificarPermiso($id_sub, 1)) {
+        if (!$controller->verificarPermiso($id_sub, PERM_EDITAR)) {
             echo json_encode(["status" => "error", "msg" => "Acceso denegado: No cuenta con permisos para modificar el software instalado."]);
             exit;
         }

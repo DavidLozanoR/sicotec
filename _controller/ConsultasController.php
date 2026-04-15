@@ -7,7 +7,7 @@ class ConsultasController {
     const JS = 'js/consultas.js';
 
     private $slug;
-    const PERMISO_CONSULTAR = 4; 
+    
 
     function __construct($slug = null) { 
         if(session_status() === PHP_SESSION_NONE) { session_start(); }
@@ -21,7 +21,7 @@ class ConsultasController {
         $id_sub = $model->obtenerIdSubmoduloPorSlug($this->slug);
         if (!$id_sub) $id_sub = 6; 
 
-        if (!$this->verificarPermiso($id_sub, self::PERMISO_CONSULTAR)) {
+        if (!$this->verificarPermiso($id_sub,PERM_CONSULTAR )) {
             echo '<div class="container mt-5">
                     <div class="alert alert-danger shadow-sm border-0 border-start border-5 border-danger">
                         <h4 class="alert-heading fw-bold"><i class="fas fa-lock me-2"></i>Acceso Denegado</h4>

@@ -14,15 +14,27 @@
 
     );
 
+    
+
     //variables de entorno
 
- define("SITE_URL", "http://localhost/Seguimiento-INEA/Seguimiento%20INEA/sicosote/");
+ define("SITE_URL", "http://localhost/work/Seguimiento-INEA/Seguimiento%20INEA/sicosote/");
     define("RUTA_DEFAULT", "inicio");
-    define("DB_HOST", "192.168.250.24");
-    define("DB_PORT", "5075");
-    define("DB_BASE", "sicosote2");
-    define("DB_USR", "bd_seguimiento");
-    define("DB_PASS", "QEWoyA56xEse");
+    define("DB_HOST", "localhost");
+    define("DB_PORT", "3306");
+    define("DB_BASE", "sicosote3");
+    define("DB_USR", "root");
+    define("DB_PASS", "1234");
 	define("CLAVE_SECRETA","test");
+
+    //variables para permisos (modificar si es necesario)
+
+    define("PERM_EDITAR", 1); 
+
+    define("PERM_AGREGAR", 2); 
+
+    define("PERM_ELIMINAR", 3); 
+
+    define("PERM_CONSULTAR", 4); 
 
 ?>

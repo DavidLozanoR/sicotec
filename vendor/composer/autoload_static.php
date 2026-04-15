@@ -7,14 +7,14 @@ namespace Composer\Autoload;
 class ComposerStaticInit96662d1f59aa64d8ac2140b75a7025a8
 {
     public static $prefixLengthsPsr4 = array (
-        'O' => 
+        'O' =>
         array (
             'OpenSpout\\' => 10,
         ),
     );
 
     public static $prefixDirsPsr4 = array (
-        'OpenSpout\\' => 
+        'OpenSpout\\' =>
         array (
             0 => __DIR__ . '/..' . '/openspout/openspout/src',
         ),

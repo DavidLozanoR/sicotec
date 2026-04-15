@@ -16,7 +16,7 @@ $id_sub = $_POST['id_sub'] ?? '';
 switch ($peticion) {
     
     case 'INSERT_SEG':
-        if (!$controller->verificarPermiso($id_sub, 2)) {
+        if (!$controller->verificarPermiso($id_sub, PERM_AGREGAR)) {
             echo json_encode(["result" => 0, "msg" => "Acceso denegado: No tiene permisos para agregar."]); exit;
         }
 
@@ -34,7 +34,7 @@ switch ($peticion) {
         break;
 
     case 'UPDATE_SEG':
-        if (!$controller->verificarPermiso($id_sub, 1)) {
+        if (!$controller->verificarPermiso($id_sub, PERM_EDITAR)) {
             echo json_encode(["result" => 0, "msg" => "Acceso denegado: No tiene permisos para editar."]); exit;
         }
 
@@ -55,7 +55,7 @@ switch ($peticion) {
         break;
 
     case 'DELETE_SEG':
-        if (!$controller->verificarPermiso($id_sub, 3)) {
+        if (!$controller->verificarPermiso($id_sub, PERM_ELIMINAR)) {
             echo json_encode(["result" => 0, "msg" => "Acceso denegado."]); exit;
         }
         $id_seg = $_POST['id_seg'] ?? '';

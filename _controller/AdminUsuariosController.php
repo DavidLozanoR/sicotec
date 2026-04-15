@@ -17,9 +17,18 @@ class AdminUsuariosController {
     function renderContent(){
         $model = new MainModel();
         
-        $consultaSub = $model->seleccionaRegistros("submodulos", ["id_sub"], "slug = ?", [$this->slug]);
-        $id_sub_actual = (!empty($consultaSub)) ? $consultaSub[0]['id_sub'] : 7; // Ajusta el ID default si es necesario
+        $id_sub = $model->obtenerIdSubmoduloPorSlug($this->slug);
+        if (!$id_sub) $id_sub = 7; 
 
+        if (!$this->verificarPermiso($id_sub,PERM_CONSULTAR )) {
+            echo '<div class="container mt-5">
+                    <div class="alert alert-danger shadow-sm border-0 border-start border-5 border-danger">
+                        <h4 class="alert-heading fw-bold"><i class="fas fa-lock me-2"></i>Acceso Denegado</h4>
+                        <p>No cuenta con los privilegios necesarios para acceder a Usuarios.</p>
+                    </div>
+                  </div>';
+            return; 
+        }
         // Roles disponibles para el select de nuevo usuario (ocultamos Administrador)
         $roles_disponibles = $model->seleccionaRegistros("Roles", ["id_rol", "nom_rol"], "id_rol != ? AND status = 1", [1]);
         
@@ -39,6 +48,12 @@ class AdminUsuariosController {
         if (file_exists(self::JS)) { include self::JS; }
     }
 
+    public function verificarPermiso($id_sub, $id_permiso) {
+        $model = new MainModel();
+        $id_rol = $_SESSION['usuario']['id_rol'];
+        $permiso = $model->seleccionaRegistros("rol_submodulo_permiso", ["id_perm"], "id_rol = ? AND id_sub = ? AND id_perm = ?", [$id_rol, $id_sub, $id_permiso]);
+        return ($permiso && count($permiso) > 0);
+    }
     // ==========================================
     // VALIDACIONES Y LÓGICA DE USUARIOS
     // ==========================================
