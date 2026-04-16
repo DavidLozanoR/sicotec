@@ -113,10 +113,9 @@ class ImportacionController {
 
     private function extraerDatosNativos($ruta, $extension) {
         try {
-            // Agregamos CSV a la lista de admitidos junto con XLSX
+            // Procesamiento de XLSX y CSV intacto
             if (in_array($extension, ['xlsx', 'csv'])) {
                 
-                // Instanciamos el lector correcto dependiendo de la extensión
                 if ($extension === 'csv') {
                     $reader = new CSVReader(); 
                 } else {
@@ -136,9 +135,65 @@ class ImportacionController {
             } 
             elseif ($extension === 'xml') {
                 $xml = simplexml_load_file($ruta);
+                if ($xml === false) {
+                    return ["status" => "error", "msg" => "El archivo XML no se pudo leer. Puede estar corrupto o mal formado."];
+                }
+
+                // ==========================================
+                // NUEVO: INTERCEPTOR DE EXCEL-XML (Spreadsheet 2003)
+                // ==========================================
+                $xmlString = file_get_contents($ruta);
+                // Detectamos si es el XML que exporta Microsoft Excel
+                if (strpos($xmlString, 'urn:schemas-microsoft-com:office:spreadsheet') !== false || strpos($xmlString, '<Row') !== false) {
+                    $datosExcel = [];
+                    // Registramos el namespace para poder leer las etiquetas "ss:"
+                    $xml->registerXPathNamespace('ss', 'urn:schemas-microsoft-com:office:spreadsheet');
+                    $rows = $xml->xpath('//ss:Row') ?: $xml->xpath('//Row'); 
+                    
+                    if ($rows) {
+                        foreach ($rows as $row) {
+                            $filaPlana = [];
+                            $cells = $row->xpath('ss:Cell') ?: $row->xpath('Cell');
+                            foreach ($cells as $cell) {
+                                $data = $cell->xpath('ss:Data') ?: $cell->xpath('Data');
+                                $filaPlana[] = !empty($data) ? trim((string)$data[0]) : '';
+                            }
+                            // Si la fila tiene al menos un dato, la agregamos
+                            if (!empty(array_filter($filaPlana))) {
+                                $datosExcel[] = $filaPlana;
+                            }
+                        }
+                        // Lo devolvemos como una matriz plana (igual que haría Openspout con XLSX)
+                        if (!empty($datosExcel)) return $datosExcel; 
+                    }
+                }
+                // ==========================================
+                
+                // Si NO es un Excel-XML, aplicamos el Buscador Inteligente Genérico
                 $json = json_decode(json_encode($xml), true);
-                return is_array(reset($json)) ? reset($json) : $json;
-            } 
+                
+                $datosFilas = $this->encontrarMatrizXML($json);
+                
+                if (empty($datosFilas)) {
+                    return ["status" => "error", "msg" => "El XML no tiene un formato tabular válido. No se detectaron filas de datos."];
+                }
+
+                $filasLimpias = [];
+                foreach ($datosFilas as $fila) {
+                    if (!is_array($fila)) continue;
+                    
+                    $filaLimpia = [];
+                    foreach ($fila as $k => $v) {
+                        if ($k === '@attributes' && is_array($v)) {
+                            $filaLimpia = array_merge($filaLimpia, $v);
+                        } elseif (!is_array($v)) { 
+                            $filaLimpia[$k] = $v;
+                        }
+                    }
+                    $filasLimpias[] = $filaLimpia;
+                }
+                return $filasLimpias;
+            }
             elseif ($extension === 'xls') {
                 return ["status" => "error", "msg" => "Formato Excel antiguo (.xls) no soportado. Por favor guarde el archivo como Libro de Excel (.xlsx) o CSV."];
             } 
@@ -150,24 +205,74 @@ class ImportacionController {
         }
     }
 
+    // NUEVO: Helper para rastrear las filas ignorando metadatos
+    private function encontrarMatrizXML($array) {
+        if (!is_array($array)) return [];
+
+        // 1. Verificación directa: ¿Es esto una lista (arreglo indexado de múltiples filas)?
+        if (isset($array[0]) && is_array($array[0])) {
+            return $array;
+        }
+
+        // 2. Búsqueda profunda priorizando listas verdaderas (Ignora metadatos)
+        foreach ($array as $key => $value) {
+            if (is_array($value)) {
+                $resultado = $this->encontrarMatrizXML($value);
+                if (!empty($resultado)) return $resultado;
+            }
+        }
+
+        // 3. Fallback para Archivos de 1 sola fila:
+        // Si no encontró listas, verificamos si este nodo actual "parece" una fila válida.
+        // Lo sabremos si sus etiquetas o atributos contienen las palabras 'COBRO' o 'NOMBRE'
+        $esFilaUnica = true;
+        
+        $claves = array_keys($array);
+        if (in_array('@attributes', $claves)) {
+            $claves = array_merge($claves, array_keys($array['@attributes']));
+        }
+        $claves_str = strtoupper(implode('_', $claves));
+
+        // Filtro "Antibasura": Solo lo toma si tiene datos clave del empleado
+        if (strpos($claves_str, 'COBRO') !== false || strpos($claves_str, 'NOMBRE') !== false || strpos($claves_str, 'PERSONAL') !== false) {
+            foreach ($array as $k => $v) {
+                if (is_array($v) && $k !== '@attributes') {
+                    $esFilaUnica = false;
+                    break;
+                }
+            }
+            if ($esFilaUnica && !empty($array)) {
+                return [$array]; // Lo envolvemos como tabla y lo devolvemos
+            }
+        }
+
+        return [];
+    }
+
     private function estructurarMatriz($datosCrudos, $extension) {
         $encabezados = [];
         $filas = [];
 
-        // Validamos que CSV y XLSX se procesen como tabla normal
-        if (in_array($extension, ['xlsx', 'csv'])) {
-            $encabezados = array_map([$this, 'limpiarTexto'], array_shift($datosCrudos));
+        $primer_registro = reset($datosCrudos);
+        
+        if (!is_array($primer_registro)) {
+            return ["status" => "error", "msg" => "La estructura del archivo no tiene un formato tabular válido."];
+        }
+
+        // MAGIA: Detectamos la forma de los datos en lugar de guiarnos por la extensión.
+        // Si las llaves no son números seguidos (0, 1, 2...), es un XML Genérico asociativo.
+        $es_asociativo = array_keys($primer_registro) !== range(0, count($primer_registro) - 1);
+
+        if ($es_asociativo) {
+            // Caso XML Normal: Los nombres de las etiquetas son los encabezados
+            $encabezados = array_map([$this, 'limpiarTexto'], array_keys($primer_registro));
             $filas = $datosCrudos;
         } else {
-            // Lógica para XML
-            $primer_registro = reset($datosCrudos);
-            if (is_array($primer_registro)) {
-                $encabezados = array_map([$this, 'limpiarTexto'], array_keys($primer_registro));
-                $filas = $datosCrudos;
-            } else {
-                return ["status" => "error", "msg" => "El XML no tiene un formato tabular válido."];
-            }
+            // Caso Excel, CSV o XML de Microsoft Spreadsheet: La primera fila son los encabezados
+            $encabezados = array_map([$this, 'limpiarTexto'], array_shift($datosCrudos));
+            $filas = $datosCrudos;
         }
+
         return ['encabezados' => $encabezados, 'filas' => $filas];
     }
 
