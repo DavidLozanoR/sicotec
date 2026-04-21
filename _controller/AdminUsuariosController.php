@@ -122,6 +122,9 @@ class AdminUsuariosController {
         $usuario_actual = $model->seleccionaRegistros("Usuarios", ["id_rol"], "id_usuar = ?", [$id_usuar]);
         $rol_actual = $usuario_actual ? $usuario_actual[0]['id_rol'] : 0;
 
+        //verifica que sea mas de 3 caracter de largo el nombre o apellidos
+        if (strlen($nom_usuar) < 3 || strlen($ape_ma) < 3 || strlen($ape_pa) < 3 ) return ["result" => 0, "msg" => "Seguridad: El nombre o apellidos deben de tener al menos 3 letras."];  
+
         if ($id_rol == 1 && $rol_actual != 1) return ["result" => 0, "msg" => "Seguridad: No puedes ascender a un usuario a Administrador."];
         if ($rol_actual == 1 && $id_rol != 1) return ["result" => 0, "msg" => "Seguridad: El Administrador principal no puede perder su rol."];
         
