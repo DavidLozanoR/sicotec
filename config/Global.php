@@ -18,11 +18,11 @@
 
     //variables de entorno
 
- define("SITE_URL", "http://localhost/work/Seguimiento-INEA/Seguimiento%20INEA/sicosote/");
+    define("SITE_URL", "http://localhost/Seguimiento-INEA/Seguimiento%20INEA/sicosote/");
     define("RUTA_DEFAULT", "inicio");
     define("DB_HOST", "localhost");
     define("DB_PORT", "3306");
-    define("DB_BASE", "sicosote3");
+    define("DB_BASE", "sicosote");
     define("DB_USR", "root");
     define("DB_PASS", "1234");
 	define("CLAVE_SECRETA","test");
