@@ -1,25 +1,58 @@
 <?php
+
+/**
+ * Rutinas comunes para CRUD elemental de una BD. Versión Mysql
+ * El servidor de hosteo de esta rama es infinity free, asi que se modifica para usarlo, en produccion no se usa este servidor
+ * @author placeholdername1
+ * @author placeholdername2 
+ * @fecha 2026-02-25
+ */
+
 require_once "MainModel.php";
 
+/**
+ * Controlador principal para la gestión de dispositivos e inventario.
+ * Procesa la carga de la interfaz, validación de permisos RBAC, 
+ * y la extracción de datos combinados (Hardware, Red, Personal y Software).
+ */
 class DispositivosController {
 
+    /** @var string Ruta al archivo de la vista HTML */
     const VISTA = "_view/dispositivos.html.php";
+    
+    /** @var string Ruta al archivo JavaScript asociado */
     const JS = "js/dispositivos.js";
+    
+    /** @var string|null Slug identificador del submódulo actual */
     private $slug;
 
+    /**
+     * Constructor del controlador.
+     * Garantiza que exista una sesión activa antes de inicializar la clase.
+     *
+     * @param string|null $slug Slug amigable del submódulo.
+     */
     function __construct($slug = null) { 
         if (session_status() === PHP_SESSION_NONE) { session_start(); }
         if (!isset($_SESSION['usuario'])) { die("Error: Sesión expirada."); }
         $this->slug = $slug;
     }
 
+    /**
+     * Renderiza la vista principal de dispositivos.
+     * Ejecuta validación de permisos de acceso y empaqueta la información 
+     * requerida para poblar las tablas y formularios en el frontend.
+     *
+     * @return void
+     */
     public function renderContent() {
         $model = new MainModel();
 
         $id_sub = $model->obtenerIdSubmoduloPorSlug($this->slug);
-        if (!$id_sub) $id_sub = 6; 
+        if (!$id_sub) $id_sub = 6; // Fallback predeterminado
 
-        if (!$this->verificarPermiso($id_sub,PERM_CONSULTAR )) {
+        // Verificación de Acceso RBAC
+        if (!$this->verificarPermiso($id_sub, PERM_CONSULTAR)) {
             echo '<div class="container mt-5">
                     <div class="alert alert-danger shadow-sm border-0 border-start border-5 border-danger">
                         <h4 class="alert-heading fw-bold"><i class="fas fa-lock me-2"></i>Acceso Denegado</h4>
@@ -29,12 +62,18 @@ class DispositivosController {
             return; 
         }
 
-
+        // Extracción de datos cruzados y catálogos
         $datos = $this->traerContenido($model);
         extract($datos);
+        
         include self::VISTA;
     }
 
+    /**
+     * Inyecta el script JavaScript asociado a la vista en el DOM.
+     *
+     * @return void
+     */
     public function renderJS() {
         if (file_exists(self::JS)) { include self::JS; }
     }
@@ -42,6 +81,15 @@ class DispositivosController {
     // ==========================================================
     // MANEJO DE PERMISOS (RBAC)
     // ==========================================================
+    
+    /**
+     * Valida si el rol del usuario actual posee un permiso específico 
+     * dentro de un submódulo determinado.
+     *
+     * @param int $id_sub ID del submódulo en el contexto.
+     * @param int $id_permiso ID del tipo de permiso (ej. PERM_AGREGAR).
+     * @return bool True si tiene autorización, false en caso contrario.
+     */
     public function verificarPermiso($id_sub, $id_permiso) {
         $model = new MainModel();
         $id_rol = $_SESSION['usuario']['id_rol'] ?? null;
@@ -57,13 +105,21 @@ class DispositivosController {
         return ($permiso && count($permiso) > 0);
     }
 
+    /**
+     * Helper privado para recopilar la información base del catálogo de dispositivos.
+     * Cruza datos de red, hardware y usuarios responsables para formar la vista principal.
+     *
+     * @param MainModel $model Instancia activa del modelo de datos.
+     * @return array Arreglo asociativo con los catálogos y resultados de la consulta.
+     */
     private function traerContenido($model) {
         $consultaSub = $model->seleccionaRegistros("submodulos", ["id_sub"], "slug = ?", [$this->slug]);
         $id_sub_actual = (!empty($consultaSub)) ? $consultaSub[0]['id_sub'] : 1;
 
         $vlans = $model->seleccionaRegistros("vlans", ["id_vlan", "nom_vlan"], "1=1 ORDER BY nom_vlan ASC");
-        $tablaPrincipal = "dispositivos d";
         
+        // Base query estructurada para soportar múltiples interfaces de red por equipo
+        $tablaPrincipal = "dispositivos d";
         $joins = [
             "LEFT JOIN infraestructura_red r ON d.id_disp = r.id_disp",
             "LEFT JOIN segmentos seg ON r.id_seg = seg.id_seg",
@@ -71,6 +127,8 @@ class DispositivosController {
             "LEFT JOIN personal_operativo po ON d.asig_po_id = po.id_po"
         ];
 
+        // Construcción de la proyección con generación de HTML embebido (GROUP_CONCAT)
+        // para facilitar el renderizado de múltiples IPs en una sola celda de DataTable.
         $campos = [
             "d.id_disp", "d.nom_host", "d.marca", "d.modelo", "d.num_ser", "d.num_inv",
             "d.mac_ethernet", "d.mac_wifi", "d.resp_po_id", "d.asig_po_id",
@@ -88,7 +146,6 @@ class DispositivosController {
         ];
         
         $dispositivos = $model->seleccionaRegistrosJoin($tablaPrincipal, $joins, $campos, "1=1 GROUP BY d.id_disp ORDER BY d.id_disp DESC");
-
         if (!$dispositivos) {
             $dispositivos = [];
         } else {

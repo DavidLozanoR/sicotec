@@ -1,4 +1,13 @@
 <?php
+
+/**
+ * Rutinas comunes para CRUD elemental de una BD. Versión Mysql
+ * El servidor de hosteo de esta rama es infinity free, asi que se modifica para usarlo, en produccion no se usa este servidor
+ * @author placeholdername1
+ * @author placeholdername2 
+ * @fecha 2026-02-25
+ */
+
 if (session_status() === PHP_SESSION_NONE) {
     session_start();
 }
@@ -8,11 +17,13 @@ require_once "DispositivosController.php"; // Corrección de ruta crítica
 
 header('Content-Type: application/json; charset=utf-8');
 
+// Validación de seguridad para asegurar que la petición provenga de un usuario logueado
 if (!isset($_SESSION['usuario'])) {
     echo json_encode(["status" => "error", "msg" => "Sesión expirada o no válida."]);
     exit;
 }
 
+/** @var array|null Captura y decodificación del payload JSON enviado vía fetch */
 $input = json_decode(file_get_contents('php://input'), true);
 
 if (!$input) {
@@ -20,14 +31,26 @@ if (!$input) {
     exit;
 }
 
+/** @var DispositivosController Instancia principal del controlador de inventario */
 $controller = new DispositivosController();
 
+/** @var string Acción solicitada desde el frontend */
 $peticion = $input['peticion'] ?? '';
+
+/** @var string|int Identificador del submódulo origen para validación RBAC */
 $id_sub = $input['id_sub'] ?? null;
+
+/** @var string|int ID del dispositivo de red, requerido para actualizaciones y bajas */
 $id_disp = $input['id_disp'] ?? null;
 
+// Enrutador de peticiones AJAX
 switch ($peticion) {
     
+    /**
+     * Caso: INSERT
+     * Valida permisos y transfiere el payload completo (datos generales, interfaces y software)
+     * al controlador para registrar un nuevo equipo.
+     */
     case 'INSERT':
         if (!$controller->verificarPermiso($id_sub, PERM_AGREGAR)) {
             echo json_encode(["status" => "error", "msg" => "Acceso denegado: No cuenta con permisos para agregar nuevos dispositivos."]);
@@ -38,6 +61,11 @@ switch ($peticion) {
         echo json_encode($controller->insertarDispositivo($id_sub, $input, $interfaces, $asignaciones));
         break;
 
+    /**
+     * Caso: UPDATE
+     * Valida permisos y actualiza la información general, interfaces de red (creación/edición)
+     * y el inventario de software del equipo especificado.
+     */
     case 'UPDATE':
         if (!$controller->verificarPermiso($id_sub, PERM_EDITAR)) {
             echo json_encode(["status" => "error", "msg" => "Acceso denegado: No cuenta con permisos para editar dispositivos."]);
@@ -52,6 +80,10 @@ switch ($peticion) {
         echo json_encode($controller->actualizarDispositivo($id_sub, $id_disp, $input, $interfaces, $asignaciones));
         break;
 
+    /**
+     * Caso: BAJA_DISP
+     * Ejecuta la baja lógica de un dispositivo, inhabilitándolo en los catálogos activos.
+     */
     case 'BAJA_DISP':
         if (!$controller->verificarPermiso($id_sub, PERM_ELIMINAR)) {
             echo json_encode(["status" => "error", "msg" => "Acceso denegado: No cuenta con los privilegios para dar de baja equipos."]);
@@ -64,6 +96,11 @@ switch ($peticion) {
         echo json_encode($controller->bajaDispositivo($id_sub, $id_disp));
         break;
 
+    /**
+     * Caso: GET_VERSIONES_ACTUALIZAR
+     * Devuelve el catálogo de versiones disponibles para un software específico, 
+     * utilizado para poblar el modal de actualización rápida en la vista.
+     */
     case 'GET_VERSIONES_ACTUALIZAR':
         $id_serv = $input['id_serv'] ?? null;
         if (empty($id_serv)) {
@@ -73,6 +110,11 @@ switch ($peticion) {
         echo json_encode($controller->obtenerVersionesActualizar($id_serv));
         break;
 
+    /**
+     * Caso: UPDATE_VERSION_DISPOSITIVO
+     * Realiza una actualización rápida de la versión de un software ya instalado 
+     * en el dispositivo, sin modificar el resto de los parámetros.
+     */
     case 'UPDATE_VERSION_DISPOSITIVO':
         if (!$controller->verificarPermiso($id_sub, PERM_EDITAR)) {
             echo json_encode(["status" => "error", "msg" => "Acceso denegado: No cuenta con permisos para modificar el software instalado."]);
@@ -89,6 +131,7 @@ switch ($peticion) {
         break;
 
     default:
+        // Manejo de peticiones corruptas
         echo json_encode(["status" => "error", "msg" => "Petición no reconocida o inválida."]);
         break;
 }
