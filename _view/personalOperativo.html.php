@@ -39,13 +39,13 @@ $id_sub_actual = $id_sub_actual ?? 1; // ID del submódulo (por defecto 1 si no 
     <div class="d-flex align-items-center gap-2">
         <label class="small fw-bold text-nowrap mb-0 text-muted">Depto:</label>
         
-        <div class="dropdown w-100">
-            <button class="btn btn-white border w-100 d-flex justify-content-between align-items-center shadow-sm focus-guinda bg-white" type="button" id="btnDropdownDepto" data-bs-toggle="dropdown" aria-expanded="false" style="padding: 0.375rem 0.75rem;">
+        <div class="dropup w-100">
+            <button class="btn btn-white border w-100 d-flex justify-content-between align-items-center shadow-sm focus-guinda bg-white " type="button" id="btnDropdownDepto" data-bs-toggle="dropdown" aria-expanded="false" style="padding: 0.375rem 0.75rem;">
                 <span id="textoSelectDepto" class="text-truncate text-start" style="font-size: clamp(0.8rem, 2.5vw, 0.95rem);">Todos los departamentos</span>
                 <i class="fas fa-chevron-down ms-2 text-muted" style="font-size: 0.7rem;"></i>
             </button>
             
-            <ul class="dropdown-menu w-100 shadow" aria-labelledby="btnDropdownDepto" style="max-height: 50vh; overflow-y: auto;">
+            <ul class="dropdown-menu w-100 shadow" aria-labelledby="btnDropdownDepto" style="max-height: 30vh; overflow-y: auto;">
                 <li>
                     <a class="dropdown-item item-depto-custom active bg-light text-dark" href="#" data-value="all" style="white-space: normal; word-wrap: break-word; font-size: clamp(0.8rem, 3vw, 0.9rem); padding: 10px 12px; border-bottom: 1px solid #f1f1f1;">
                         <strong>Todos los departamentos</strong>
