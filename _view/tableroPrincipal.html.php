@@ -9,7 +9,7 @@ $menu_dinamico = $_SESSION['menu'] ?? [];
 
 <div class="mb-4 d-flex justify-content-between align-items-center">
     <div>
-        <h2 class="fw-bold text-dark mb-1">Tablero Principal:</h2>
+        <h2 class="fw-bold text-dark mb-1">Tablero Principal</h2>
         <p class="text-muted" style="text-transform: capitalize;">Bienvenido, <?php echo htmlspecialchars($nombre_completo); ?></p>
     </div>
     
