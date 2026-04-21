@@ -1,25 +1,62 @@
 <?php
+
+/**
+ * Rutinas comunes para CRUD elemental de una BD. Versión Mysql
+ * El servidor de hosteo de esta rama es infinity free, asi que se modifica para usarlo, en produccion no se usa este servidor
+ * @author placeholdername1
+ * @author placeholdername2 
+ * @fecha 2026-02-25
+ */
+
 require_once "MainModel.php";
 
+/**
+ * Controlador para el módulo de Administración de Roles (RBAC).
+ * Gestiona la visualización, validación, inserción y actualización de roles
+ * y sus permisos asociados por submódulo en la base de datos.
+ */
 class AdminRolesController {
 
+    /** @var string|null Slug identificador del submódulo actual */
     private $slug;
+    
+    /** @var string Ruta al archivo de la vista HTML */
     const VISTA = '_view/adminRoles.html.php';
+    
+    /** @var string Ruta al archivo JavaScript asociado */
     const JS = 'js/adminRoles.js';
+    
+    /** @var array Lista de IDs de roles que no pueden ser modificados o eliminados (ej. Super Administrador) */
     const ROLES_PROTEGIDOS = [1];
 
+    /**
+     * Constructor del controlador.
+     * Valida la existencia de una sesión activa.
+     *
+     * @param string|null $slug Slug amigable del submódulo para la navegación.
+     */
     function __construct($slug = null){ 
         if(session_status() === PHP_SESSION_NONE) { session_start(); }
         if(!isset($_SESSION['usuario'])) { die("Error: Su sesión ha expirado."); }
         $this->slug = $slug;
     }
 
+    /**
+     * Construye y renderiza la vista principal del módulo de Roles.
+     * Extrae el árbol de módulos/submódulos, valida los permisos de consulta del usuario,
+     * y empaqueta la matriz de roles activos junto con su métrica de usuarios asignados.
+     *
+     * @return void Renderiza HTML directamente.
+     */
     public function renderContent(){
         $model = new MainModel();
-         $id_sub = $model->obtenerIdSubmoduloPorSlug($this->slug);
-        if (!$id_sub) $id_sub = 3; 
+        
+        // Determina el ID numérico del submódulo actual basado en su slug URL
+        $id_sub = $model->obtenerIdSubmoduloPorSlug($this->slug);
+        if (!$id_sub) $id_sub = 3; // Fallback al ID por defecto (Administración de Roles)
 
-        if (!$this->verificarPermiso($id_sub,PERM_CONSULTAR )) {
+        // Verificación de Control de Acceso (RBAC) para entrar a la vista
+        if (!$this->verificarPermiso($id_sub, PERM_CONSULTAR)) {
             echo '<div class="container mt-5">
                     <div class="alert alert-danger shadow-sm border-0 border-start border-5 border-danger">
                         <h4 class="alert-heading fw-bold"><i class="fas fa-lock me-2"></i>Acceso Denegado</h4>
@@ -29,11 +66,14 @@ class AdminRolesController {
             return; 
         }
 
+        // Extracción del catálogo maestro de permisos (1:Consultar, 2:Agregar, etc.)
         $permisos_catalogo = $model->seleccionaRegistros("permisos", ["id_perm", "nom_perm"]);
         
+        // Extracción estructural para el acordeón de selección (Omitiendo el propio módulo de roles por seguridad)
         $modulos = $model->seleccionaRegistros("modulos", ["*"], "id_mod != 4 AND nom_mod != 'Administración de Roles' ORDER BY orden");
         $submodulos = $model->seleccionaRegistros("submodulos", ["*"], "slug NOT IN ('usuarios', 'roles') ORDER BY orden");
 
+        // Construcción del árbol jerárquico Módulo -> Submódulo
         $arbol_modulos = [];
         if ($modulos) {
             foreach ($modulos as $mod) {
@@ -45,14 +85,17 @@ class AdminRolesController {
                         }
                     }
                 }
+                // Solo adjuntar módulos que contengan submódulos válidos
                 if (count($mod['submodulos']) > 0) {
                     $arbol_modulos[] = $mod;
                 }
             }
         }
 
+        // Extracción de Roles Activos (status = 1)
         $roles = $model->seleccionaRegistros("roles", ["id_rol", "nom_rol"], "status = 1");
 
+        // Construcción de métricas de uso y empaquetado JSON de permisos por Rol
         if ($roles) {
             foreach ($roles as $index => $rol) {
                 $permisosRol = $model->seleccionaRegistros("rol_submodulo_permiso", ["id_sub", "id_perm"], "id_rol = ?", [$rol['id_rol']]);
@@ -74,18 +117,33 @@ class AdminRolesController {
                 $roles[$index]['total_submodulos'] = count($submodulos_unicos);
                 $roles[$index]['permisos_json'] = $permisos_json;
 
+                // Contar cuántos usuarios están utilizando este rol actualmente
                 $usuariosAsignados = $model->seleccionaRegistros("usuarios", ["id_usuar"], "id_rol = ? AND status = ?", [$rol['id_rol'], 1]);
                 $roles[$index]['total_usuarios'] = $usuariosAsignados ? count($usuariosAsignados) : 0;
             }
         }
 
+        // Se inyectan las variables locales al contexto de la vista
         include self::VISTA;
     }
 
+    /**
+     * Inyección del script frontend asociado a la vista.
+     *
+     * @return void
+     */
     public function renderJS(){ 
         if (file_exists(self::JS)) { include self::JS; }
     }
 
+    /**
+     * Verifica si el usuario actual posee un permiso específico en un submódulo.
+     * Consulta directamente a la base de datos cruzando el rol de sesión.
+     *
+     * @param int $id_sub ID del submódulo.
+     * @param int $id_permiso ID del permiso requerido.
+     * @return bool True si el permiso existe, false en caso contrario.
+     */
     public function verificarPermiso($id_sub, $id_permiso) {
         $model = new MainModel();
         $id_rol = $_SESSION['usuario']['id_rol'];
@@ -93,6 +151,14 @@ class AdminRolesController {
         return ($permiso && count($permiso) > 0);
     }
 
+    /**
+     * Lógica de negocio para validar la estructura de un nuevo rol antes de impactar DB.
+     * Verifica longitud, caracteres sanitizados y asegura que no se cree un rol "vacío" (sin permisos).
+     *
+     * @param string $nom_rol Nombre propuesto para el rol.
+     * @param array $permisos Matriz multidimensional de permisos enviados desde frontend.
+     * @return string|bool Mensaje de error si falla validación, True si es correcto. (Nota: el código se corta en la l.100)
+     */
     public function validarRol($nom_rol, $permisos) {
         if (strlen($nom_rol) > 25) return "El nombre del rol supera los 25 caracteres.";
         if (!preg_match('/^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]+$/', $nom_rol)) return "El nombre del rol contiene caracteres no permitidos.";
@@ -109,7 +175,6 @@ class AdminRolesController {
         if ($permisos_db) {
             foreach ($permisos_db as $p) { $permisos_validos[] = (int)$p['id_perm']; }
         }
-
         $tiene_consultar = false;
 
         foreach ($permisos as $id_sub => $lista_permisos) {

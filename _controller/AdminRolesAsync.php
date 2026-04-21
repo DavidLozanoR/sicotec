@@ -1,20 +1,39 @@
 <?php
+
+/**
+ * Rutinas comunes para CRUD elemental de una BD. Versión Mysql
+ * El servidor de hosteo de esta rama es infinity free, asi que se modifica para usarlo, en produccion no se usa este servidor
+ * @author placeholdername1
+ * @author placeholdername2 
+ * @fecha 2026-02-25
+ */
+
 session_start();
 require_once __DIR__ . "/../config/Global.php";
 require_once "AdminRolesController.php";
 
+// Validación de seguridad: Verifica que exista una sesión activa en el servidor
 if (!isset($_SESSION['usuario'])) {
     echo json_encode(["result" => 0, "msg" => "Sesión expirada o no válida."]);
     exit;
 }
 
+/** @var AdminRolesController Instancia principal del controlador de roles */
 $controller = new AdminRolesController();
+
+/** @var string Cadena de control para enrutamiento de la petición AJAX */
 $peticion = $_POST['peticion'] ?? '';
 
-// Capturamos el ID del submódulo dinámicamente
+/** @var string|int ID del submódulo de origen, utilizado para validación de permisos y registro en bitácora */
 $id_sub = $_POST['id_sub'] ?? '';
 
+// Enrutador de peticiones
 switch ($peticion) {
+    
+    /**
+     * Caso: INSERT_ROL
+     * Inserta un nuevo rol en el catálogo junto con la matriz de permisos asociados.
+     */
     case 'INSERT_ROL':
         $nom_rol = trim($_POST['nom_rol'] ?? '');
         $permisos = $_POST['permisos'] ?? [];
@@ -27,6 +46,10 @@ switch ($peticion) {
         echo json_encode($controller->insertaRol($id_sub, $nom_rol, $permisos));
         break;
 
+    /**
+     * Caso: UPDATE_ROL
+     * Actualiza la descripción (nombre) de un rol y reemplaza sus privilegios en la tabla de relaciones.
+     */
     case 'UPDATE_ROL':
         $id_rol = $_POST['id_rol'] ?? '';
         $nom_rol = trim($_POST['nom_rol'] ?? '');
@@ -40,6 +63,10 @@ switch ($peticion) {
         echo json_encode($controller->actualizaRol($id_sub, $id_rol, $nom_rol, $permisos));
         break;
 
+    /**
+     * Caso: DELETE_ROL
+     * Cambia el estatus de un rol para realizar una baja lógica del catálogo.
+     */
     case 'DELETE_ROL':
         $id_rol = $_POST['id_rol'] ?? '';
         
@@ -51,6 +78,10 @@ switch ($peticion) {
         echo json_encode($controller->eliminaRol($id_sub, $id_rol));
         break;
 
+    /**
+     * Caso: REACTIVATE_ROL
+     * Revierte la baja lógica de un rol y reescribe la configuración de sus permisos asignados.
+     */
     case 'REACTIVATE_ROL':
         $id_rol = $_POST['id_rol'] ?? '';
         $nom_rol = trim($_POST['nom_rol'] ?? '');
@@ -65,6 +96,7 @@ switch ($peticion) {
         break;
 
     default:
+        // Manejo de peticiones corruptas o no mapeadas
         echo json_encode(["result" => 0, "msg" => "Petición de rol no reconocida."]);
         break;
 }
