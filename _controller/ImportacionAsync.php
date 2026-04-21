@@ -1,4 +1,13 @@
 <?php
+
+/**
+ * Rutinas comunes para CRUD elemental de una BD. Versión Mysql
+ * El servidor de hosteo de esta rama es infinity free, asi que se modifica para usarlo, en produccion no se usa este servidor
+ * @author placeholdername1
+ * @author placeholdername2 
+ * @fecha 2026-02-25
+ */
+
 // Configuración estricta para evitar salidas de texto que corrompan el JSON
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
@@ -12,7 +21,11 @@ require_once __DIR__ . "/../config/Global.php";
 require_once "ImportacionController.php";
 require_once "MainModel.php";
 
-// Manejador global de excepciones para asegurar que siempre se responda un JSON
+/**
+ * Manejador global de excepciones.
+ * Intercepta cualquier fallo crítico no controlado y garantiza que el cliente 
+ * siempre reciba una respuesta JSON estructurada para evitar bloqueos en el frontend.
+ */
 set_exception_handler(function($e) {
     echo json_encode(["status" => "error", "msg" => "Error interno: " . $e->getMessage()]);
     exit;
@@ -25,11 +38,19 @@ if (!isset($_SESSION['usuario'])) {
 }
 
 // 2. Consolidación de entradas (Soporta fetch JSON y FormData tradicional)
+/** @var array Arreglo decodificado desde el cuerpo de la petición (Payload JSON) */
 $input_json = json_decode(file_get_contents('php://input'), true) ?? [];
+
+/** @var string Acción a enrutar, extraída de POST tradicional o de JSON fallback */
 $peticion   = $_POST['peticion'] ?? $input_json['peticion'] ?? '';
+
+/** @var int|null ID del submódulo actual */
 $id_sub     = $_POST['id_sub']   ?? $input_json['id_sub']   ?? null;
 
+/** @var ImportacionController Instancia del controlador de importación */
 $controller = new ImportacionController();
+
+/** @var MainModel Instancia del modelo principal */
 $modelo     = new MainModel();
 
 // 3. Resolución automática del submódulo si no se provee en la petición
@@ -46,6 +67,11 @@ if (!$controller->verificarPermiso($id_sub, PERM_AGREGAR)) {
 // 5. Enrutador de peticiones
 switch ($peticion) {
     
+    /**
+     * Caso: SUBIR_ARCHIVO
+     * Recibe el archivo físico multiformato (.xlsx, .csv, .xml, etc.), valida su 
+     * integridad en la transmisión y lo pasa al controlador para su parseo a memoria temporal.
+     */
     case 'SUBIR_ARCHIVO':
         // Validación de existencia e integridad del archivo subido
         if (!isset($_FILES['archivo_masivo']) || $_FILES['archivo_masivo']['error'] !== UPLOAD_ERR_OK) {
@@ -59,10 +85,20 @@ switch ($peticion) {
         echo json_encode($controller->procesarArchivoMasivo($ruta_temporal, $nombre_original, $id_sub));
         break;
 
+    /**
+     * Caso: GET_CONFLICTOS
+     * Consulta la tabla temporal tras el análisis para devolver al frontend las 
+     * anomalías detectadas (departamentos sin coincidir, personal dado de baja).
+     */
     case 'GET_CONFLICTOS':
         echo json_encode($controller->obtenerConflictos());
         break;
 
+    /**
+     * Caso: EJECUTAR_FINAL
+     * Ejecuta el volcado final hacia la tabla de producción (Personal Operativo),
+     * inyectando las resoluciones manuales hechas por el usuario en el frontend.
+     */
     case 'EJECUTAR_FINAL':
         // Extracción directa desde el payload JSON
         $resDepts = $input_json['resolucionesDepts'] ?? [];
@@ -72,6 +108,7 @@ switch ($peticion) {
         break;
 
     default:
+        // Catcher para peticiones mal formadas
         echo json_encode(["status" => "error", "msg" => "Petición '$peticion' no reconocida por el servidor."]);
         break;
 }

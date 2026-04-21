@@ -1,4 +1,13 @@
 <?php
+
+/**
+ * Rutinas comunes para CRUD elemental de una BD. Versión Mysql
+ * El servidor de hosteo de esta rama es infinity free, asi que se modifica para usarlo, en produccion no se usa este servidor
+ * @author placeholdername1
+ * @author placeholdername2 
+ * @fecha 2026-02-25
+ */
+
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -6,18 +15,35 @@ error_reporting(E_ALL);
 require_once __DIR__ . "/../vendor/autoload.php"; 
 require_once "MainModel.php";
 
-// Importamos los lectores de Excel y CSV
+// Importamos los lectores de Excel y CSV para optimizar el uso de memoria RAM
 use OpenSpout\Reader\XLSX\Reader as XLSXReader;
 use OpenSpout\Reader\CSV\Reader as CSVReader;
 
+/**
+ * Controlador principal para el módulo de importación masiva de personal operativo.
+ * Gestiona la carga, lectura y procesamiento de archivos estructurados (Excel, CSV, XML)
+ * apoyándose en la librería OpenSpout para evitar desbordamientos de memoria.
+ */
 class ImportacionController {
 
+    /** @var string Ruta al archivo de la vista HTML */
     const VISTA = "_view/importar.html.php";
+    
+    /** @var string Ruta al archivo JavaScript asociado */
     const JS    = "js/importar.js";
 
+    /** @var MainModel Instancia global del modelo para ejecución de consultas */
     private $model;
+    
+    /** @var string|null Slug identificador del submódulo actual */
     private $slug;
 
+    /**
+     * Constructor del controlador.
+     * Inicializa la sesión, verifica la autenticación de seguridad y prepara el modelo principal.
+     *
+     * @param string|null $slug Slug amigable del submódulo para la navegación.
+     */
     public function __construct($slug = null) { 
         if (session_status() === PHP_SESSION_NONE) { session_start(); }
         if (!isset($_SESSION['usuario'])) { die("Error: Sesión expirada."); }
@@ -25,6 +51,12 @@ class ImportacionController {
         $this->slug = $slug;
     }
 
+    /**
+     * Construye y renderiza la vista principal de importación.
+     * Obtiene dinámicamente el identificador del submódulo 'personalop' para pasarlo al frontend.
+     *
+     * @return void
+     */
     public function renderContent() {
         $id_sub_personal = $this->model->obtenerIdSubmoduloPorSlug('personalop');
         $datos = [
@@ -35,10 +67,22 @@ class ImportacionController {
         include self::VISTA;
     }
 
+    /**
+     * Carga el script frontend (JS) correspondiente al controlador si existe.
+     *
+     * @return void
+     */
     public function renderJS() {
         if (file_exists(self::JS)) { include self::JS; }
     }
 
+    /**
+     * Verifica si el usuario autenticado posee un permiso específico mediante control RBAC.
+     *
+     * @param int $id_sub ID numérico del submódulo.
+     * @param int $id_permiso ID del permiso a validar (ej. PERM_AGREGAR).
+     * @return bool True si el acceso es concedido, false si está denegado.
+     */
     public function verificarPermiso($id_sub, $id_permiso) {
         $id_rol = $_SESSION['usuario']['id_rol'] ?? null;
         if (!$id_rol) return false;
@@ -55,6 +99,16 @@ class ImportacionController {
     // ==========================================
     // FASE 1: CONTROLADOR PRINCIPAL DE IMPORTACIÓN
     // ==========================================
+    
+    /**
+     * Punto de entrada principal para el análisis de un archivo estructurado masivo.
+     * Trunca la tabla temporal y delega la extracción de datos basada en el formato del documento.
+     *
+     * @param string $ruta_temporal Ruta física temporal del archivo subido en el servidor.
+     * @param string $nombre_archivo_original Nombre original del archivo para detección de extensión.
+     * @param int $id_sub ID del submódulo actual.
+     * @return array Estructura de respuesta con el estado del procesamiento o mensaje de error.
+     */
     public function procesarArchivoMasivo($ruta_temporal, $nombre_archivo_original, $id_sub) {
         $this->model->ejecutarConsultaLibre("TRUNCATE TABLE temp_importacion_po");
 
@@ -67,7 +121,6 @@ class ImportacionController {
         if (empty($datosCrudos) || !is_array($datosCrudos)) {
             return ["status" => "error", "msg" => "El archivo está vacío o tiene una estructura inválida."];
         }
-
         // 2. Separación de Encabezados y Datos
         $estructura = $this->estructurarMatriz($datosCrudos, $extension);
         if (isset($estructura['status'])) return $estructura; // Error formato XML
