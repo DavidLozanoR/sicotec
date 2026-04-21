@@ -1,26 +1,57 @@
 <?php
+
+/**
+ * Rutinas comunes para CRUD elemental de una BD. Versión Mysql
+ * El servidor de hosteo de esta rama es infinity free, asi que se modifica para usarlo, en produccion no se usa este servidor
+ * @author placeholdername1
+ * @author placeholdername2 
+ * @fecha 2026-02-25
+ */
+
 ini_set("display_errors", E_ALL);
 require_once "MainModel.php";
 
+/**
+ * Controlador para la gestión de usuarios administrativos del sistema.
+ * Maneja el renderizado de la interfaz, validación de privilegios RBAC 
+ * y la integridad de datos para cuentas de acceso.
+ */
 class AdminUsuariosController {
 
+    /** @var string|null Identificador del submódulo para la navegación */
     private $slug;
+
+    /** @var string Ruta del archivo de la vista asociada */
     const VISTA = '_view/adminUsuarios.html.php';
+
+    /** @var string Ruta del archivo JavaScript asociado */
     const JS = 'js/adminUsuarios.js';
 
+    /**
+     * Constructor de la clase.
+     * Inicializa la sesión y verifica la identidad del usuario antes de permitir el acceso.
+     * * @param string|null $slug Slug dinámico para identificar el contexto del submódulo.
+     */
     function __construct($slug = null){ 
         if(session_status() === PHP_SESSION_NONE) { session_start(); }
         if(!isset($_SESSION['usuario'])) { die("Error: Su sesión ha expirado."); }
         $this->slug = $slug;
     }
 
+    /**
+     * Procesa y genera el contenido principal de la gestión de usuarios.
+     * Valida permisos de consulta, filtra roles protegidos y extrae la lista de usuarios activos.
+     * * @return void Renderiza la vista o muestra mensaje de denegación.
+     */
     function renderContent(){
         $model = new MainModel();
         
+        // Obtención del ID de submódulo basado en el slug actual
         $id_sub = $model->obtenerIdSubmoduloPorSlug($this->slug);
-        if (!$id_sub) $id_sub = 7; 
+        if (!$id_sub) $id_sub = 7; // Fallback al ID de submódulo Usuarios
 
-        if (!$this->verificarPermiso($id_sub,PERM_CONSULTAR )) {
+        // Verificación de privilegios de consulta mediante RBAC
+        if (!$this->verificarPermiso($id_sub, PERM_CONSULTAR)) {
             echo '<div class="container mt-5">
                     <div class="alert alert-danger shadow-sm border-0 border-start border-5 border-danger">
                         <h4 class="alert-heading fw-bold"><i class="fas fa-lock me-2"></i>Acceso Denegado</h4>
@@ -29,10 +60,11 @@ class AdminUsuariosController {
                   </div>';
             return; 
         }
-        // Roles disponibles para el select de nuevo usuario (ocultamos Administrador)
+
+        // Roles disponibles para asignación (Excluye el rol con ID 1 - Administrador raíz)
         $roles_disponibles = $model->seleccionaRegistros("Roles", ["id_rol", "nom_rol"], "id_rol != ? AND status = 1", [1]);
         
-        // Usuarios activos
+        // Extracción de usuarios con JOIN para obtener el nombre del rol asociado
         $usuarios = $model->seleccionaRegistrosJoin(
             "Usuarios u",
             ["JOIN Roles r ON u.id_rol = r.id_rol"],
@@ -44,19 +76,38 @@ class AdminUsuariosController {
         include self::VISTA;
     }
 
+    /**
+     * Carga el script frontend correspondiente al controlador.
+     * @return void
+     */
     public function renderJS(){ 
         if (file_exists(self::JS)) { include self::JS; }
     }
 
+    /**
+     * Verifica si el usuario en sesión posee un permiso específico en un submódulo dado.
+     * * @param int $id_sub ID del submódulo a validar.
+     * @param int $id_permiso ID del tipo de permiso solicitado.
+     * @return bool True si el permiso está concedido, False en caso contrario.
+     */
     public function verificarPermiso($id_sub, $id_permiso) {
         $model = new MainModel();
         $id_rol = $_SESSION['usuario']['id_rol'];
         $permiso = $model->seleccionaRegistros("rol_submodulo_permiso", ["id_perm"], "id_rol = ? AND id_sub = ? AND id_perm = ?", [$id_rol, $id_sub, $id_permiso]);
         return ($permiso && count($permiso) > 0);
     }
-    // ==========================================
-    // VALIDACIONES Y LÓGICA DE USUARIOS
-    // ==========================================
+
+    /**
+     * Valida la integridad y formato de los campos de usuario mediante expresiones regulares.
+     * Verifica longitudes, ausencia de caracteres especiales y reglas de contraseñas.
+     * * @param string $nom_usuar Nickname/Nombre de acceso.
+     * @param string $nombres Nombre(s) de la persona.
+     * @param string $ape_pa Apellido paterno.
+     * @param string $ape_ma Apellido materno.
+     * @param string $password Cadena de contraseña.
+     * @param bool $esInsercion Flag para determinar si la contraseña es obligatoria.
+     * @return string|bool Retorna el mensaje de error o True si la validación es exitosa.
+     */
     public function validarDatosUsuario($nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $esInsercion = false) {
         $regex_usuario = '/^[a-zA-ZáéíóúÁÉÍÓÚñÑ][^\s]*$/';
         if (strlen($nom_usuar) > 50 || !preg_match($regex_usuario, $nom_usuar)) {
@@ -71,11 +122,22 @@ class AdminUsuariosController {
         if (!empty($password)) {
             if (strlen($password) > 8) return "La contraseña no puede tener más de 8 caracteres.";
             if (strpos($password, ' ') !== false) return "La contraseña no puede contener espacios.";
-            //if($_SESSION["usuario"]['id_rol'] === 1) return "No está permitido cambiar la contraseña a este rol."; //no se permite cambiar las credenciales del rol Administrador
         }
         return true; 
     }
 
+    /**
+     * Procesa la inserción de un nuevo usuario en la base de datos.
+     * Bloquea la asignación manual del rol Administrador por motivos de seguridad.
+     * * @param int $id_sub Contexto del submódulo.
+     * @param string $nom_usuar Nickname.
+     * @param string $nombres Nombre real.
+     * @param string $ape_pa Apellido Paterno.
+     * @param string $ape_ma Apellido Materno.
+     * @param string $password Contraseña (será procesada por el modelo).
+     * @param int $id_rol Rol a asignar.
+     * @return array Resultado de la operación.
+     */
     public function insertaUsuario($id_sub, $nom_usuar, $nombres, $ape_pa, $ape_ma, $password, $id_rol) {
         if ($id_rol == 1) return ["result" => 0, "msg" => "Seguridad: No se permite asignar el rol de Administrador."];
 
@@ -83,7 +145,6 @@ class AdminUsuariosController {
         
         // 1. Lógica Original: Verificación de Nickname (Usuario)
         $existe = $model->seleccionaRegistros("Usuarios", ["id_usuar", "status"], "nom_usuar = ?", [$nom_usuar]);
-        
         if ($existe && count($existe) > 0) {
             if ($existe[0]['status'] == 1) return ["result" => 0, "msg" => "El usuario '$nom_usuar' ya existe."];
             else return ["result" => 0, "msg" => "El usuario '$nom_usuar' existe pero está dado de baja."];
