@@ -39,40 +39,58 @@
             </div>
 
             <div class="row g-2 mb-3 align-items-center">
-                <div class="col-12 col-lg-4">
-                    <div class="input-group shadow-sm">
-                        <span class="input-group-text bg-white border-secondary-subtle"><i class="fas fa-search text-muted"></i></span>
-                        <input type="text" id="buscarDispositivo" class="form-control border-secondary-subtle focus-guinda" placeholder="Buscar equipo, serie o software...">
-                    </div>
-                </div>
-                
-                <div class="col-12 col-sm-6 col-lg-3">
-                    <select class="form-select shadow-sm focus-guinda border-secondary-subtle" id="filtroAsignacion">
-                        <option value="todos">Asignación: Todas</option>
-                        <option value="asignado">Equipos Asignados</option>
-                        <option value="sin_asignar">Sin Asignar (Almacén)</option>
-                    </select>
-                </div>
+    <div class="col-12 col-lg-4">
+        <div class="input-group shadow-sm">
+            <span class="input-group-text bg-white border-secondary-subtle"><i class="fas fa-search text-muted"></i></span>
+            <input type="text" id="buscarDispositivo" class="form-control border-secondary-subtle focus-guinda" placeholder="Buscar equipo, serie o software...">
+        </div>
+    </div>
+    
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="dropdown w-100 dropdown-filtro">
+            <button class="btn btn-white form-select shadow-sm focus-guinda border-secondary-subtle w-100 d-flex justify-content-between align-items-center bg-white" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="text-truncate">Asignación: Todas</span>
+            </button>
+            <ul class="dropdown-menu w-100 shadow-sm" style="max-height: 30vh; overflow-y: auto;">
+                <li><a class="dropdown-item py-2 active bg-light text-dark fw-bold" href="#" data-value="todos">Asignación: Todas</a></li>
+                <li><a class="dropdown-item py-2" href="#" data-value="asignado">Equipos Asignados</a></li>
+                <li><a class="dropdown-item py-2" href="#" data-value="sin_asignar">Sin Asignar (Almacén)</a></li>
+            </ul>
+            <input type="hidden" id="filtroAsignacion" value="todos">
+        </div>
+    </div>
 
-                <div class="col-12 col-sm-6 col-lg-3">
-                    <select class="form-select shadow-sm focus-guinda border-secondary-subtle" id="filtroDepartamento">
-                        <option value="todos">Red: Todas</option>
-                        <option value="sin_red">Sin red / VLAN</option>
-                        <?php foreach($departamentos as $dep): ?>
-                            <option value="<?php echo $dep['id_vlan']; ?>"><?php echo htmlspecialchars($dep['nom_vlan']); ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="dropdown w-100 dropdown-filtro">
+            <button class="btn btn-white form-select shadow-sm focus-guinda border-secondary-subtle w-100 d-flex justify-content-between align-items-center bg-white" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="text-truncate">Red: Todas</span>
+            </button>
+            <ul class="dropdown-menu w-100 shadow-sm" style="max-height: 30vh; overflow-y: auto;">
+                <li><a class="dropdown-item py-2 active bg-light text-dark fw-bold border-bottom" href="#" data-value="todos">Red: Todas</a></li>
+                <li><a class="dropdown-item py-2 border-bottom" href="#" data-value="sin_red">Sin red / VLAN</a></li>
+                <?php foreach($departamentos as $dep): ?>
+                    <li><a class="dropdown-item py-2 text-truncate" href="#" data-value="<?php echo $dep['id_vlan']; ?>"><?php echo htmlspecialchars($dep['nom_vlan']); ?></a></li>
+                <?php endforeach; ?>
+            </ul>
+            <input type="hidden" id="filtroDepartamento" value="todos">
+        </div>
+    </div>
 
-                <div class="col-12 col-lg-2 d-flex justify-content-lg-end">
-                    <select class="form-select shadow-sm focus-guinda border-secondary-subtle w-100" id="selectorRegistros">
-                        <option value="10">10 filas</option>
-                        <option value="25">25 filas</option>
-                        <option value="50">50 filas</option>
-                        <option value="all" selected>Todo</option>
-                    </select>
-                </div>
-            </div>
+    <div class="col-12 col-lg-2 d-flex justify-content-lg-end">
+        <div class="dropdown w-100 dropdown-filtro">
+            <button class="btn btn-white form-select shadow-sm focus-guinda border-secondary-subtle w-100 d-flex justify-content-between align-items-center bg-white" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                <span class="text-truncate">Todo</span>
+            </button>
+            <ul class="dropdown-menu w-100 shadow-sm" style="max-height: 30vh; overflow-y: auto;">
+                <li><a class="dropdown-item py-2" href="#" data-value="10">10 filas</a></li>
+                <li><a class="dropdown-item py-2" href="#" data-value="25">25 filas</a></li>
+                <li><a class="dropdown-item py-2" href="#" data-value="50">50 filas</a></li>
+                <li><a class="dropdown-item py-2 active bg-light text-dark fw-bold" href="#" data-value="all">Todo</a></li>
+            </ul>
+            <input type="hidden" id="selectorRegistros" value="all">
+        </div>
+    </div>
+</div>
 
             <div class="d-flex justify-content-end mb-3">
                 <nav aria-label="Navegación de registros" class="overflow-auto">

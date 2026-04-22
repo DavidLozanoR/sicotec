@@ -105,4 +105,35 @@
     #main-dispositivos-container .table tbody td:nth-child(5)::before { 
         content: "Red (IP)"; 
     }
+
+
+
+    /* ==========================================
+   SELECT DROPDOWN MAX-WIDTH FIX
+   ========================================== */
+#filtroAsignacion,
+#filtroDepartamento,
+#selectorRegistros {
+    max-width: 100%;
+    min-width: 0;
+}
+
+/* Fuerza el dropdown nativo a no exceder el contenedor */
+#filtroAsignacion,
+#filtroDepartamento,
+#selectorRegistros,
+#filtroAsignacion *,
+#filtroDepartamento *,
+#selectorRegistros * {
+    box-sizing: border-box;
+}
+
+@media (max-width: 767.98px) {
+    #filtroAsignacion,
+    #filtroDepartamento,
+    #selectorRegistros {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+}
 }

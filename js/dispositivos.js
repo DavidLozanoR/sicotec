@@ -245,3 +245,29 @@ $(document).ready(function() {
         }
     });
 });
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Escuchar los clics en nuestras opciones de dropdown
+    const dropdownItems = document.querySelectorAll('.dropdown-filtro .dropdown-item');
+    
+    dropdownItems.forEach(item => {
+        item.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            const container = this.closest('.dropdown');
+            const hiddenInput = container.querySelector('input[type="hidden"]');
+            const btnText = container.querySelector('button span');
+
+            // 1. Actualizar el texto del botón
+            btnText.textContent = this.textContent.trim();
+
+            // 2. Mover la clase "activa" para resaltar la selección en gris/negritas
+            container.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('active', 'bg-light', 'fw-bold', 'text-dark'));
+            this.classList.add('active', 'bg-light', 'fw-bold', 'text-dark');
+
+            // 3. Asignar el valor al input oculto y avisarle a jQuery que hubo un cambio
+            hiddenInput.value = this.getAttribute('data-value');
+            $(hiddenInput).trigger('change'); // <-- ESTO activa tu script de dispositivos.js al instante
+        });
+    });
+});

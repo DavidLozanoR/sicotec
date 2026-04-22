@@ -19,36 +19,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const valor = campo.value.trim();
         const esInventario = campo.name === 'num_inv';
 
-        // Si el campo no es obligatorio y está vacío, lo dejamos neutral
         if (!campo.required && valor === '') {
             campo.classList.remove('is-valid', 'is-invalid');
-            return true; // Se considera válido para permitir continuar
+            return true; 
         }
 
-        // Determinar validez: que no esté vacío, y si es inventario, que cumpla el Regex
         let isValid = valor !== '';
         if (isValid && esInventario) {
             isValid = INEA_REGEX.test(valor);
         }
 
-        // Aplicar clases de forma limpia
         campo.classList.toggle('is-valid', isValid);
         campo.classList.toggle('is-invalid', !isValid);
 
         return isValid;
     }
 
-    // --- MÁSCARA DINÁMICA PARA NÚMERO DE INVENTARIO ---
     const inputInv = document.querySelector('input[name="num_inv"]');
     if (inputInv) {
         inputInv.addEventListener('input', function() {
-            // Extraer hasta 17 dígitos
             let nums = this.value.replace(/\D/g, '').slice(0, 17);
 
             if (!nums) {
                 this.value = '';
             } else {
-                // Reconstruir formato
                 let fmt = 'INEA-I-' + nums.slice(0, 9);
                 if (nums.length > 9)  fmt += '-' + nums.slice(9, 15);
                 if (nums.length > 15) fmt += '-' + nums.slice(15, 17);
@@ -68,12 +62,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
-    // ---------------------------------------------------
 
     if (formDispositivo) {
         const inputsToValidate = formDispositivo.querySelectorAll('input[required], select[required], textarea[required], input[name="num_inv"]');
         
-        // Asignar eventos de validación en tiempo real en una sola pasada
         ['blur', 'change', 'input'].forEach(evento => {
             inputsToValidate.forEach(input => input.addEventListener(evento, () => validarCampoUI(input)));
         });
@@ -83,7 +75,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 const pestanaActual = this.closest('.tab-pane');
                 const inputsActuales = pestanaActual.querySelectorAll('input[required], select[required], textarea[required], input[name="num_inv"]');
                 
-                // Array.every() verifica que TODOS los campos devuelvan true en validarCampoUI
                 const todoValido = Array.from(inputsActuales).every(input => validarCampoUI(input));
 
                 if (todoValido) {
@@ -98,6 +89,160 @@ document.addEventListener('DOMContentLoaded', () => {
                     });
                 }
             });
+        });
+    }
+
+    // ==========================================
+    // 6. BUSCADOR FUZZY (MOVIDO ARRIBA PARA REACTIVIDAD)
+    // ==========================================
+    function aplicarFuzzySearch(selector) {
+        const selectOriginal = typeof selector === 'string' ? document.querySelector(selector) : selector;
+        if (!selectOriginal) return;
+
+        // REACTIVIDAD: Si ya existe una lista, la borramos para reconstruirla con los datos nuevos (ej. IPs)
+        if (selectOriginal.nextElementSibling && selectOriginal.nextElementSibling.classList.contains('fuzzy-container')) {
+            selectOriginal.nextElementSibling.remove();
+        }
+
+        selectOriginal.style.display = 'none';
+
+        const container = document.createElement('div');
+        container.className = 'position-relative w-100 fuzzy-container';
+
+        const inputBuscador = document.createElement('input');
+        inputBuscador.type = 'text';
+        inputBuscador.className = 'form-control focus-guinda border-secondary-subtle pe-4';
+        
+        if (selectOriginal.classList.contains('font-monospace')) inputBuscador.classList.add('font-monospace');
+        if (selectOriginal.classList.contains('form-select-sm')) inputBuscador.classList.add('form-control-sm');
+        
+        // Sincronizar bloqueo (disabled)
+        if (selectOriginal.disabled) {
+            inputBuscador.disabled = true;
+            inputBuscador.classList.add('bg-light');
+        }
+
+        inputBuscador.placeholder = selectOriginal.options.length > 0 && selectOriginal.options[0].text ? selectOriginal.options[0].text : 'Buscar...';
+        inputBuscador.autocomplete = 'off';
+
+        const iconClear = document.createElement('span');
+        iconClear.innerHTML = '&times;';
+        iconClear.className = 'position-absolute text-muted';
+        iconClear.style.cssText = 'right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; display: none; font-size: 1.2rem; z-index: 4;';
+
+        const listaDesplegable = document.createElement('ul');
+        listaDesplegable.className = 'list-group position-absolute w-100 shadow-lg z-3 d-none overflow-x-hidden';
+        listaDesplegable.style.cssText = 'max-height: 200px; overflow-y: auto; top: 100%; left: 0; margin-top: 2px;';
+
+        Array.from(selectOriginal.options).forEach(opt => {
+            if (opt.value === '') return;
+
+            // Conservamos soporte para OPTGROUP si lo usaran los demás selects
+            if (opt.parentElement.tagName === 'OPTGROUP') {
+                if (opt.parentElement.firstElementChild === opt) {
+                    const headerLi = document.createElement('li');
+                    headerLi.className = 'list-group-item bg-light text-muted small fw-bold pe-none';
+                    headerLi.textContent = opt.parentElement.label;
+                    listaDesplegable.appendChild(headerLi);
+                }
+            }
+
+            const li = document.createElement('li');
+            li.className = 'list-group-item list-group-item-action py-2';
+            li.style.cursor = 'pointer';
+            li.title = opt.text;
+            if (opt.parentElement.tagName === 'OPTGROUP') li.classList.add('ps-4');
+            
+            // Si el option tiene un HTML inyectado (como las VLANs), lo renderizamos. Sino, texto normal.
+            if (opt.dataset.htmlText) {
+                li.innerHTML = opt.dataset.htmlText;
+            } else {
+                li.textContent = opt.text;
+            }
+
+            li.dataset.value = opt.value;
+            listaDesplegable.appendChild(li);
+
+            if (opt.selected && opt.value !== "") {
+                inputBuscador.value = opt.text;
+                if (!inputBuscador.disabled) iconClear.style.display = 'block';
+            }
+        });
+
+        container.appendChild(inputBuscador);
+        container.appendChild(iconClear);
+        container.appendChild(listaDesplegable);
+        selectOriginal.parentNode.insertBefore(container, selectOriginal.nextSibling);
+
+        function filtrarResultados(texto) {
+            const query = texto.toLowerCase();
+            let coincidencias = 0;
+            const items = listaDesplegable.querySelectorAll('li:not(.pe-none)');
+
+            items.forEach(li => {
+                const textoItem = li.textContent.toLowerCase();
+                if (textoItem.includes(query)) {
+                    li.style.display = 'block';
+                    coincidencias++;
+                } else {
+                    li.style.display = 'none';
+                }
+            });
+
+            if (coincidencias > 0) {
+                listaDesplegable.classList.remove('d-none');
+            } else {
+                listaDesplegable.classList.add('d-none');
+            }
+        }
+
+        inputBuscador.addEventListener('focus', () => {
+            if (!inputBuscador.disabled) {
+                listaDesplegable.classList.remove('d-none');
+                filtrarResultados(inputBuscador.value);
+            }
+        });
+
+        inputBuscador.addEventListener('input', (e) => {
+            const valor = e.target.value;
+            filtrarResultados(valor);
+            iconClear.style.display = valor ? 'block' : 'none';
+            selectOriginal.value = ''; 
+        });
+
+        listaDesplegable.addEventListener('click', (e) => {
+            const li = e.target.closest('li:not(.pe-none)');
+            if (!li) return;
+
+            inputBuscador.value = li.textContent;
+            listaDesplegable.classList.add('d-none');
+            iconClear.style.display = 'block';
+            selectOriginal.value = li.dataset.value;
+            selectOriginal.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        iconClear.addEventListener('click', () => {
+            inputBuscador.value = '';
+            selectOriginal.value = '';
+            iconClear.style.display = 'none';
+            filtrarResultados('');
+            inputBuscador.focus();
+            selectOriginal.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!container.contains(e.target)) {
+                listaDesplegable.classList.add('d-none');
+                if (selectOriginal.value === '') {
+                    inputBuscador.value = '';
+                    iconClear.style.display = 'none';
+                } else {
+                    const opcionSeleccionada = selectOriginal.options[selectOriginal.selectedIndex];
+                    if (opcionSeleccionada) {
+                        inputBuscador.value = opcionSeleccionada.text;
+                    }
+                }
+            }
         });
     }
 
@@ -118,27 +263,33 @@ document.addEventListener('DOMContentLoaded', () => {
         selectVlan.innerHTML = '<option value="" selected disabled>-- Seleccione una red --</option>';
         if (typeof redesDisponibles === 'undefined') return;
 
-        const grupos = {};
+        // Evitar segmentos repetidos
+        const segmentosUnicos = new Map();
+        
         redesDisponibles.forEach(red => {
-            const nombreGrupo = red.nom_vlan || 'General / Sin VLAN';
-            if (!grupos[nombreGrupo]) grupos[nombreGrupo] = [];
-            grupos[nombreGrupo].push(red);
+            if (red.id_seg && !segmentosUnicos.has(red.id_seg)) {
+                segmentosUnicos.set(red.id_seg, red);
+            }
         });
 
-        for (const [grupo, redes] of Object.entries(grupos)) {
-            const optgroup = document.createElement('optgroup');
-            optgroup.label = grupo;
+        // Construir opciones con diseño personalizado de Nombre + Rango
+        segmentosUnicos.forEach((red, id_seg) => {
+            const nombreVlan = red.nom_vlan || 'General / Sin VLAN';
             
-            const vlansUnicas = [...new Set(redes.map(r => r.id_seg))];
-            vlansUnicas.forEach(id_seg => {
-                if (!id_seg) return;
-                const opt = document.createElement('option');
-                opt.value = id_seg;
-                opt.textContent = `Segmento de Red (ID: ${id_seg})`;
-                optgroup.appendChild(opt);
-            });
-            selectVlan.appendChild(optgroup);
-        }
+            let textoRango = `ID: ${id_seg}`;
+            if (red.ip_ini && red.ip_lim) {
+                textoRango = `${red.ip_ini} - ${red.ip_lim}`;
+            }
+
+            const opt = document.createElement('option');
+            opt.value = id_seg;
+            // Lo que se verá en el buscador al seleccionar
+            opt.textContent = `${nombreVlan} - ${textoRango}`;
+            // El formato de la lista: VLAN en negro/negrita y rango en gris/normal
+            opt.dataset.htmlText = `<span class="fw-bold text-dark">${nombreVlan}</span> <span class="fw-normal text-secondary">- ${textoRango}</span>`;
+            
+            selectVlan.appendChild(opt);
+        });
     }
 
     function cargarIPs(id_seg, selectIp) {
@@ -195,6 +346,10 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }
 
+        // Activamos los selectores interactivos por primera vez en esta tarjeta
+        aplicarFuzzySearch(selectVlan);
+        aplicarFuzzySearch(selectIp);
+
         selectTipo.addEventListener('change', function() {
             const valorSeleccionado = this.value;
             const todosLosTipos = Array.from(contenedorInterfaces.querySelectorAll('.select-tipo-conexion'))
@@ -214,6 +369,10 @@ document.addEventListener('DOMContentLoaded', () => {
             selectIp.disabled = true;
             selectIp.classList.add('bg-light');
             if (typeof validarCampoUI === 'function') validarCampoUI(this);
+            
+            // Sincronizar el bloqueo visual de los buscadores
+            aplicarFuzzySearch(selectVlan);
+            aplicarFuzzySearch(selectIp);
         });
 
         inputMac.addEventListener('input', function() {
@@ -229,11 +388,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 selectIp.disabled = true;
                 selectIp.classList.add('bg-light');
             }
+            
+            // Sincronizar bloqueo visual de los buscadores
+            aplicarFuzzySearch(selectVlan);
+            aplicarFuzzySearch(selectIp);
         });
 
         selectVlan.addEventListener('change', function() {
             cargarIPs(this.value, selectIp);
             if (typeof validarCampoUI === 'function') validarCampoUI(this);
+            
+            // Reconstruye el buscador de IPs porque se le inyectaron IPs nuevas
+            aplicarFuzzySearch(selectIp);
         });
 
         btnEliminar.addEventListener('click', function() {
@@ -299,6 +465,9 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         sessionStorage.removeItem('po_preselect_asignado');
     }
+
+    aplicarFuzzySearch('select[name="resp_po_id"]');
+    aplicarFuzzySearch('select[name="asig_po_id"]');
 
     // ==========================================
     // 3. LÓGICA DE CONSULTA DE CATÁLOGO (MODAL)
@@ -398,14 +567,6 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         const cargarVersiones = (idServicioActual, versionSeleccionada = '') => {
-            const isFuzzyActive = selectVer.style.display === 'none';
-            const $fuzzyContainer = selectVer.nextElementSibling;
-            
-            if (isFuzzyActive && $fuzzyContainer && $fuzzyContainer.classList.contains('fuzzy-container')) {
-                $fuzzyContainer.remove();
-                selectVer.style.display = ''; 
-            }
-
             selectVer.innerHTML = '<option value="" disabled selected>Seleccione versión...</option>';
             const versionesFiltradas = catalogoVersiones.filter(v => v.id_serv == idServicioActual);
             
@@ -522,129 +683,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ==========================================
-    // 6. BUSCADOR FUZZY PARA SELECTS
-    // ==========================================
-    function aplicarFuzzySearch(selector) {
-        const selectOriginal = document.querySelector(selector);
-        if (!selectOriginal) return;
-
-        if (selectOriginal.nextElementSibling && selectOriginal.nextElementSibling.classList.contains('fuzzy-container')) return;
-
-        selectOriginal.style.display = 'none';
-
-        const container = document.createElement('div');
-        container.className = 'position-relative w-100 fuzzy-container';
-
-        const inputBuscador = document.createElement('input');
-        inputBuscador.type = 'text';
-        inputBuscador.className = 'form-control focus-guinda border-secondary-subtle pe-4';
-        inputBuscador.placeholder = selectOriginal.options[0] ? selectOriginal.options[0].text : 'Buscar...';
-        inputBuscador.autocomplete = 'off';
-
-        const iconClear = document.createElement('span');
-        iconClear.innerHTML = '&times;';
-        iconClear.className = 'position-absolute text-muted';
-        iconClear.style.cssText = 'right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; display: none; font-size: 1.2rem;';
-
-        const listaDesplegable = document.createElement('ul');
-        listaDesplegable.className = 'list-group position-absolute w-100 shadow-lg z-3 d-none';
-        listaDesplegable.style.cssText = 'max-height: 250px; overflow-y: auto; top: 100%; left: 0;';
-
-        Array.from(selectOriginal.options).forEach(opt => {
-            if (opt.value === '') return;
-
-            const li = document.createElement('li');
-            li.className = 'list-group-item list-group-item-action';
-            li.style.cursor = 'pointer';
-            li.textContent = opt.text;
-            li.dataset.value = opt.value;
-            listaDesplegable.appendChild(li);
-
-            if (opt.selected) {
-                inputBuscador.value = opt.text;
-                iconClear.style.display = 'block';
-            }
-        });
-
-        container.appendChild(inputBuscador);
-        container.appendChild(iconClear);
-        container.appendChild(listaDesplegable);
-        selectOriginal.parentNode.insertBefore(container, selectOriginal.nextSibling);
-
-        function filtrarResultados(texto) {
-            const query = texto.toLowerCase();
-            let coincidencias = 0;
-            const items = listaDesplegable.querySelectorAll('li');
-
-            items.forEach(li => {
-                const textoItem = li.textContent.toLowerCase();
-                if (textoItem.includes(query)) {
-                    li.style.display = 'block';
-                    coincidencias++;
-                } else {
-                    li.style.display = 'none';
-                }
-            });
-
-            if (coincidencias > 0) {
-                listaDesplegable.classList.remove('d-none');
-            } else {
-                listaDesplegable.classList.add('d-none');
-            }
-        }
-
-        inputBuscador.addEventListener('focus', () => {
-            listaDesplegable.classList.remove('d-none');
-            filtrarResultados(inputBuscador.value);
-        });
-
-        inputBuscador.addEventListener('input', (e) => {
-            const valor = e.target.value;
-            filtrarResultados(valor);
-            iconClear.style.display = valor ? 'block' : 'none';
-            selectOriginal.value = ''; 
-        });
-
-        listaDesplegable.addEventListener('click', (e) => {
-            const li = e.target.closest('li');
-            if (!li) return;
-
-            inputBuscador.value = li.textContent;
-            listaDesplegable.classList.add('d-none');
-            iconClear.style.display = 'block';
-            selectOriginal.value = li.dataset.value;
-            selectOriginal.dispatchEvent(new Event('change', { bubbles: true }));
-        });
-
-        iconClear.addEventListener('click', () => {
-            inputBuscador.value = '';
-            selectOriginal.value = '';
-            iconClear.style.display = 'none';
-            filtrarResultados('');
-            inputBuscador.focus();
-            selectOriginal.dispatchEvent(new Event('change', { bubbles: true }));
-        });
-
-        document.addEventListener('click', (e) => {
-            if (!container.contains(e.target)) {
-                listaDesplegable.classList.add('d-none');
-                if (selectOriginal.value === '') {
-                    inputBuscador.value = '';
-                    iconClear.style.display = 'none';
-                } else {
-                    const opcionSeleccionada = selectOriginal.options[selectOriginal.selectedIndex];
-                    if (opcionSeleccionada) {
-                        inputBuscador.value = opcionSeleccionada.text;
-                    }
-                }
-            }
-        });
-    }
-
-    aplicarFuzzySearch('select[name="resp_po_id"]');
-    aplicarFuzzySearch('select[name="asig_po_id"]');
-
-    // ==========================================
     // 7. ENVÍO DEL FORMULARIO Y NAVEGACIÓN A ERRORES
     // ==========================================
     if (formDispositivo) {
@@ -726,15 +764,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const formData = new FormData(this);
             const dataObj = Object.fromEntries(formData.entries());
             
-            // Limpiar los arreglos basura que genera Object.fromEntries con selects dinámicos
             delete dataObj['tipo_conexion[]'];
             delete dataObj['mac[]'];
             delete dataObj['id_red[]'];
             
-            // Inyectamos el arreglo de objetos estructurado de nuestras interfaces
             dataObj.interfaces_red = interfacesData;
 
-            // Escudo Servicios Duplicados
             const serviciosInputArray = formData.getAll('servicios_instalados[]');
             const uniqueServs = new Set(serviciosInputArray);
             if (uniqueServs.size !== serviciosInputArray.length) {
@@ -765,36 +800,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 }
             }
 
-            // ========================================================
-            // SOLUCIÓN DE PERMISOS: CAPTURAR E INYECTAR EL ID_SUB
-            // ========================================================
-            // 1. Buscamos si existe un input oculto
             const inputSub = document.querySelector('input[name="id_sub"]') || document.getElementById('id_sub_actual');
             if (inputSub) {
                 dataObj.id_sub = inputSub.value;
             } else {
-                // 2. Si no existe, lo sacamos directamente de la URL (Ej: /dispositivos/formulario/3/)
                 const pathArray = window.location.pathname.split('/');
                 const indexForm = pathArray.indexOf('formulario');
                 if (indexForm !== -1 && pathArray[indexForm + 1]) {
                     dataObj.id_sub = pathArray[indexForm + 1];
                 } else {
-                    // Valor por defecto en caso de fallo extremo
                     dataObj.id_sub = 3; 
                 }
             }
-            // ========================================================
 
             const btnSubmit = document.getElementById('btnGuardarDispositivo');
             const originalBtnText = btnSubmit.innerHTML;
             btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Guardando...';
             btnSubmit.disabled = true;
 
-            // === ENVÍO FINAL ===
             fetch('_controller/DispositivosAsync.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(dataObj) // <-- ¡El id_sub ya va incluido aquí!
+                body: JSON.stringify(dataObj) 
             })
             .then(response => response.json())
             .then(data => {

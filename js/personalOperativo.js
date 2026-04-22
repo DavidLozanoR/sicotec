@@ -200,7 +200,7 @@ $(document).ready(function() {
         
         // 1. Quitar selección anterior y marcar el nuevo
         $('.item-depto-custom').removeClass('active bg-light fw-bold');
-        $(this).addClass('active bg-light fw-bold');
+        $(this).addClass('active bg-light text-dark fw-bold');
         
         // 2. Cambiar el texto que se muestra en el botón principal
         $('#textoSelectDepto').text($(this).text().trim());
@@ -208,7 +208,7 @@ $(document).ready(function() {
         // 3. Pasar el valor al input oculto y forzar el cambio en la tabla
         $('#filtroDepartamento').val($(this).data('value')).trigger('change');
     });
-
+    
 
     // ==========================================
     // 2. LÓGICA PARA BAJA LÓGICA DE EMPLEADO
@@ -271,5 +271,6 @@ $(document).ready(function() {
             }
         });
     });
+    
 
 });

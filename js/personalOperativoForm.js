@@ -9,10 +9,15 @@ $(document).ready(function() {
     // A) Nombres y Apellidos
     $('input[name="nombres"], input[name="ape_pa"], input[name="ape_ma"]').on('input', function() {
         let valor = $(this).val();
-        valor = valor.replace(/^\s+/g, '');
-        valor = valor.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, '');
-        valor = valor.replace(/\s{2,}/g, ' ');
-        $(this).val(valor);
+
+    // 1. Sanitización de texto
+    valor = valor.replace(/^\s+/g, ''); // Quita espacios al inicio
+    valor = valor.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, ''); // Solo letras y espacios
+    valor = valor.replace(/\s{2,}/g, ' '); // Evita espacios dobles
+    
+    // Actualizamos el valor limpio en el input
+    $(this).val(valor);
+
     });
 
     // B) Número de Cobro y Extensión
@@ -54,14 +59,29 @@ $(document).ready(function() {
     });
 
     function validarCampoUI($campo) {
-        if ($campo.prop('required') && $campo.val().trim() === '') {
-            $campo.removeClass('is-valid').addClass('is-invalid');
-        } else {
-            if ($campo.val().trim() !== '') {
-                $campo.removeClass('is-invalid').addClass('is-valid');
-            } else {
-                $campo.removeClass('is-invalid is-valid');
+        let valor = $campo.val().trim();
+        let esRequerido = $campo.prop('required');
+        let nombreCampo = $campo.attr('name');
+
+        // 1. Regla estricta para nombres y apellidos (Mínimo 3 caracteres)
+        if (['nombres', 'ape_pa', 'ape_ma'].includes(nombreCampo)) {
+            if (valor.length > 0 && valor.length < 3) {
+                // Tiene 1 o 2 letras: Inválido (Rojo)
+                $campo.removeClass('is-valid').addClass('is-invalid');
+                return; // Cortamos la ejecución aquí para que no aplique la regla genérica
             }
+        }
+
+        // 2. Regla genérica para el resto de los campos
+        if (esRequerido && valor === '') {
+            // Vacío y requerido: Inválido (Rojo)
+            $campo.removeClass('is-valid').addClass('is-invalid');
+        } else if (valor !== '') {
+            // Lleno (y si es nombre, ya sabemos que tiene 3+ letras por el return de arriba): Válido (Verde)
+            $campo.removeClass('is-invalid').addClass('is-valid');
+        } else {
+            // Vacío pero no requerido: Neutral (Sin color)
+            $campo.removeClass('is-invalid is-valid');
         }
     }
 
@@ -296,5 +316,26 @@ $(document).ready(function() {
             sessionStorage.setItem('po_preselect_asignado', id_po_actual);
         }
     });
+
+    // Darle funcionalidad al Dropdown personalizado de Departamentos en el Formulario
+    $('.item-dep-form').on('click', function(e) {
+        e.preventDefault();
+        
+        // 1. Obtener el valor (id) y el texto visible
+        let valor = $(this).data('value');
+        let texto = $(this).data('text');
+        
+        // 2. Actualizar el texto del botón
+        $('#textoSelectDepForm').text(texto);
+        
+        // 3. Actualizar el valor del input oculto y disparar el evento "change" 
+        // (Esto es clave para que tu validador de campos vacíos lo detecte y lo ponga en verde)
+        $('#inputHiddenDepForm').val(valor).trigger('change');
+        
+        // 4. Mover la clase "active" visualmente a la opción seleccionada
+        $('.item-dep-form').removeClass('active bg-light text-dark fw-bold');
+        $(this).addClass('active bg-light text-dark fw-bold');
+    });
+
 
 });

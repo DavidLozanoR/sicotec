@@ -54,7 +54,7 @@ if ($personal) {
         <div class="row">
             
             <div class="col-md-3 mb-4">
-                <div class="card shadow-sm border-0 rounded-3 sticky-top" style="top: 80px;">
+                <div class="card shadow-sm border-0 rounded-3 sticky-top" style="top: 80px; z-index:1;">
                     <div class="card-body p-2">
                         <div class="nav flex-column nav-pills custom-pills-inea" id="v-pills-tab" role="tablist" aria-orientation="vertical">
                             
@@ -97,17 +97,17 @@ if ($personal) {
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold small text-dark mb-1">Nombres *</label>
                                         <input type="text" class="form-control focus-guinda border-secondary-subtle" name="nombres" value="<?php echo $personal['nombres'] ?? ''; ?>" required>
-                                        <div class="invalid-feedback">Por favor, ingrese el nombre(s).</div>
+                                        <div class="invalid-feedback">Por favor, ingrese el nombre(s) minimo 3 carácteres.</div>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold small text-dark mb-1">Apellido Paterno *</label>
                                         <input type="text" class="form-control focus-guinda border-secondary-subtle" name="ape_pa" value="<?php echo $personal['ape_pa'] ?? ''; ?>" required>
-                                        <div class="invalid-feedback">El apellido paterno es obligatorio.</div>
+                                        <div class="invalid-feedback">El apellido paterno es obligatorio, minimo 3 carácteres.</div>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold small text-dark mb-1">Apellido Materno</label>
                                         <input type="text" class="form-control focus-guinda border-secondary-subtle" name="ape_ma" value="<?php echo $personal['ape_ma'] ?? ''; ?>" required>
-                                        <div class="invalid-feedback">El apellido materno es obligatorio.</div>
+                                        <div class="invalid-feedback">El apellido materno es obligatorio, minimo 3 carácteres.</div>
                                     </div>
                                     
                                     <div class="col-md-4">
@@ -128,7 +128,7 @@ if ($personal) {
 
                                         <div class="col-12">
                                             <label class="form-label fw-bold small text-dark mb-1">Dirección Completa *</label>
-                                            <textarea class="form-control focus-guinda border-secondary-subtle" name="dir" rows="3" required><?php echo $personal['dir'] ?? ''; ?></textarea>
+                                            <textarea class="form-control focus-guinda border-secondary-subtle" name="dir" rows="3" ><?php echo $personal['dir'] ?? ''; ?></textarea>
                                             <div class="invalid-feedback">Por favor, proporcione la dirección completa.</div>
                                         </div>
                                         
@@ -147,14 +147,42 @@ if ($personal) {
                                 <div class="row g-4">
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold small text-dark mb-1">Área (Departamento) *</label>
-                                        <select class="form-select focus-guinda border-secondary-subtle" name="id_dep" required>
-                                            <option value="" selected disabled>Seleccione el departamento...</option>
-                                            <?php foreach($departamentos as $dep): ?>
-                                                <option value="<?php echo $dep['id_dep']; ?>" <?php echo (isset($personal) && $personal['id_dep'] == $dep['id_dep']) ? 'selected' : ''; ?>>
-                                                    <?php echo htmlspecialchars($dep['nom_dep']); ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
+                                        <div class="dropdown w-100">
+                                            <?php
+                                                // Lógica para determinar el texto y valor inicial (Modo Nuevo vs Modo Edición)
+                                                $texto_inicial = "Seleccione el departamento...";
+                                                $valor_inicial = "";
+                                                if (isset($personal) && !empty($personal['id_dep'])) {
+                                                    foreach($departamentos as $dep) {
+                                                        if ($personal['id_dep'] == $dep['id_dep']) {
+                                                            $texto_inicial = htmlspecialchars($dep['nom_dep']);
+                                                            $valor_inicial = $dep['id_dep'];
+                                                            break;
+                                                        }
+                                                    }
+                                                }
+                                            ?>
+                                            
+                                            <button class="btn btn-white form-select d-flex justify-content-between align-items-center shadow-sm focus-guinda border-secondary-subtle bg-white" type="button" id="btnSelectDepForm" data-bs-toggle="dropdown" aria-expanded="false" data-bs-display="static">
+                                                <span id="textoSelectDepForm" class="text-truncate text-start"><?php echo $texto_inicial; ?></span>
+                                            </button>
+                                            
+                                            <ul class="dropdown-menu w-100 " aria-labelledby="btnSelectDepForm" style="max-height: 30vh; overflow-y: auto;">
+                                                <li>
+                                                    <a class="dropdown-item item-dep-form text-muted border-bottom" href="#" data-value="" data-text="Seleccione el departamento..." style="white-space: normal; word-wrap: break-word; font-size: clamp(0.8rem, 3vw, 0.9rem); padding: 10px 12px;">
+                                                        <em>Seleccione el departamento...</em>
+                                                    </a>
+                                                </li>
+                                                <?php foreach($departamentos as $dep): ?>
+                                                    <li>
+                                                        <a class="dropdown-item item-dep-form text-wrap <?php echo ($valor_inicial == $dep['id_dep']) ? 'active bg-light text-dark fw-bold' : ''; ?>" href="#" data-value="<?php echo $dep['id_dep']; ?>" data-text="<?php echo htmlspecialchars($dep['nom_dep']); ?>" style="white-space: normal; word-wrap: break-word; font-size: clamp(0.8rem, 3vw, 0.9rem); padding: 10px 12px; border-bottom: 1px solid #f1f1f1; line-height: 1.3;">
+                                                            <?php echo htmlspecialchars($dep['nom_dep']); ?>
+                                                        </a>
+                                                    </li>
+                                                <?php endforeach; ?>
+                                            </ul>
+                                            <input type="hidden" name="id_dep" id="inputHiddenDepForm" value="<?php echo $valor_inicial; ?>" required>
+                                        </div>
                                         <div class="invalid-feedback">Debe asignar un área o departamento.</div>
                                     </div>
                                     <div class="col-md-6">
@@ -177,10 +205,13 @@ if ($personal) {
                                     </div>
                                     <div class="col-md-6">
                                             <label class="form-label fw-bold small text-dark mb-1">Estatus del Empleado</label>
-                                            <select class="form-select focus-guinda border-secondary-subtle" name="estatus">
-                                                <option value="1" <?php echo (isset($personal) && $personal['estatus'] == 1) ? 'selected' : ''; ?>>Activo (Laborando)</option>
+                                        <select class="form-select focus-guinda border-secondary-subtle" name="estatus">
+                                            <option value="1" <?php echo (isset($personal) && $personal['estatus'] == 1) ? 'selected' : ''; ?>>Activo (Laborando)</option>
+                                            
+                                            <?php if ($id_po): ?>
                                                 <option value="0" <?php echo (isset($personal) && $personal['estatus'] == 0) ? 'selected' : ''; ?>>Inactivo / Baja</option>
-                                            </select>
+                                            <?php endif; ?>
+                                        </select>
                                         </div>
                                         
                                         <div class="col-12 mt-4 text-end border-top border-secondary-subtle pt-4">
