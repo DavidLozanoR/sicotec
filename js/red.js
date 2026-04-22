@@ -400,4 +400,28 @@ $(document).ready(function() {
     $filtroDep.on('change', aplicarFiltrosSegmentos);
     $filtroEstado.on('change', aplicarFiltrosSegmentos);
 
+// ====================================================================
+    // 9. SINCRONIZADOR DE DROPDOWNS NATIVOS (Para Filtros visuales de 30vh)
+    // ====================================================================
+    $('.dropdown-filtro .dropdown-item').on('click', function(e) {
+        e.preventDefault();
+        
+        let $item = $(this);
+        let $container = $item.closest('.dropdown-filtro');
+        let $inputOculto = $container.find('input[type="hidden"]');
+        let $textoBoton = $container.find('button span');
+
+        // 1. Actualiza el texto visual del botón
+        $textoBoton.text($item.text().trim());
+
+        // 2. Mueve las clases para resaltar la opción seleccionada
+        $container.find('.dropdown-item').removeClass('active bg-light text-dark fw-bold');
+        $item.addClass('active bg-light text-dark fw-bold');
+
+        // 3. Asigna el valor al input y avisa a tu función aplicarFiltrosSegmentos()
+        $inputOculto.val($item.data('value')).trigger('change');
+    });
+
+
+
 });

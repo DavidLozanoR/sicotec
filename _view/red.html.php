@@ -36,13 +36,21 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
             </select>
         </div>
         <div class="col-12 col-md-4">
-            <select id="filtroEstado" class="form-select shadow-sm focus-guinda">
-                <option value="todos">Cualquier estado de capacidad</option>
-                <option value="con_libres">Con IPs Libres disponibles</option>
-                <option value="saturados">Redes Saturadas (0 Libres)</option>
-                <option value="con_reservas">Redes con Reservas activas</option>
-            </select>
-        </div>
+    <div class="dropdown w-100 dropdown-filtro">
+        <button class="btn btn-white form-select shadow-sm focus-guinda w-100 d-flex justify-content-between align-items-center bg-white" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <span class="text-truncate text-start">Cualquier estado de capacidad</span>
+        </button>
+        
+        <ul class="dropdown-menu w-100 shadow-sm" style="max-height: 30vh; overflow-y: auto; margin-top: 2px;">
+            <li><a class="dropdown-item py-2 active bg-light text-dark fw-bold" href="#" data-value="todos">Cualquier estado de capacidad</a></li>
+            <li><a class="dropdown-item py-2" href="#" data-value="con_libres">Con IPs Libres disponibles</a></li>
+            <li><a class="dropdown-item py-2" href="#" data-value="saturados">Redes Saturadas (0 Libres)</a></li>
+            <li><a class="dropdown-item py-2" href="#" data-value="con_reservas">Redes con Reservas activas</a></li>
+        </ul>
+
+        <input type="hidden" id="filtroEstado" value="todos">
+    </div>
+</div>
     </div>
     
     <div id="msg-sin-resultados" class="d-none col-12 text-center py-5 text-muted border border-dashed rounded-3 bg-light mb-4">
