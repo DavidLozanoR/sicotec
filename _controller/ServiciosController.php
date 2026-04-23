@@ -2,9 +2,8 @@
 
 /**
  * Rutinas comunes para CRUD elemental de una BD. Versión Mariadb
- * El servidor de hosteo de esta rama es infinity free, asi que se modifica para usarlo, en produccion no se usa este servidor
- * @author placeholdername1
- * @author placeholdername2 
+ * @author Rodrigo Robledo Solares
+ * @author Angel David Lozano Rojas  
  * @fecha 2026-02-25
  */
 
