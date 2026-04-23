@@ -238,9 +238,10 @@ class DispositivosController {
         $fec_u_int = date('Y-m-d H:i:s');
 
         $mac_ethernet = null;
+        
         $mac_wifi = null;
         // Validamos existencia unica del hostame
-        if ($this->verificarExistenciaHostname($nom_host)) {
+        if ($this->verificarExistenciaHostname($nom_host,$id_disp)) {
             return ["status" => "error", "msg" => "El Hostname '{$nom_host}' ya se encuentra registrado. Por favor, asigne un nombre único."];
         }
         foreach ($interfaces as $intf) {
