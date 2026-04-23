@@ -19,7 +19,7 @@
                     <i class="fas fa-file-excel fa-5x text-success opacity-25"></i>
                 </div>
                 <h3>Paso 1: Cargar Archivo de Datos</h3>
-                <p class="text-muted">Asegúrese de que el archivo contenga las columnas de <b>Nombre</b> y <b>Número de Cobro</b>.<br>
+                <p class="text-muted">Asegúrese de que el archivo contenga las columnas de <b>Nombre</b>, <b>Número de Cobro</b> y <b>Adscripcion</b>.<br>
                 <small>Formatos permitidos: Excel (.xlsx), CSV, XML.</small></p>
                 
                 <div class="col-md-5 mx-auto mt-4">
