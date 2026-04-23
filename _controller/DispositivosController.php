@@ -200,6 +200,12 @@ class DispositivosController {
 
         $mac_ethernet = null;
         $mac_wifi = null;
+
+        // Validamos existencia unica del hostame
+        if ($this->verificarExistenciaHostname($nom_host)) {
+            return ["status" => "error", "msg" => "El Hostname '{$nom_host}' ya se encuentra registrado. Por favor, asigne un nombre único."];
+        }
+
         foreach ($interfaces as $intf) {
             if ($intf['tipo_conexion'] === 'Ethernet') $mac_ethernet = trim($intf['mac']);
             if ($intf['tipo_conexion'] === 'WiFi') $mac_wifi = trim($intf['mac']);
@@ -210,17 +216,14 @@ class DispositivosController {
 
         $detalle = "Registro de nuevo dispositivo. Host: " . ($nom_host ?: 'N/A');
         $id_disp = $model->agregaRegistroConBitacora("dispositivos", $camposDispositivo, $paramsDispositivo, $id_sub, $detalle);
-        
-        if (!$id_disp) return ["status" => "error", "msg" => "Error al registrar el dispositivo en la base de datos."];
-
         $this->procesarInterfacesYSoftware($model, $id_disp, $interfaces, $asignaciones_software);
+        if (!$id_disp) return ["status" => "error", "msg" => "Error al registrar el dispositivo en la base de datos."];
 
         return ["status" => "success", "result" => 1, "msg" => "El dispositivo fue guardado correctamente."];
     }
 
     public function actualizarDispositivo($id_sub, $id_disp, $datos, $interfaces, $asignaciones_software) {
         $model = new MainModel();
-
         $nom_host = trim($datos['nom_host'] ?? '');
         $marca = trim($datos['marca'] ?? '');
         $modelo = trim($datos['modelo'] ?? '');
@@ -236,23 +239,81 @@ class DispositivosController {
 
         $mac_ethernet = null;
         $mac_wifi = null;
+        // Validamos existencia unica del hostame
+        if ($this->verificarExistenciaHostname($nom_host)) {
+            return ["status" => "error", "msg" => "El Hostname '{$nom_host}' ya se encuentra registrado. Por favor, asigne un nombre único."];
+        }
         foreach ($interfaces as $intf) {
             if ($intf['tipo_conexion'] === 'Ethernet') $mac_ethernet = trim($intf['mac']);
             if ($intf['tipo_conexion'] === 'WiFi') $mac_wifi = trim($intf['mac']);
         }
 
+        // 1. Validamos interfaces ANTES de actualizar la tabla principal
+        // En una actualización sí podemos llamar esto primero porque el ID ya existe
+        $resultadoProceso = $this->procesarInterfacesYSoftware($model, $id_disp, $interfaces, $asignaciones_software);
+
+        if (isset($resultadoProceso['status']) && $resultadoProceso['status'] === 'error') {
+            // Si la MAC pertenece a otro equipo, bloqueamos la actualización entera
+            return $resultadoProceso;
+        }
+
+        // 2. Si todo está en orden, procedemos con la actualización principal
         $camposDispositivo = ["nom_host", "marca", "modelo", "num_ser", "num_inv", "mac_ethernet", "mac_wifi", "dom", "especs_hw", "resp_po_id", "asig_po_id", "id_u_int", "fec_u_int"];
         $paramsUpdate = [$nom_host, $marca, $modelo, $num_ser, $num_inv, $mac_ethernet, $mac_wifi, $dom, $especs_hw, $resp_po_id, $asig_po_id, $id_u_int, $fec_u_int, $id_disp];
 
         $detalle = "Actualización de dispositivo. Host: " . ($nom_host ?: 'N/A');
         $model->actualizaRegistroConBitacora("dispositivos", $camposDispositivo, "id_disp = ?", $paramsUpdate, $id_sub, $detalle);
 
-        $this->procesarInterfacesYSoftware($model, $id_disp, $interfaces, $asignaciones_software);
-
         return ["status" => "success", "result" => 1, "msg" => "El dispositivo fue actualizado correctamente."];
+    }
+    /**
+     * Verifica si un Hostname ya está registrado en la base de datos.
+     * @param string $nom_host El Hostname a comprobar.
+     * @param int|null $id_disp_actual ID del dispositivo actual para omitir en actualizaciones.
+     * @return bool Retorna true si ya existe, false si está libre.
+     */
+    private function verificarExistenciaHostname($nom_host, $id_disp_actual = null) {
+        if (empty($nom_host)) return false;
+
+        $model = new MainModel();
+        $where = "nom_host = ?";
+        $params = [$nom_host];
+
+        // Si es actualización, ignoramos el registro que estamos editando
+        if (!empty($id_disp_actual)) {
+            $where .= " AND id_disp != ?";
+            $params[] = $id_disp_actual;
+        }
+
+        $resultado = $model->seleccionaRegistros("dispositivos", ["id_disp"], $where, $params);
+        
+        return !empty($resultado);
     }
 
     private function procesarInterfacesYSoftware($model, $id_disp, $interfaces, $asignaciones_software) {
+        // macs
+        if (!empty($interfaces) && is_array($interfaces)) {
+            foreach ($interfaces as $intf) {
+                if (!empty($intf['mac'])) {
+                    $mac = $intf['mac'];
+                    // Buscar si la MAC ya existe en otro equipo (excluyendo el que estamos editando)
+                    $duplicado = $model->seleccionaRegistros(
+                        "dispositivos", 
+                        ["nom_host"], 
+                        "(mac_ethernet = ? OR mac_wifi = ?) AND id_disp != ?", 
+                        [$mac, $mac, $id_disp]
+                    );
+                    
+                    if (!empty($duplicado)) {
+                        // Cortar la ejecución y devolver el error al controlador principal
+                        return [
+                            "status" => "error", 
+                            "msg" => "La dirección MAC ({$mac}) ya está registrada en el dispositivo: " . $duplicado[0]['nom_host']
+                        ];
+                    }
+                }
+            }
+        }
         // Red
         $model->actualizaRegistro("infraestructura_red", ["id_disp", "tipo_conexion"], "id_disp = ?", [null, null, $id_disp]);
         if (!empty($interfaces) && is_array($interfaces)) {
@@ -272,6 +333,7 @@ class DispositivosController {
             }
         }
     }
+    
 
     public function bajaDispositivo($id_sub, $id_disp) {
         $model = new MainModel();
