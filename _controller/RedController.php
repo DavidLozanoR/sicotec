@@ -1,19 +1,49 @@
 <?php
+
+/**
+ * Rutinas comunes para CRUD elemental de una BD. Versión Mysql
+ * El servidor de hosteo de esta rama es infinity free, asi que se modifica para usarlo, en produccion no se usa este servidor
+ * @author placeholdername1
+ * @author placeholdername2 
+ * @fecha 2026-02-25
+ */
+
 require_once "MainModel.php";
 
+/**
+ * Controlador para el módulo de Infraestructura de Red.
+ * Gestiona la visualización de segmentos de red, asignaciones de VLANs 
+ * y el cálculo estadístico de disponibilidad de direcciones IP.
+ */
 class RedController {
 
+    /** @var string Ruta al archivo de la vista HTML */
     const VISTA = "_view/red.html.php";
+    
+    /** @var string Ruta al archivo JavaScript asociado */
     const JS = "js/red.js";
 
+    /** @var string|null Slug identificador del submódulo en curso */
     private $slug;
 
+    /**
+     * Constructor del controlador.
+     * Valida la existencia de una sesión activa antes de inicializar la clase.
+     *
+     * @param string|null $slug Slug amigable del submódulo.
+     */
     function __construct($slug = null) { 
         if(session_status() === PHP_SESSION_NONE) { session_start(); }
         if(!isset($_SESSION['usuario'])) { die("Error: Su sesión ha expirado."); }
         $this->slug = $slug;
     }
 
+    /**
+     * Prepara y renderiza la vista principal del módulo de Red.
+     * Verifica los permisos de consulta del usuario y carga las estadísticas de los segmentos.
+     *
+     * @return void Renderiza HTML directamente o muestra una alerta de acceso denegado.
+     */
     public function renderContent() {
         $model = new MainModel();
          $id_sub = $model->obtenerIdSubmoduloPorSlug($this->slug);
@@ -33,10 +63,22 @@ class RedController {
         include self::VISTA;
     }
 
+    /**
+     * Inyecta el archivo JavaScript asociado a la vista en el DOM.
+     *
+     * @return void
+     */
     public function renderJS() {
         if (file_exists(self::JS)) { include self::JS; }
     }
 
+    /**
+     * Verifica si el rol del usuario actual cuenta con un permiso específico (RBAC).
+     *
+     * @param int $id_sub ID del submódulo en evaluación.
+     * @param int $id_permiso ID del tipo de permiso solicitado.
+     * @return bool True si el permiso existe en la base de datos, false de lo contrario.
+     */
     public function verificarPermiso($id_sub, $id_permiso) {
         $model = new MainModel();
         $id_rol = $_SESSION['usuario']['id_rol'];
@@ -44,6 +86,14 @@ class RedController {
         return ($permiso && count($permiso) > 0);
     }
 
+    /**
+     * Extrae y procesa la información de los segmentos de red y VLANs.
+     * Calcula métricas de uso (IPs libres, ocupadas, reservadas) por segmento 
+     * y los ordena lógicamente basados en su valor numérico de IP.
+     *
+     * @param MainModel $model Instancia activa del modelo.
+     * @return array Matriz de datos con VLANs y segmentos procesados.
+     */
     private function traerContenido($model) {
       
         // CAMBIO: Ahora traemos el catálogo de VLANs en lugar de Departamentos
@@ -109,7 +159,7 @@ class RedController {
             'segmentos' => $segmentos
         ];
     }
-
+    
     // CAMBIO: Renombrado de parámetro $id_dep a $id_vlan
     public function insertarSegmento($id_sub, $id_vlan, $ip_ini, $ip_lim, $reservas) {
         $model = new MainModel();
