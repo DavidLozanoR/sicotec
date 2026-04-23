@@ -1,18 +1,39 @@
 <?php
+
+/**
+ * Rutinas comunes para CRUD elemental de una BD. Versión Mysql
+ * El servidor de hosteo de esta rama es infinity free, asi que se modifica para usarlo, en produccion no se usa este servidor
+ * @author placeholdername1
+ * @author placeholdername2 
+ * @fecha 2026-02-25
+ */
+
 session_start();
 require_once __DIR__ . "/../config/Global.php";
 require_once "PersonalOPController.php";
 
+// Verificación de sesión activa
 if (!isset($_SESSION['usuario'])) {
     echo json_encode(["result" => 0, "msg" => "Sesión expirada o no válida."]);
     exit;
 }
 
+/** @var PersonalOPController Instancia del controlador de personal operativo */
 $controller = new PersonalOPController();
+
+/** @var string Acción a ejecutar enviada por POST */
 $peticion = $_POST['peticion'] ?? '';
+
+/** @var string|int ID del submódulo origen para validación de permisos */
 $id_sub = $_POST['id_sub'] ?? '';
 
+// Enrutador de peticiones AJAX
 switch ($peticion) {
+    
+    /**
+     * Caso: INSERT_PO
+     * Inserta un nuevo registro de personal operativo en la base de datos previa validación de permisos y datos.
+     */
     case 'INSERT_PO':
         // Verificación estricta de permiso por Rol (Permiso 2 = Agregar)
         if (!$controller->verificarPermiso($id_sub, PERM_AGREGAR)) {
@@ -50,6 +71,10 @@ switch ($peticion) {
         echo json_encode($controller->insertaPO($id_sub, $num_cobro, $nombres, $ape_pa, $ape_ma, $dir, $correo, $puesto, $ext, $cta_dom, $estatus, $id_dep));
         break;
 
+    /**
+     * Caso: UPDATE_PO
+     * Actualiza los datos de un registro de personal operativo existente.
+     */
     case 'UPDATE_PO':
         // Verificación estricta de permiso por Rol (Permiso 1 = Editar)
         if (!$controller->verificarPermiso($id_sub, PERM_EDITAR)) {
@@ -87,6 +112,10 @@ switch ($peticion) {
         echo json_encode($controller->actualizaPO($id_sub, $id_po, $num_cobro, $nombres, $ape_pa, $ape_ma, $dir, $correo, $puesto, $ext, $cta_dom, $estatus, $id_dep));
         break;
 
+    /**
+     * Caso: BAJA_PO
+     * Realiza la baja lógica de un elemento del personal operativo.
+     */
     case 'BAJA_PO':
         // Verificación estricta de permiso por Rol (Permiso 3 = Eliminar/Baja)
         if (!$controller->verificarPermiso($id_sub, PERM_ELIMINAR)) {
@@ -102,6 +131,11 @@ switch ($peticion) {
 
         echo json_encode($controller->bajaPO($id_sub, $id_po));
         break;
+        
+    /**
+     * Caso: DESVINCULAR_EQUIPO
+     * Elimina el vínculo de asignación o resguardo entre un dispositivo y un empleado operativo.
+     */
 case 'DESVINCULAR_EQUIPO':
         // Verificación de permiso (Usamos el Permiso 1 = Editar)
         if (!$controller->verificarPermiso($id_sub, PERM_EDITAR)) {
@@ -120,7 +154,9 @@ case 'DESVINCULAR_EQUIPO':
 
         echo json_encode($controller->desvincularEquipo($id_sub, $id_po, $id_disp, $tipo_vinculo));
         break;
+        
     default:
+        // Manejo de peticiones no reconocidas
         echo json_encode(["result" => 0, "msg" => "Petición no reconocida."]);
         break;
 }
