@@ -480,9 +480,11 @@ document.addEventListener('DOMContentLoaded', () => {
                 tbodyCatalogo.innerHTML = '<tr><td colspan="3" class="text-center py-4 text-muted">No hay servicios registrados en el catálogo.</td></tr>';
             } else {
                 catalogoServicios.forEach(servicio => {
-                    const versionOficial = catalogoVersiones.find(v => v.id_serv == servicio.id_serv && String(v.obs) === "0");
-                    const nombreVersionOficial = versionOficial ? versionOficial.ver : 'Sin versión oficial';
-                    
+                    const versionesOficiales = catalogoVersiones.filter(v => v.id_serv == servicio.id_serv && String(v.obs) === "0");
+                    const nombreVersionOficial = versionesOficiales.length > 0 
+                        ? versionesOficiales.map(v => `<span class="badge bg-success bg-opacity-10 text-success border border-success-subtle shadow-sm px-2 py-1 mb-1 me-1"><i class="fas fa-check-circle me-1"></i> ${v.ver}</span>`).join('') 
+                        : '<span class="text-muted">Sin versión oficial</span>';
+                                        
                     const otrasVersiones = catalogoVersiones
                         .filter(v => v.id_serv == servicio.id_serv && String(v.obs) === "1")
                         .map(v => `<span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle mb-1 me-1">${v.ver}</span>`)
@@ -608,11 +610,10 @@ document.addEventListener('DOMContentLoaded', () => {
         fila.classList.remove('bg-danger', 'bg-opacity-10', 'border-danger', 'border-opacity-50');
 
         if (!selectServ.value || !selectVer.value) return;
+        const objVersion = catalogoVersiones.find(v => String(v.id_ver) === String(selectVer.value));
 
-        const optionServ = selectServ.options[selectServ.selectedIndex];
-        const idVerOficial = optionServ.dataset.oficial;
-
-        if (selectVer.value === idVerOficial) {
+        // Si la encontramos y su estado 'obs' es 0 (no obsoleta), es oficial/aceptada
+        if (objVersion && String(objVersion.obs) === "0") {
             selectVer.classList.add('is-valid');
             containerStatus.innerHTML = '<span class="text-success"><i class="fas fa-check-circle me-1"></i> Oficial (Al día)</span>';
         } else {
@@ -641,8 +642,11 @@ document.addEventListener('DOMContentLoaded', () => {
             const idServ = this.dataset.idServ;
             const inputVersion = row.querySelector(`input[name="versiones_instaladas[${idServ}]"]`);
             
-            const versionOficial = catalogoVersiones.find(v => v.id_serv == idServ && String(v.obs) === "0");
-            
+            // Obtiene todas las aceptadas y se queda con la de mayor ID (la más reciente registrada)
+            const versionesOficiales = catalogoVersiones.filter(v => v.id_serv == idServ && String(v.obs) === "0");
+            const versionOficial = versionesOficiales.length > 0 
+                ? versionesOficiales.reduce((max, v) => parseInt(v.id_ver) > parseInt(max.id_ver) ? v : max) 
+                : null;            
             if(versionOficial && inputVersion) {
                 inputVersion.value = versionOficial.id_ver;
                 
