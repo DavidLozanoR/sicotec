@@ -1,16 +1,45 @@
 <?php
+
+/**
+ * Rutinas comunes para CRUD elemental de una BD. Versión Mysql
+ * El servidor de hosteo de esta rama es infinity free, asi que se modifica para usarlo, en produccion no se usa este servidor
+ * @author placeholdername1
+ * @author placeholdername2 
+ * @fecha 2026-02-25
+ */
+
 require_once 'MainModel.php';
 
+/**
+ * Controlador para la interfaz del formulario de Personal Operativo (Alta y Edición).
+ * Gestiona la validación de seguridad de la URL (Anti-Tampering) y la recolección 
+ * de datos del empleado, departamentos y dispositivos asociados (asignados y resguardos).
+ */
 class PersonalOPFormController{
 
+/** @var string Ruta al archivo de la vista HTML del formulario */
 const VISTA = "_view/personalOperativoForm.html.php";
+
+/** @var string Ruta al archivo JavaScript asociado al formulario */
 const JS = "js/personalOperativoForm.js";
 
+/** @var int|null ID del personal operativo (Null para nuevo registro) */
 private $id_op;//id del personal operativo
+
+/** @var int|null ID numérico del submódulo extraído de la URL */
 private $id_submod;
+
+/** @var string|null Slug identificador del submódulo en curso */
 private $slug;
 
-
+/**
+ * Constructor del controlador del formulario.
+ * Verifica la existencia de una sesión activa e inicializa el contexto de la petición.
+ *
+ * @param string|null $slug Nombre corto del módulo para construcción de la ruta.
+ * @param int|null $id_submod ID del submódulo proveniente de la URL.
+ * @param int|null $id ID del registro del personal operativo (modo edición).
+ */
 function __construct($slug=null,$id_submod=null,$id=null){
 
      // Validamos que exista una sesión activa
@@ -28,6 +57,13 @@ function __construct($slug=null,$id_submod=null,$id=null){
 
 }
 
+/**
+ * Construye y renderiza el contenido del formulario.
+ * Ejecuta validación de seguridad para prevenir la alteración manual del ID de submódulo
+ * en la barra de direcciones (Anti-Tampering).
+ *
+ * @return void Renderiza el HTML directamente o detiene la ejecución si hay anomalías.
+ */
 public function renderContent(){
         $model = new MainModel();
 
@@ -62,6 +98,14 @@ public function renderContent(){
     }
 
 
+   /**
+    * Extrae la información necesaria para construir el formulario.
+    * Obtiene el catálogo de departamentos y, en caso de edición, los datos
+    * del empleado junto con los equipos tecnológicos bajo su uso o resguardo.
+    *
+    * @param MainModel $model Instancia activa del modelo de datos.
+    * @return array Matriz de datos listos para ser inyectados en la vista.
+    */
    private function traerContenido($model) {
         // Catálogos necesarios para los <select> del formulario
         $departamentos = $model->seleccionaRegistros("Departamentos", ["id_dep", "nom_dep"]);
@@ -117,6 +161,11 @@ public function renderContent(){
         ];
     }
 
+/**
+ * Inserta el archivo JavaScript necesario para la funcionalidad del formulario.
+ *
+ * @return void
+ */
 public function renderJS(){
     include self::JS;
 }

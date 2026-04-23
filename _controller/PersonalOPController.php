@@ -1,16 +1,38 @@
 <?php
+
+/**
+ * Rutinas comunes para CRUD elemental de una BD. Versión Mysql
+ * El servidor de hosteo de esta rama es infinity free, asi que se modifica para usarlo, en produccion no se usa este servidor
+ * @author placeholdername1
+ * @author placeholdername2 
+ * @fecha 2026-02-25
+ */
+
 require_once "MainModel.php";
 
+/**
+ * Controlador principal para la gestión del Personal Operativo.
+ * Coordina la visualización del listado de personal y la validación
+ * de privilegios de acceso al módulo mediante RBAC.
+ */
 class PersonalOPController{
 
+    /** @var string Ruta constante al archivo de la vista HTML */
+    const VISTA = "_view/personalOperativo.html.php";
+    
+    /** @var string Ruta constante al script JavaScript de la vista */
+    const JS = "js/personalOperativo.js";
 
-const VISTA = "_view/personalOperativo.html.php";
-const JS = "js/personalOperativo.js";
+    /** @var string|null Slug identificador del submódulo en curso */
+    private $slug;
 
-private $slug;
-
-
-function __construct($slug=null){ 
+    /**
+     * Constructor del controlador.
+     * Garantiza la inicialización de la sesión y bloquea el acceso si no hay usuario autenticado.
+     *
+     * @param string|null $slug Nombre corto del módulo para construcción de rutas.
+     */
+    function __construct($slug=null){ 
         // Validamos que exista una sesión activa
         if(session_status() === PHP_SESSION_NONE) {
             session_start();
@@ -20,17 +42,22 @@ function __construct($slug=null){
             die("Error: Su sesión ha expirado o no tiene acceso a este módulo");
         }
         $this->slug=$slug;
-
-
     }
 
+    /**
+     * Prepara y renderiza el contenido central del módulo.
+     * Evalúa permisos de consulta y empaqueta la información del personal y catálogos.
+     *
+     * @return void Renderiza el HTML directamente o muestra mensaje de bloqueo.
+     */
     public function renderContent(){
         $model = new MainModel();
 
         $id_sub = $model->obtenerIdSubmoduloPorSlug($this->slug);
         if (!$id_sub) $id_sub = 1; 
 
-        if (!$this->verificarPermiso($id_sub,PERM_CONSULTAR )) {
+        // Verificación de permiso base para poder ver la pantalla
+        if (!$this->verificarPermiso($id_sub, PERM_CONSULTAR)) {
             echo '<div class="container mt-5">
                     <div class="alert alert-danger shadow-sm border-0 border-start border-5 border-danger">
                         <h4 class="alert-heading fw-bold"><i class="fas fa-lock me-2"></i>Acceso Denegado</h4>
@@ -40,49 +67,69 @@ function __construct($slug=null){
             return; 
         }
         
-        $datos= $this->traerContenido($model);//trae el contenido a renderizar
-        //estraemos los datos para consumirlos es la vista
+        $datos = $this->traerContenido($model); // trae el contenido a renderizar
+        // extraemos los datos para consumirlos en la vista
         extract($datos);
 
         // 4. Incluimos la vista
         include self::VISTA;
     }
 
+    /**
+     * Inyecta en el DOM el archivo JS asociado al controlador.
+     *
+     * @return void
+     */
     public function renderJS(){
         // Incluimos el JavaScript específico para esta vista
         // (Donde programaremos los filtros en vivo y el modal)
         include self::JS;
     }
 
+    /**
+     * Extrae de la base de datos la información necesaria para poblar la vista.
+     * Utiliza vistas de BD optimizadas para evitar consultas N+1 en listados complejos.
+     *
+     * @param MainModel $model Instancia activa del modelo.
+     * @return array Arreglo asociativo con catálogos (departamentos) y datos crudos (personal).
+     */
     private function traerContenido($model){
-            // Buscamos en la tabla Submodulos aquel que coincida con la ruta de este módulo
-            $consultaSub = $model->seleccionaRegistros("Submodulos", ["id_sub"], "slug = ?", ["$this->slug"]);
-            $id_sub_actual = (!empty($consultaSub)) ? $consultaSub[0]['id_sub'] : 1;
-            
-            // 1. Obtener catálogos para los filtros (Selects)
-            $departamentos = $model->seleccionaRegistros("Departamentos", ["id_dep", "nom_dep"]);
+        // Buscamos en la tabla Submodulos aquel que coincida con la ruta de este módulo
+        $consultaSub = $model->seleccionaRegistros("Submodulos", ["id_sub"], "slug = ?", ["$this->slug"]);
+        $id_sub_actual = (!empty($consultaSub)) ? $consultaSub[0]['id_sub'] : 1;
+        
+        // 1. Obtener catálogos para los filtros (Selects)
+        $departamentos = $model->seleccionaRegistros("Departamentos", ["id_dep", "nom_dep"]);
 
-            // 2. Consulta optimizada usando la vista (elimina el problema N+1 y el bucle)
-            $lista_personal = $model->seleccionaRegistros(
-                "v_personal_operativo_completo", 
-                ["*"], 
-                "estatus = ?", 
-                [1]
-            );
+        // 2. Consulta optimizada usando la vista (elimina el problema N+1 y el bucle)
+        $lista_personal = $model->seleccionaRegistros(
+            "v_personal_operativo_completo", 
+            ["*"], 
+            "estatus = ?", 
+            [1]
+        );
 
-            if (!$lista_personal) {
-                $lista_personal = [];
-            }
-
-            return [
-                'departamentos' => $departamentos,
-                'lista_personal' => $lista_personal
-            ];
+        if (!$lista_personal) {
+            $lista_personal = [];
         }
 
-// ==========================================================
+        return [
+            'departamentos' => $departamentos,
+            'lista_personal' => $lista_personal
+        ];
+    }
+
+    // ==========================================================
     // LÓGICA DE SEGURIDAD (RBAC)
     // ==========================================================
+    
+    /**
+     * Comprueba si el rol del usuario posee un permiso en específico.
+     *
+     * @param int $id_sub ID del submódulo en el que se intenta la acción.
+     * @param int $id_permiso ID numérico del permiso.
+     * @return bool True si el permiso es concedido, false de lo contrario.
+     */
     public function verificarPermiso($id_sub, $id_permiso) {
         $model = new MainModel();
         $id_rol = $_SESSION['usuario']['id_rol'];
@@ -95,7 +142,7 @@ function __construct($slug=null){
         );
         return ($permiso && count($permiso) > 0);
     }
-
+    
     // ==========================================================
     // VALIDACIÓN DE ATRIBUTOS
     // ==========================================================
