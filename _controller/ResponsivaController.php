@@ -171,9 +171,6 @@ class ResponsivaController {
         
         return ["result" => 1, "data" => $equipos ? $equipos : []];
     }
-}
-?>
-
     public function transferirEquipo($id_sub, $id_disp, $id_po_origen, $id_po_destino) {
         $model = new MainModel();
         
