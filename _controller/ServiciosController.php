@@ -1,24 +1,62 @@
 <?php
+
+/**
+ * Rutinas comunes para CRUD elemental de una BD. Versión Mariadb
+ * El servidor de hosteo de esta rama es infinity free, asi que se modifica para usarlo, en produccion no se usa este servidor
+ * @author placeholdername1
+ * @author placeholdername2 
+ * @fecha 2026-02-25
+ */
+
 require_once "MainModel.php";
 
+/**
+ * Controlador principal para la gestión del Catálogo de Servicios.
+ * Coordina la visualización de software/herramientas, el conteo de sus 
+ * instalaciones (equipos asociados) y el manejo de su historial de versiones.
+ */
 class ServiciosController {
 
+    /** @var string Ruta al archivo de la vista HTML */
     const VISTA = "_view/servicios.html.php";
+    
+    /** @var string Ruta al archivo JavaScript asociado */
     const JS = "js/servicios.js";
 
+    /** @var string|null Slug identificador del submódulo en curso */
     private $slug;
     
+    /** @var int Identificador del permiso de edición en BD */
     const PERMISO_EDITAR = 1;
+    
+    /** @var int Identificador del permiso de inserción en BD */
     const PERMISO_AGREGAR = 2;
+    
+    /** @var int Identificador del permiso de baja/eliminación en BD */
     const PERMISO_ELIMINAR = 3;
+    
+    /** @var int Identificador del permiso de visualización en BD */
     const PERMISO_CONSULTAR = 4;
 
+    /**
+     * Constructor del controlador.
+     * Valida que exista una sesión activa; de lo contrario, detiene la ejecución.
+     *
+     * @param string|null $slug Nombre corto del módulo para la navegación.
+     */
     function __construct($slug = null) { 
         if(session_status() === PHP_SESSION_NONE) { session_start(); }
         if(!isset($_SESSION['usuario'])) { die("Error: Su sesión ha expirado."); }
         $this->slug = $slug;
     }
 
+    /**
+     * Prepara y renderiza el contenido del módulo de Servicios.
+     * Realiza verificaciones de seguridad mediante RBAC antes de extraer
+     * el catálogo completo de servicios para enviarlo a la vista.
+     *
+     * @return void Renderiza HTML directamente o muestra alerta de acceso denegado.
+     */
     public function renderContent() {
         $model = new MainModel();
         $id_sub = $_SESSION['submodulo_actual'] ?? 2; 
@@ -38,10 +76,22 @@ class ServiciosController {
         include self::VISTA;
     }
 
+    /**
+     * Inyecta el archivo JavaScript asociado a la vista en el DOM.
+     *
+     * @return void
+     */
     public function renderJS() {
         if (file_exists(self::JS)) { include self::JS; }
     }
 
+    /**
+     * Comprueba si el rol del usuario posee un permiso específico (RBAC).
+     *
+     * @param int $id_sub ID del submódulo en el que se intenta la acción.
+     * @param int $id_permiso ID numérico del permiso requerido.
+     * @return bool True si el permiso es concedido, false de lo contrario.
+     */
     public function verificarPermiso($id_sub, $id_permiso) {
         $model = new MainModel();
         $id_rol = $_SESSION['usuario']['id_rol'];
@@ -54,6 +104,14 @@ class ServiciosController {
         return ($permiso && count($permiso) > 0);
     }
 
+    /**
+     * Extrae el catálogo de servicios desde la base de datos.
+     * Realiza conteos iterativos para calcular la cantidad de instalaciones 
+     * por cada servicio y filtra las versiones activas/aceptadas.
+     *
+     * @param MainModel $model Instancia activa del modelo.
+     * @return array Matriz asociativa que contiene la lista de servicios enriquecida.
+     */
     private function traerContenido($model) {
         // Consulta plana sin JOINs para mayor estabilidad
         $servicios = $model->seleccionaRegistros("servicios", ["*"], "estatus = 1 ORDER BY nom ASC");
