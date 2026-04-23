@@ -1,15 +1,45 @@
 <?php
+
+/**
+ * Rutinas comunes para CRUD elemental de una BD. Versión Mysql
+ * El servidor de hosteo de esta rama es infinity free, asi que se modifica para usarlo, en produccion no se usa este servidor
+ * @author placeholdername1
+ * @author placeholdername2 
+ * @fecha 2026-02-25
+ */
+
 require_once '_model/MainModel.php';
 
+/**
+ * Controlador para la interfaz del formulario de Dispositivos (Alta y Edición).
+ * Gestiona la validación de acceso al formulario y la recolección de los
+ * catálogos necesarios para renderizar la vista.
+ */
 class DispositivosFormController {
 
+    /** @var string Ruta al archivo de la vista HTML del formulario */
     const VISTA = "_view/dispositivosForm.html.php";
+    
+    /** @var string Ruta al archivo JavaScript asociado al formulario */
     const JS = "js/dispositivosForm.js";
 
+    /** @var int|null ID del dispositivo a editar (Null si es registro nuevo) */
     private $id_disp;
+    
+    /** @var int|null ID numérico del submódulo extraído de la URL */
     private $id_submod;
+    
+    /** @var string|null Slug identificador del submódulo en curso */
     private $slug;
 
+    /**
+     * Constructor del controlador del formulario.
+     * Verifica la sesión activa y establece los parámetros de contexto de la URL.
+     *
+     * @param string|null $slug Nombre corto del módulo para la navegación.
+     * @param int|null $id_submod ID del submódulo proveniente del router.
+     * @param int|null $id ID del dispositivo (presente solo en modo edición).
+     */
     function __construct($slug = null, $id_submod = null, $id = null) {
         if(session_status() === PHP_SESSION_NONE) {
             session_start();
@@ -24,6 +54,13 @@ class DispositivosFormController {
         $this->id_disp = $id;
     }
 
+    /**
+     * Verifica si el rol del usuario actual posee el permiso requerido.
+     *
+     * @param int $id_sub ID del submódulo en evaluación.
+     * @param int $id_permiso ID numérico del permiso (Ej. 1 = Editar, 2 = Agregar).
+     * @return bool True si el usuario tiene el permiso, false en caso contrario.
+     */
     public function verificarPermiso($id_sub, $id_permiso) {
         $model = new MainModel();
         $id_rol = $_SESSION['usuario']['id_rol'];
@@ -36,11 +73,19 @@ class DispositivosFormController {
         return ($permiso && count($permiso) > 0);
     }
 
+    /**
+     * Construye y renderiza la vista del formulario.
+     * Implementa validación anti-tampering comprobando que el ID del submódulo
+     * recibido por URL corresponda estructuralmente con el slug de la ruta.
+     *
+     * @return void Renderiza HTML directamente o muestra una alerta de seguridad.
+     */
     public function renderContent() {
         $model = new MainModel();
 
         $url_buscar = $this->slug; 
         
+        // Validación de seguridad para prevenir inyección de IDs en la URL
         $consultaSub = $model->seleccionaRegistros("submodulos", ["id_sub"], "slug = ?", [$url_buscar]);
         $id_sub_real = (!empty($consultaSub)) ? $consultaSub[0]['id_sub'] : null;
 
@@ -52,6 +97,7 @@ class DispositivosFormController {
             return; 
         }
 
+        // Determinación de banderas y contextos para el formulario
         $es_edicion = !empty($this->id_disp);
         $permiso_requerido = $es_edicion ? 1 : 2; 
         $accion_texto = $es_edicion ? "editar" : "registrar nuevos";
