@@ -185,16 +185,17 @@ class DispositivosController {
     public function insertarDispositivo($id_sub, $datos, $interfaces, $asignaciones_software) {
         $model = new MainModel();
 
-        $nom_host = trim($datos['nom_host'] ?? '');
-        $marca = trim($datos['marca'] ?? '');
-        $modelo = trim($datos['modelo'] ?? '');
-        $num_ser = trim($datos['num_ser'] ?? '');
-        $num_inv = trim($datos['num_inv'] ?? '');
-        $dom = trim($datos['dom'] ?? '');
-        $especs_hw = trim($datos['especs_hw'] ?? '');
+        // CORRECCIÓN: Todo campo opcional que llegue vacío se convierte en NULL
+        $nom_host = !empty(trim($datos['nom_host'] ?? '')) ? trim($datos['nom_host']) : null;
+        $marca = !empty(trim($datos['marca'] ?? '')) ? trim($datos['marca']) : null;
+        $modelo = !empty(trim($datos['modelo'] ?? '')) ? trim($datos['modelo']) : null;
+        $num_ser = !empty(trim($datos['num_ser'] ?? '')) ? trim($datos['num_ser']) : null;
+        $num_inv = !empty(trim($datos['num_inv'] ?? '')) ? trim($datos['num_inv']) : null;
+        $dom = !empty(trim($datos['dom'] ?? '')) ? trim($datos['dom']) : null;
+        $especs_hw = !empty(trim($datos['especs_hw'] ?? '')) ? trim($datos['especs_hw']) : null;
+        
         $resp_po_id = !empty($datos['resp_po_id']) ? $datos['resp_po_id'] : null;
         $asig_po_id = !empty($datos['asig_po_id']) ? $datos['asig_po_id'] : null;
-
         $id_u_int = $_SESSION['usuario']['id_usuar'] ?? null;
         $fec_u_int = date('Y-m-d H:i:s');
 
@@ -224,13 +225,16 @@ class DispositivosController {
 
     public function actualizarDispositivo($id_sub, $id_disp, $datos, $interfaces, $asignaciones_software) {
         $model = new MainModel();
-        $nom_host = trim($datos['nom_host'] ?? '');
-        $marca = trim($datos['marca'] ?? '');
-        $modelo = trim($datos['modelo'] ?? '');
-        $num_ser = trim($datos['num_ser'] ?? '');
-        $num_inv = trim($datos['num_inv'] ?? '');
-        $dom = trim($datos['dom'] ?? '');
-        $especs_hw = trim($datos['especs_hw'] ?? '');
+
+        // CORRECCIÓN: Todo campo opcional que llegue vacío se convierte en NULL
+        $nom_host = !empty(trim($datos['nom_host'] ?? '')) ? trim($datos['nom_host']) : null;
+        $marca = !empty(trim($datos['marca'] ?? '')) ? trim($datos['marca']) : null;
+        $modelo = !empty(trim($datos['modelo'] ?? '')) ? trim($datos['modelo']) : null;
+        $num_ser = !empty(trim($datos['num_ser'] ?? '')) ? trim($datos['num_ser']) : null;
+        $num_inv = !empty(trim($datos['num_inv'] ?? '')) ? trim($datos['num_inv']) : null;
+        $dom = !empty(trim($datos['dom'] ?? '')) ? trim($datos['dom']) : null;
+        $especs_hw = !empty(trim($datos['especs_hw'] ?? '')) ? trim($datos['especs_hw']) : null;
+        
         $resp_po_id = !empty($datos['resp_po_id']) ? $datos['resp_po_id'] : null;
         $asig_po_id = !empty($datos['asig_po_id']) ? $datos['asig_po_id'] : null;
 

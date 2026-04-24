@@ -116,10 +116,16 @@ document.addEventListener('DOMContentLoaded', () => {
         if (selectOriginal.classList.contains('font-monospace')) inputBuscador.classList.add('font-monospace');
         if (selectOriginal.classList.contains('form-select-sm')) inputBuscador.classList.add('form-control-sm');
         
-        // Sincronizar bloqueo (disabled)
+        // Sincronizar bloqueo (disabled) y estilos de alerta
         if (selectOriginal.disabled) {
             inputBuscador.disabled = true;
             inputBuscador.classList.add('bg-light');
+            
+            // FIX: Si el select original fue marcado en rojo por falta de VLAN, heredamos el diseño
+            if (selectOriginal.classList.contains('border-danger')) {
+                inputBuscador.classList.remove('border-secondary-subtle');
+                inputBuscador.classList.add('border-danger', 'text-danger', 'fw-bold');
+            }
         }
 
         inputBuscador.placeholder = selectOriginal.options.length > 0 && selectOriginal.options[0].text ? selectOriginal.options[0].text : 'Buscar...';
@@ -261,18 +267,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function cargarVLANs(selectVlan) {
         selectVlan.innerHTML = '<option value="" selected disabled>-- Seleccione una red --</option>';
-        if (typeof redesDisponibles === 'undefined') return;
+        
+        // 1. Verificamos que la variable exista y sea un array
+        if (typeof redesDisponibles === 'undefined' || !redesDisponibles || !Array.isArray(redesDisponibles) || redesDisponibles.length === 0) {
+            return false;
+        }
 
-        // Evitar segmentos repetidos
         const segmentosUnicos = new Map();
         
+        // 2. Mapeamos filtrando basura o nulos del backend
         redesDisponibles.forEach(red => {
-            if (red.id_seg && !segmentosUnicos.has(red.id_seg)) {
+            if (red && red.id_seg && !segmentosUnicos.has(red.id_seg)) {
                 segmentosUnicos.set(red.id_seg, red);
             }
         });
 
-        // Construir opciones con diseño personalizado de Nombre + Rango
+        // FIX CRUCIAL: Si después de filtrar los nulos el mapa está vacío, ¡No hay redes válidas!
+        if (segmentosUnicos.size === 0) {
+            return false; 
+        }
+
+        // Construir opciones
         segmentosUnicos.forEach((red, id_seg) => {
             const nombreVlan = red.nom_vlan || 'General / Sin VLAN';
             
@@ -283,13 +298,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
             const opt = document.createElement('option');
             opt.value = id_seg;
-            // Lo que se verá en el buscador al seleccionar
             opt.textContent = `${nombreVlan} - ${textoRango}`;
-            // El formato de la lista: VLAN en negro/negrita y rango en gris/normal
             opt.dataset.htmlText = `<span class="fw-bold text-dark">${nombreVlan}</span> <span class="fw-normal text-secondary">- ${textoRango}</span>`;
             
             selectVlan.appendChild(opt);
         });
+        
+        return true; // Solo retorna true si realmente logró mapear datos válidos
     }
 
     function cargarIPs(id_seg, selectIp) {
@@ -319,13 +334,29 @@ document.addEventListener('DOMContentLoaded', () => {
         const clon = templateInterfaz.content.cloneNode(true);
         const nuevoItem = clon.querySelector('.interfaz-item');
         
-        const selectTipo = nuevoItem.querySelector('.select-tipo-conexion');
+       const selectTipo = nuevoItem.querySelector('.select-tipo-conexion');
         const inputMac = nuevoItem.querySelector('.input-mac');
         const selectVlan = nuevoItem.querySelector('.select-vlan');
         const selectIp = nuevoItem.querySelector('.select-ip');
         const btnEliminar = nuevoItem.querySelector('.btn-eliminar-interfaz');
 
-        cargarVLANs(selectVlan);
+        // Capturamos si existen redes
+        const hayRedes = cargarVLANs(selectVlan);
+
+        // BLOQUEO LÓGICO: Si no hay redes, bloqueamos el select e inyectamos la alerta
+        if (!hayRedes) {
+            selectVlan.innerHTML = '<option value="">Bloqueado - Catálogo vacío</option>';
+            selectVlan.disabled = true;
+            selectVlan.classList.add('border-danger', 'bg-light', 'text-muted');
+            
+            const alertaHTML = `
+                <div class="alert alert-danger mt-2 mb-0 py-2 small fw-bold shadow-sm border-0 border-start border-4 border-danger">
+                    <i class="fas fa-exclamation-triangle me-1"></i> ¡Alto! Debe dirigirse a "Infraestructura de Red" y crear al menos un VLAN y un SEGMENTO antes de asignar IPs.
+                </div>
+            `;
+            // Inyectamos la alerta justo debajo del select
+            selectVlan.insertAdjacentHTML('afterend', alertaHTML);
+        }
 
         if (datosPreCargados) {
             selectTipo.value = datosPreCargados.tipo;
@@ -379,11 +410,14 @@ document.addEventListener('DOMContentLoaded', () => {
             formatearMAC(this);
             if (typeof validarCampoUI === 'function') validarCampoUI(this);
             
-            if (this.value.length === 17) {
+            // Solo habilitar si llegó a 17 caracteres Y ADEMÁS hay redes en el catálogo
+            if (this.value.length === 17 && hayRedes) {
                 selectVlan.disabled = false;
             } else {
                 selectVlan.disabled = true;
-                selectVlan.value = '';
+                if (hayRedes) {
+                    selectVlan.value = ''; // Solo vaciamos si no está bloqueado permanentemente
+                }
                 selectIp.innerHTML = '<option value="">-- Sin IP --</option>';
                 selectIp.disabled = true;
                 selectIp.classList.add('bg-light');
