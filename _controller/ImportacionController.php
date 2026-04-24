@@ -1,12 +1,4 @@
 <?php
-
-/**
- * Rutinas comunes para CRUD elemental de una BD. Versión MariaDB
- * * @author Rodrigo Robledo Solares
- * @author Angel David Lozano Rojas  
- * @fecha 2026-02-25
- */
-
 ini_set('display_errors', 1);
 ini_set('display_startup_errors', 1);
 error_reporting(E_ALL);
@@ -14,35 +6,18 @@ error_reporting(E_ALL);
 require_once __DIR__ . "/../vendor/autoload.php"; 
 require_once "MainModel.php";
 
-// Importamos los lectores de Excel y CSV para optimizar el uso de memoria RAM
+// Importamos los lectores de Excel y CSV
 use OpenSpout\Reader\XLSX\Reader as XLSXReader;
 use OpenSpout\Reader\CSV\Reader as CSVReader;
 
-/**
- * Controlador principal para el módulo de importación masiva de personal operativo.
- * Gestiona la carga, lectura y procesamiento de archivos estructurados (Excel, CSV, XML)
- * apoyándose en la librería OpenSpout para evitar desbordamientos de memoria.
- */
 class ImportacionController {
 
-    /** @var string Ruta al archivo de la vista HTML */
     const VISTA = "_view/importar.html.php";
-    
-    /** @var string Ruta al archivo JavaScript asociado */
     const JS    = "js/importar.js";
 
-    /** @var MainModel Instancia global del modelo para ejecución de consultas */
     private $model;
-    
-    /** @var string|null Slug identificador del submódulo actual */
     private $slug;
 
-    /**
-     * Constructor del controlador.
-     * Inicializa la sesión, verifica la autenticación de seguridad y prepara el modelo principal.
-     *
-     * @param string|null $slug Slug amigable del submódulo para la navegación.
-     */
     public function __construct($slug = null) { 
         if (session_status() === PHP_SESSION_NONE) { session_start(); }
         if (!isset($_SESSION['usuario'])) { die("Error: Sesión expirada."); }
@@ -50,12 +25,6 @@ class ImportacionController {
         $this->slug = $slug;
     }
 
-    /**
-     * Construye y renderiza la vista principal de importación.
-     * Obtiene dinámicamente el identificador del submódulo 'personalop' para pasarlo al frontend.
-     *
-     * @return void
-     */
     public function renderContent() {
         $id_sub_personal = $this->model->obtenerIdSubmoduloPorSlug('personalop');
         $datos = [
@@ -66,22 +35,10 @@ class ImportacionController {
         include self::VISTA;
     }
 
-    /**
-     * Carga el script frontend (JS) correspondiente al controlador si existe.
-     *
-     * @return void
-     */
     public function renderJS() {
         if (file_exists(self::JS)) { include self::JS; }
     }
 
-    /**
-     * Verifica si el usuario autenticado posee un permiso específico mediante control RBAC.
-     *
-     * @param int $id_sub ID numérico del submódulo.
-     * @param int $id_permiso ID del permiso a validar (ej. PERM_AGREGAR).
-     * @return bool True si el acceso es concedido, false si está denegado.
-     */
     public function verificarPermiso($id_sub, $id_permiso) {
         $id_rol = $_SESSION['usuario']['id_rol'] ?? null;
         if (!$id_rol) return false;
@@ -98,16 +55,6 @@ class ImportacionController {
     // ==========================================
     // FASE 1: CONTROLADOR PRINCIPAL DE IMPORTACIÓN
     // ==========================================
-    
-    /**
-     * Punto de entrada principal para el análisis de un archivo estructurado masivo.
-     * Trunca la tabla temporal y delega la extracción de datos basada en el formato del documento.
-     *
-     * @param string $ruta_temporal Ruta física temporal del archivo subido en el servidor.
-     * @param string $nombre_archivo_original Nombre original del archivo para detección de extensión.
-     * @param int $id_sub ID del submódulo actual.
-     * @return array Estructura de respuesta con el estado del procesamiento o mensaje de error.
-     */
     public function procesarArchivoMasivo($ruta_temporal, $nombre_archivo_original, $id_sub) {
         $this->model->ejecutarConsultaLibre("TRUNCATE TABLE temp_importacion_po");
 
@@ -120,6 +67,7 @@ class ImportacionController {
         if (empty($datosCrudos) || !is_array($datosCrudos)) {
             return ["status" => "error", "msg" => "El archivo está vacío o tiene una estructura inválida."];
         }
+
         // 2. Separación de Encabezados y Datos
         $estructura = $this->estructurarMatriz($datosCrudos, $extension);
         if (isset($estructura['status'])) return $estructura; // Error formato XML
@@ -128,11 +76,6 @@ class ImportacionController {
         $indices = $this->mapearIndicesColumnas($estructura['encabezados']);
         if ($indices['cobro'] === -1 || $indices['nombre'] === -1) {
             return ["status" => "error", "msg" => "El archivo no cuenta con las columnas mínimas obligatorias (Cobro y Nombre)."];
-        }
-        
-        // NUEVO: REQUISITO 4 - ADSCRIPCIÓN OBLIGATORIA
-        if ($indices['dep'] === -1) {
-            return ["status" => "error", "msg" => "La columna de Adscripción (Departamento/Área) es estrictamente obligatoria."];
         }
 
         // 4. Transformación y Limpieza de Filas
@@ -152,8 +95,7 @@ class ImportacionController {
         }
 
         // 5. Carga (Volcado Masivo BD)
-        // NUEVO: REQUISITO 1 - Inyección de dir, ext y cta_dom en la tabla temporal
-        $queryBulk = "INSERT INTO temp_importacion_po (num_cobro, nombres, ape_pa, ape_ma, puesto, correo, clave_dep_raw, nom_dep_raw, dir, ext, cta_dom) VALUES " . implode(", ", $valores_insert);
+        $queryBulk = "INSERT INTO temp_importacion_po (num_cobro, nombres, ape_pa, ape_ma, puesto, correo, clave_dep_raw, nom_dep_raw) VALUES " . implode(", ", $valores_insert);
         $exito_volcado = $this->model->ejecutarConsultaLibre($queryBulk);
 
         if (is_string($exito_volcado) && strpos($exito_volcado, 'ERROR_BD') !== false) {
@@ -198,7 +140,7 @@ class ImportacionController {
                 }
 
                 // ==========================================
-                // INTERCEPTOR DE EXCEL-XML (Spreadsheet 2003)
+                // NUEVO: INTERCEPTOR DE EXCEL-XML (Spreadsheet 2003)
                 // ==========================================
                 $xmlString = file_get_contents($ruta);
                 // Detectamos si es el XML que exporta Microsoft Excel
@@ -263,13 +205,16 @@ class ImportacionController {
         }
     }
 
+    // NUEVO: Helper para rastrear las filas ignorando metadatos
     private function encontrarMatrizXML($array) {
         if (!is_array($array)) return [];
 
+        // 1. Verificación directa: ¿Es esto una lista (arreglo indexado de múltiples filas)?
         if (isset($array[0]) && is_array($array[0])) {
             return $array;
         }
 
+        // 2. Búsqueda profunda priorizando listas verdaderas (Ignora metadatos)
         foreach ($array as $key => $value) {
             if (is_array($value)) {
                 $resultado = $this->encontrarMatrizXML($value);
@@ -277,6 +222,9 @@ class ImportacionController {
             }
         }
 
+        // 3. Fallback para Archivos de 1 sola fila:
+        // Si no encontró listas, verificamos si este nodo actual "parece" una fila válida.
+        // Lo sabremos si sus etiquetas o atributos contienen las palabras 'COBRO' o 'NOMBRE'
         $esFilaUnica = true;
         
         $claves = array_keys($array);
@@ -285,6 +233,7 @@ class ImportacionController {
         }
         $claves_str = strtoupper(implode('_', $claves));
 
+        // Filtro "Antibasura": Solo lo toma si tiene datos clave del empleado
         if (strpos($claves_str, 'COBRO') !== false || strpos($claves_str, 'NOMBRE') !== false || strpos($claves_str, 'PERSONAL') !== false) {
             foreach ($array as $k => $v) {
                 if (is_array($v) && $k !== '@attributes') {
@@ -293,7 +242,7 @@ class ImportacionController {
                 }
             }
             if ($esFilaUnica && !empty($array)) {
-                return [$array]; 
+                return [$array]; // Lo envolvemos como tabla y lo devolvemos
             }
         }
 
@@ -310,12 +259,16 @@ class ImportacionController {
             return ["status" => "error", "msg" => "La estructura del archivo no tiene un formato tabular válido."];
         }
 
+        // MAGIA: Detectamos la forma de los datos en lugar de guiarnos por la extensión.
+        // Si las llaves no son números seguidos (0, 1, 2...), es un XML Genérico asociativo.
         $es_asociativo = array_keys($primer_registro) !== range(0, count($primer_registro) - 1);
 
         if ($es_asociativo) {
+            // Caso XML Normal: Los nombres de las etiquetas son los encabezados
             $encabezados = array_map([$this, 'limpiarTexto'], array_keys($primer_registro));
             $filas = $datosCrudos;
         } else {
+            // Caso Excel, CSV o XML de Microsoft Spreadsheet: La primera fila son los encabezados
             $encabezados = array_map([$this, 'limpiarTexto'], array_shift($datosCrudos));
             $filas = $datosCrudos;
         }
@@ -324,21 +277,18 @@ class ImportacionController {
     }
 
     private function mapearIndicesColumnas($encabezados) {
-        // NUEVO: REQUISITO 1 - Añadidos dir, ext y cta_dom al mapeo
         return [
             'consecutivo' => $this->buscarIndiceColumna($encabezados, ['consecutivo']),
             'cobro'       => $this->buscarIndiceColumna($encabezados, ['cobro']),
             'nombre'      => $this->buscarIndiceColumna($encabezados, ['nombre', 'empleado', 'personal']),
             'puesto'      => $this->buscarIndiceColumna($encabezados, ['puesto', 'cargo', 'funcion']),
             'correo'      => $this->buscarIndiceColumna($encabezados, ['correo', 'email', 'e-mail']),
-            'dep'         => $this->buscarIndiceColumna($encabezados, ['area', 'departamento', 'depto', 'adscrip']),
-            'dir'         => $this->buscarIndiceColumna($encabezados, ['dir', 'direccion', 'dirección']),
-            'ext'         => $this->buscarIndiceColumna($encabezados, ['ext', 'extension', 'extensión']),
-            'cta_dom'     => $this->buscarIndiceColumna($encabezados, ['cta_dom', 'cuenta_dominio', 'cuenta', 'cta'])
+            'dep'         => $this->buscarIndiceColumna($encabezados, ['area', 'departamento', 'depto', 'adscrip'])
         ];
     }
 
     private function procesarFilaSQL($fila, $idx) {
+        // Validación de Consecutivo Fantasma
         if ($idx['consecutivo'] !== -1 && empty(trim($fila[$idx['consecutivo']] ?? ''))) return null;
 
         $num_cobro = $this->limpiarTexto($fila[$idx['cobro']] ?? '');
@@ -347,21 +297,16 @@ class ImportacionController {
         // Extracción
         $nombre_full = $this->limpiarTexto($fila[$idx['nombre']] ?? '');
         $puesto      = ($idx['puesto'] !== -1) ? $this->limpiarTexto($fila[$idx['puesto']] ?? '') : '';
-        $correo      = ($idx['correo'] !== -1) ? $this->limpiarTexto($fila[$idx['correo']] ?? '', false) : '';
+        $correo      = ($idx['correo'] !== -1) ? $this->limpiarTexto($fila[$idx['correo']] ?? '', false) : ''; // false = minúsculas
         $dep_crudo   = ($idx['dep']    !== -1) ? $this->limpiarTexto($fila[$idx['dep']]    ?? '') : '';
-        
-        // NUEVO: REQUISITO 1 - Extracción de campos opcionales
-        $dir         = ($idx['dir']    !== -1) ? $this->limpiarTexto($fila[$idx['dir']]    ?? '') : '';
-        $ext         = ($idx['ext']    !== -1) ? $this->limpiarTexto($fila[$idx['ext']]    ?? '') : '';
-        $cta_dom     = ($idx['cta_dom']!== -1) ? $this->limpiarTexto($fila[$idx['cta_dom']] ?? '', false) : '';
 
         // Transformación
         $nombres = $this->dividirNombreEspacial($nombre_full);
         $depto   = $this->dividirDepartamento($dep_crudo);
 
-        // Construcción de registro para Query (Añadidos los 3 nuevos campos)
+        // Construcción de registro para Query
         return sprintf(
-            "('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')",
+            "('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s')",
             addslashes($num_cobro),
             addslashes($nombres['nombres']),
             addslashes($nombres['ape_pa']),
@@ -369,10 +314,7 @@ class ImportacionController {
             addslashes($puesto),
             addslashes($correo),
             addslashes($depto['clave']),
-            addslashes($depto['nombre']),
-            addslashes($dir),
-            addslashes($ext),
-            addslashes($cta_dom)
+            addslashes($depto['nombre'])
         );
     }
 
@@ -381,20 +323,27 @@ class ImportacionController {
     // ==========================================
 
     private function limpiarTexto($texto, $forzar_mayusculas = true) {
+        // 1. Openspout lee números como escalares, forzamos a string
         if (is_scalar($texto)) {
             $texto = (string) $texto;
         }
 
         if (!is_string($texto)) return ''; 
 
+        // 2. Detección de caracteres corruptos
         if (strpos($texto, '') !== false || strpos($texto, 'Ã') !== false) {
             $_SESSION['alerta_csv_formato'] = true;
         }
         
         $texto = str_replace('"', '', trim($texto));
+
+        // 3. Forzar TODO a mayúsculas PRIMERO (para que quitarAcentos detecte las letras)
         $texto = mb_strtoupper($texto, 'UTF-8');
+
+        // 4. Quitar los acentos (que ahora son mayúsculas garantizadas)
         $texto = $this->quitarAcentos($texto);
 
+        // 5. Devolver en mayúsculas o minúsculas según se pida
         return $forzar_mayusculas ? $texto : mb_strtolower($texto, 'UTF-8');
     }
 
@@ -409,6 +358,7 @@ class ImportacionController {
     }
 
     private function quitarAcentos($cadena) {
+        // Solo evalúa mayúsculas por rendimiento
         $originales = ['À','Á','Â','Ã','Ä','Å','Æ','Ç','È','É','Ê','Ë','Ì','Í','Î','Ï','Ð','Ñ','Ò','Ó','Ô','Õ','Ö','Ø','Ù','Ú','Û','Ü','Ý','Þ','ß'];
         $modificadas = ['A','A','A','A','A','A','AE','C','E','E','E','E','I','I','I','I','D','N','O','O','O','O','O','O','U','U','U','U','Y','TH','ss'];
         return str_replace($originales, $modificadas, $cadena);
@@ -476,59 +426,12 @@ class ImportacionController {
             }
         }
 
-        // CORRECCIÓN: Filtramos usando los 3 niveles de identidad (Cobro OR Correo OR Nombre Completo)
         $queryBajas = "SELECT po.id_po, po.num_cobro, po.nombres, po.ape_pa, po.ape_ma,
                        (SELECT COUNT(*) FROM dispositivos d WHERE d.asig_po_id = po.id_po OR d.resp_po_id = po.id_po) as total_dispositivos
                        FROM personal_operativo po
-                       LEFT JOIN temp_importacion_po t ON (
-                           t.num_cobro = po.num_cobro 
-                           OR (t.correo = po.correo AND t.correo IS NOT NULL AND t.correo != '') 
-                           OR (t.nombres = po.nombres AND t.ape_pa = po.ape_pa AND t.ape_ma = po.ape_ma)
-                       )
+                       LEFT JOIN temp_importacion_po t ON po.num_cobro = t.num_cobro
                        WHERE t.num_cobro IS NULL AND po.estatus = 1";
         $bajas = $this->model->consultarLibre($queryBajas);
-
-        // CORRECCIÓN: Reconocemos movimientos atando al usuario por cualquiera de sus 3 identidades
-        $queryMovimientos = "SELECT t.num_cobro, t.nombres, t.ape_pa, t.ape_ma, 
-                                d_orig.nom_dep AS dep_origen_nom,
-                                t.nom_dep_raw AS dep_destino_nom,
-                                (SELECT COUNT(*) FROM dispositivos d WHERE d.asig_po_id = po.id_po OR d.resp_po_id = po.id_po) as total_equipos
-                             FROM temp_importacion_po t
-                             JOIN personal_operativo po ON (
-                                 t.num_cobro = po.num_cobro 
-                                 OR (t.correo = po.correo AND t.correo IS NOT NULL AND t.correo != '') 
-                                 OR (t.nombres = po.nombres AND t.ape_pa = po.ape_pa AND t.ape_ma = po.ape_ma)
-                             )
-                             JOIN departamentos d_orig ON po.id_dep = d_orig.id_dep
-                             WHERE d_orig.clave_dep != t.clave_dep_raw AND t.clave_dep_raw != ''";
-        $movimientos = $this->model->consultarLibre($queryMovimientos);
-
-        $queryDesaparecidos = "SELECT d.nom_dep 
-                               FROM departamentos d 
-                               WHERE d.estatus = 1 
-                               AND NOT EXISTS (
-                                   SELECT 1 FROM temp_importacion_po t WHERE t.clave_dep_raw = d.clave_dep
-                               )";
-        $desaparecidos = $this->model->consultarLibre($queryDesaparecidos);
-
-        $queryDivisiones = "SELECT d.nom_dep, COUNT(DISTINCT t.clave_dep_raw) as nuevas_divisiones,
-                                   GROUP_CONCAT(DISTINCT t.nom_dep_raw SEPARATOR ' | ') as nombres_nuevos
-                            FROM temp_importacion_po t
-                            JOIN personal_operativo po ON t.num_cobro = po.num_cobro
-                            JOIN departamentos d ON po.id_dep = d.id_dep
-                            GROUP BY d.id_dep, d.nom_dep
-                            HAVING nuevas_divisiones > 1";
-        $divisiones = $this->model->consultarLibre($queryDivisiones);
-
-        // CORRECCIÓN: Detectar cambios de cobro usando (Correo OR Nombre Completo)
-        $queryCambiosCobro = "SELECT t.num_cobro AS nuevo_cobro, po.num_cobro AS viejo_cobro, t.nombres, t.ape_pa
-                              FROM temp_importacion_po t
-                              JOIN personal_operativo po ON (
-                                  (t.correo = po.correo AND t.correo IS NOT NULL AND t.correo != '') 
-                                  OR (t.nombres = po.nombres AND t.ape_pa = po.ape_pa AND t.ape_ma = po.ape_ma)
-                              )
-                              WHERE t.num_cobro != po.num_cobro";
-        $cambiosCobro = $this->model->consultarLibre($queryCambiosCobro);
         
         $catalogo_completo = $this->model->seleccionaRegistros("departamentos", ["id_dep", "clave_dep", "nom_dep"], "1=1 ORDER BY nom_dep ASC");
         $resumen = $this->model->consultarLibre("SELECT COUNT(*) as total_filas, SUM(CASE WHEN nom_dep_raw = '' THEN 1 ELSE 0 END) as sin_depto FROM temp_importacion_po");
@@ -544,10 +447,6 @@ class ImportacionController {
             "status"         => "success",
             "depts"          => $listaDepts,
             "bajas"          => $bajas ?: [],
-            "movimientos"    => $movimientos ?: [],
-            "desaparecidos"  => $desaparecidos ?: [],
-            "divisiones"     => $divisiones ?: [],
-            "cambios_cobro"  => $cambiosCobro ?: [],
             "catalogo_depts" => $catalogo_completo ?: [],
             "diagnostico"    => [
                 "total"   => $resumen[0]['total_filas'] ?? 0,
@@ -558,8 +457,7 @@ class ImportacionController {
         ];
     }
 
-    // NUEVO: Se agregaron los parámetros $ignorarCambioCobros y $liberarEquiposCobros
-    public function finalizarSincronizacion($resolucionesDepts, $numCobrosBaja, $ignorarCambioCobros = [], $liberarEquiposCobros = [], $id_sub = null) {
+    public function finalizarSincronizacion($resolucionesDepts, $numCobrosBaja, $id_sub = null) {
         if (!$id_sub) {
             $id_sub = $this->model->obtenerIdSubmoduloPorSlug('personal') ?? 1;
         }
@@ -570,97 +468,11 @@ class ImportacionController {
                 $this->model->ejecutarConsultaLibre("UPDATE temp_importacion_po SET id_dep_final = ? WHERE clave_dep_raw = ? AND nom_dep_raw = ?", [$id_existente, $res['clave'], $res['nombre']]);
             }
         }
-        // 2. MIGRACIÓN AUTOMÁTICA DE NÚMEROS DE COBRO
-        // Si el empleado cambió de número de cobro, lo identificamos por su Correo o por su Nombre Completo
-        // y actualizamos su registro oficial para evitar el Error de Duplicidad y salvar sus equipos.
-        $this->model->ejecutarConsultaLibre("
-            UPDATE personal_operativo po
-            JOIN temp_importacion_po t ON (
-                (t.correo = po.correo AND t.correo IS NOT NULL AND t.correo != '') 
-                OR (t.nombres = po.nombres AND t.ape_pa = po.ape_pa AND t.ape_ma = po.ape_ma)
-            )
-            SET po.num_cobro = t.num_cobro
-            WHERE t.num_cobro != po.num_cobro
-        ");
-
-        //REQUISITO 3 - Control de Excepciones para OPs con Equipos que cambian de área
-        
-        // 3.1: Ignorar cambio (Revertimos el nombre y clave cruda al departamento que ya tiene asignado)
-        if (!empty($ignorarCambioCobros)) {
-            foreach ($ignorarCambioCobros as $cobro) {
-                $this->model->ejecutarConsultaLibre("
-                    UPDATE temp_importacion_po t
-                    JOIN personal_operativo po ON t.num_cobro = po.num_cobro
-                    JOIN departamentos d ON po.id_dep = d.id_dep
-                    SET t.clave_dep_raw = d.clave_dep, t.nom_dep_raw = d.nom_dep
-                    WHERE t.num_cobro = ?
-                ", [$cobro]);
-            }
-        }
-
-        // 3.2: Liberar equipos y permitir su movimiento al área nueva
-        if (!empty($liberarEquiposCobros)) {
-            foreach ($liberarEquiposCobros as $cobro) {
-                
-                // 1. Liberar los equipos donde el usuario es el ASIGNADO
-                $res_asig = $this->model->ejecutarConsultaLibre("
-                    UPDATE dispositivos 
-                    SET asig_po_id = NULL 
-                    WHERE asig_po_id = (SELECT id_po FROM personal_operativo WHERE num_cobro = ?)
-                ", [$cobro]);
-
-                // MANEJADOR DE ERRORES: Verificamos si la consulta 1 falló
-                if (is_string($res_asig) && strpos($res_asig, 'ERROR_BD') !== false) {
-                    return [
-                        "status" => "error", 
-                        "msg" => "Error al liberar los equipos asignados al empleado con cobro $cobro. Detalle técnico: " . $res_asig
-                    ];
-                }
-
-                // 2. Liberar los equipos donde el usuario es el RESPONSABLE LEGAL
-                $res_resp = $this->model->ejecutarConsultaLibre("
-                    UPDATE dispositivos 
-                    SET resp_po_id = NULL 
-                    WHERE resp_po_id = (SELECT id_po FROM personal_operativo WHERE num_cobro = ?)
-                ", [$cobro]);
-
-                // MANEJADOR DE ERRORES: Verificamos si la consulta 2 falló
-                if (is_string($res_resp) && strpos($res_resp, 'ERROR_BD') !== false) {
-                    return [
-                        "status" => "error", 
-                        "msg" => "Error al liberar los equipos responsivos del empleado con cobro $cobro. Detalle técnico: " . $res_resp
-                    ];
-                }
-            }
-        }
 
         $exito_sp = $this->model->ejecutarConsultaLibre("CALL sp_sincronizar_personal_csv()");
         if (is_string($exito_sp) && strpos($exito_sp, 'ERROR_BD') !== false) {
-            
-            // NUEVO: Traductor de errores de duplicidad (UNIQUE constraint)
-            if (strpos($exito_sp, '1062 Duplicate entry') !== false) {
-                // Usamos Regex para extraer el valor (ej. acontreras@...) y la llave (ej. personal_operativo.correo)
-                preg_match("/Duplicate entry '(.*?)' for key '(.*?)'/i", $exito_sp, $matches);
-                
-                $valorDuplicado = $matches[1] ?? 'Desconocido';
-                $keyString      = strtolower($matches[2] ?? '');
-                
-                // Mapeamos el nombre de la tabla/llave a un nombre amigable
-                $campoAmigable = 'Dato único';
-                if (strpos($keyString, 'correo') !== false) $campoAmigable = 'Correo Electrónico';
-                elseif (strpos($keyString, 'cta_dom') !== false) $campoAmigable = 'Cuenta de Dominio';
-                elseif (strpos($keyString, 'cobro') !== false) $campoAmigable = 'Número de Cobro';
-
-                return [
-                    "status" => "error", 
-                    "msg" => "La sincronización se detuvo porque el $campoAmigable '$valorDuplicado' ya está registrado a nombre de otro empleado en el sistema. Verifique su archivo."
-                ];
-            }
-
-            // Si es un error distinto a duplicidad, lo mandamos normal
             return ["status" => "error", "msg" => "Error SQL: " . $exito_sp];
         }
-
         if (!$exito_sp) {
             return ["status" => "error", "msg" => "Hubo un problema al ejecutar el motor de sincronización en la base de datos."];
         }
