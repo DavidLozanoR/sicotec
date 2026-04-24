@@ -1,0 +1,526 @@
+-- =========================================================
+
+-- 0. CREACIÓN DE LA BASE DE DATOS
+
+-- =========================================================
+
+DROP DATABASE IF EXISTS `sicosote`;
+
+CREATE DATABASE `sicosote` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+
+USE `sicosote`;
+
+
+SET FOREIGN_KEY_CHECKS=0;
+
+-- =========================================================
+-- 1. LIMPIEZA DE TABLAS
+-- =========================================================
+DROP TABLE IF EXISTS `bitacora`;
+DROP TABLE IF EXISTS `departamentos`;
+DROP TABLE IF EXISTS `diccionario_nomenclaturas`;
+DROP TABLE IF EXISTS `dispositivo_servicio`;
+DROP TABLE IF EXISTS `dispositivos`;
+DROP TABLE IF EXISTS `infraestructura_red`;
+DROP TABLE IF EXISTS `modulos`;
+DROP TABLE IF EXISTS `permisos`;
+DROP TABLE IF EXISTS `personal_operativo`;
+DROP TABLE IF EXISTS `rol_modulo`;
+DROP TABLE IF EXISTS `rol_submodulo_permiso`;
+DROP TABLE IF EXISTS `roles`;
+DROP TABLE IF EXISTS `segmentos`;
+DROP TABLE IF EXISTS `servicios`;
+DROP TABLE IF EXISTS `submodulos`;
+DROP TABLE IF EXISTS `temp_importacion_po`;
+DROP TABLE IF EXISTS `usuarios`;
+DROP TABLE IF EXISTS `versiones`;
+DROP TABLE IF EXISTS `vlans`;
+
+-- =========================================================
+-- 2. CREACIÓN DE ESTRUCTURAS DE TABLAS
+-- =========================================================
+CREATE TABLE `bitacora` (
+  `id_bitacora` int(11) NOT NULL AUTO_INCREMENT,
+  `id_usuar` int(11) NOT NULL,
+  `id_sub` int(11) NOT NULL,
+  `accion` varchar(50) NOT NULL,
+  `detalle` text NOT NULL,
+  `fecha` date NOT NULL,
+  `hora` time NOT NULL,
+  PRIMARY KEY (`id_bitacora`),
+  KEY `id_usuar` (`id_usuar`),
+  KEY `id_sub` (`id_sub`),
+  CONSTRAINT `bitacora_ibfk_1` FOREIGN KEY (`id_usuar`) REFERENCES `usuarios` (`id_usuar`) ON DELETE CASCADE,
+  CONSTRAINT `bitacora_ibfk_2` FOREIGN KEY (`id_sub`) REFERENCES `submodulos` (`id_sub`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `departamentos` (
+  `id_dep` int(11) NOT NULL AUTO_INCREMENT,
+  `clave_dep` varchar(20) DEFAULT NULL,
+  `nom_dep` varchar(255) NOT NULL,
+  PRIMARY KEY (`id_dep`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `diccionario_nomenclaturas` (
+  `id_nom` int(11) NOT NULL AUTO_INCREMENT,
+  `nom` varchar(200) NOT NULL,
+  `signif` longtext DEFAULT NULL,
+  `notas` longtext DEFAULT NULL,
+  PRIMARY KEY (`id_nom`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `dispositivos` (
+  `id_disp` int(11) NOT NULL AUTO_INCREMENT,
+  `nom_host` varchar(100) DEFAULT NULL,
+  `marca` varchar(50) DEFAULT NULL,
+  `modelo` varchar(50) DEFAULT NULL,
+  `num_ser` varchar(100) DEFAULT NULL,
+  `num_inv` varchar(100) DEFAULT NULL,
+  `mac_ethernet` varchar(17) DEFAULT NULL,
+  `mac_wifi` varchar(17) DEFAULT NULL,
+  `dom` varchar(100) DEFAULT NULL,
+  `especs_hw` text DEFAULT NULL,
+  `resp_po_id` int(11) DEFAULT NULL,
+  `asig_po_id` int(11) DEFAULT NULL,
+  `id_u_int` int(11) DEFAULT NULL,
+  `fec_u_int` datetime DEFAULT NULL,
+  PRIMARY KEY (`id_disp`),
+  UNIQUE KEY `nom_host` (`nom_host`),
+  UNIQUE KEY `num_ser` (`num_ser`),
+  UNIQUE KEY `num_inv` (`num_inv`),
+  KEY `fk_disp_resp` (`resp_po_id`),
+  KEY `fk_disp_asig` (`asig_po_id`),
+  KEY `fk_disp_usuar` (`id_u_int`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `servicios` (
+  `id_serv` int(11) NOT NULL AUTO_INCREMENT,
+  `tipo_serv` varchar(50) DEFAULT NULL,
+  `icono` varchar(50) DEFAULT 'fas fa-cube',
+  `nom` varchar(100) DEFAULT NULL,
+  `estatus` tinyint(1) NOT NULL DEFAULT 1,
+  `especs` text DEFAULT NULL,
+  `u_act` datetime DEFAULT NULL,
+  PRIMARY KEY (`id_serv`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `versiones` (
+  `id_ver` int(11) NOT NULL AUTO_INCREMENT,
+  `ver` varchar(50) NOT NULL,
+  `obs` tinyint(1) NOT NULL DEFAULT 0,
+  `id_serv` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id_ver`),
+  KEY `fk_versiones_servicios` (`id_serv`),
+  CONSTRAINT `fk_versiones_servicios` FOREIGN KEY (`id_serv`) REFERENCES `servicios` (`id_serv`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `dispositivo_servicio` (
+  `id_disp` int(11) NOT NULL,
+  `id_serv` int(11) NOT NULL,
+  `id_ver_instalada` int(11) NOT NULL,
+  PRIMARY KEY (`id_disp`,`id_serv`),
+  KEY `id_serv` (`id_serv`),
+  KEY `id_ver_instalada` (`id_ver_instalada`),
+  CONSTRAINT `dispositivo_servicio_ibfk_1` FOREIGN KEY (`id_disp`) REFERENCES `dispositivos` (`id_disp`) ON DELETE CASCADE,
+  CONSTRAINT `dispositivo_servicio_ibfk_2` FOREIGN KEY (`id_serv`) REFERENCES `servicios` (`id_serv`) ON DELETE CASCADE,
+  CONSTRAINT `dispositivo_servicio_ibfk_3` FOREIGN KEY (`id_ver_instalada`) REFERENCES `versiones` (`id_ver`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `vlans` (
+  `id_vlan` int(11) NOT NULL AUTO_INCREMENT,
+  `nom_vlan` varchar(100) NOT NULL,
+  `descripcion` text DEFAULT NULL,
+  PRIMARY KEY (`id_vlan`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `segmentos` (
+  `id_seg` int(11) NOT NULL AUTO_INCREMENT,
+  `id_vlan` int(11) DEFAULT NULL,
+  `estatus` tinyint(1) NOT NULL DEFAULT 1,
+  `ip_ini` varchar(45) NOT NULL,
+  `ip_lim` varchar(45) NOT NULL,
+  PRIMARY KEY (`id_seg`),
+  KEY `fk_seg_vlan` (`id_vlan`),
+  CONSTRAINT `fk_seg_vlan` FOREIGN KEY (`id_vlan`) REFERENCES `vlans` (`id_vlan`) ON DELETE SET NULL ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `infraestructura_red` (
+  `id_red` int(11) NOT NULL AUTO_INCREMENT,
+  `ip` varchar(45) NOT NULL,
+  `est` varchar(20) DEFAULT NULL,
+  `id_seg` int(11) DEFAULT NULL,
+  `id_disp` int(11) DEFAULT NULL,
+  `tipo_conexion` enum('Ethernet','WiFi') DEFAULT NULL,
+  PRIMARY KEY (`id_red`),
+  UNIQUE KEY `ip` (`ip`),
+  KEY `fk_red_seg` (`id_seg`),
+  KEY `fk_red_disp` (`id_disp`),
+  CONSTRAINT `fk_red_disp` FOREIGN KEY (`id_disp`) REFERENCES `dispositivos` (`id_disp`),
+  CONSTRAINT `fk_red_seg` FOREIGN KEY (`id_seg`) REFERENCES `segmentos` (`id_seg`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `modulos` (
+  `id_mod` int(11) NOT NULL AUTO_INCREMENT,
+  `nom_mod` varchar(100) NOT NULL,
+  `descripcion` text DEFAULT NULL,
+  `icono` varchar(50) DEFAULT NULL,
+  `orden` int(11) DEFAULT 0,
+  PRIMARY KEY (`id_mod`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `submodulos` (
+  `id_sub` int(11) NOT NULL AUTO_INCREMENT,
+  `id_mod` int(11) NOT NULL,
+  `nom_sub` varchar(100) NOT NULL,
+  `slug` varchar(50) NOT NULL,
+  `mostrar_en_menu` tinyint(1) NOT NULL DEFAULT 1,
+  `orden` int(11) DEFAULT 0,
+  PRIMARY KEY (`id_sub`),
+  UNIQUE KEY `slug` (`slug`),
+  KEY `fk_sub_mod` (`id_mod`),
+  CONSTRAINT `fk_sub_mod` FOREIGN KEY (`id_mod`) REFERENCES `modulos` (`id_mod`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `permisos` (
+  `id_perm` int(11) NOT NULL AUTO_INCREMENT,
+  `nom_perm` varchar(100) NOT NULL,
+  `descripcion` text DEFAULT NULL,
+  PRIMARY KEY (`id_perm`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `roles` (
+  `id_rol` int(11) NOT NULL AUTO_INCREMENT,
+  `nom_rol` varchar(100) NOT NULL,
+  `status` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id_rol`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `usuarios` (
+  `id_usuar` int(11) NOT NULL AUTO_INCREMENT,
+  `nom_usuar` varchar(50) NOT NULL,
+  `pass_hash` varchar(255) NOT NULL,
+  `id_rol` int(11) DEFAULT NULL,
+  `nombres` varchar(100) DEFAULT NULL,
+  `ape_pa` varchar(100) DEFAULT NULL,
+  `ape_ma` varchar(100) DEFAULT NULL,
+  `status` int(11) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id_usuar`),
+  UNIQUE KEY `nom_usuar` (`nom_usuar`),
+  KEY `fk_usuar_rol` (`id_rol`),
+  CONSTRAINT `fk_usuar_rol` FOREIGN KEY (`id_rol`) REFERENCES `roles` (`id_rol`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `personal_operativo` (
+  `id_po` int(11) NOT NULL AUTO_INCREMENT,
+  `num_cobro` int(11) NOT NULL,
+  `nombres` varchar(100) NOT NULL,
+  `ape_pa` varchar(100) DEFAULT NULL,
+  `ape_ma` varchar(100) DEFAULT NULL,
+  `dir` text DEFAULT NULL,
+  `correo` varchar(150) DEFAULT NULL,
+  `puesto` varchar(255) DEFAULT NULL,
+  `ext` int(11) DEFAULT NULL,
+  `cta_dom` varchar(100) DEFAULT NULL,
+  `estatus` int(11) NOT NULL,
+  `id_dep` int(11) DEFAULT NULL,
+  `id_u_int` int(11) DEFAULT NULL,
+  `fec_u_int` datetime DEFAULT NULL,
+  PRIMARY KEY (`id_po`),
+  UNIQUE KEY `num_cobro` (`num_cobro`),
+  UNIQUE KEY `correo` (`correo`),
+  KEY `fk_po_dep` (`id_dep`),
+  KEY `fk_po_usuar` (`id_u_int`),
+  CONSTRAINT `fk_po_dep` FOREIGN KEY (`id_dep`) REFERENCES `departamentos` (`id_dep`),
+  CONSTRAINT `fk_po_usuar` FOREIGN KEY (`id_u_int`) REFERENCES `usuarios` (`id_usuar`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- RESTAURAR LLAVES FORANEAS DE DISPOSITIVOS AHORA QUE EXISTEN LAS TABLAS PO y USUARIOS
+ALTER TABLE `dispositivos`
+  ADD CONSTRAINT `fk_disp_asig` FOREIGN KEY (`asig_po_id`) REFERENCES `personal_operativo` (`id_po`),
+  ADD CONSTRAINT `fk_disp_resp` FOREIGN KEY (`resp_po_id`) REFERENCES `personal_operativo` (`id_po`),
+  ADD CONSTRAINT `fk_disp_usuar` FOREIGN KEY (`id_u_int`) REFERENCES `usuarios` (`id_usuar`);
+
+CREATE TABLE `rol_modulo` (
+  `id_rol` int(11) NOT NULL,
+  `id_mod` int(11) NOT NULL,
+  PRIMARY KEY (`id_rol`,`id_mod`),
+  KEY `fk_rm_mod` (`id_mod`),
+  CONSTRAINT `fk_rm_mod` FOREIGN KEY (`id_mod`) REFERENCES `modulos` (`id_mod`) ON DELETE CASCADE,
+  CONSTRAINT `fk_rm_rol` FOREIGN KEY (`id_rol`) REFERENCES `roles` (`id_rol`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `rol_submodulo_permiso` (
+  `id_rol` int(11) NOT NULL,
+  `id_sub` int(11) NOT NULL,
+  `id_perm` int(11) NOT NULL,
+  PRIMARY KEY (`id_rol`,`id_sub`,`id_perm`),
+  KEY `fk_rsp_sub` (`id_sub`),
+  KEY `fk_rsp_perm` (`id_perm`),
+  CONSTRAINT `fk_rsp_perm` FOREIGN KEY (`id_perm`) REFERENCES `permisos` (`id_perm`) ON DELETE CASCADE,
+  CONSTRAINT `fk_rsp_rol` FOREIGN KEY (`id_rol`) REFERENCES `roles` (`id_rol`) ON DELETE CASCADE,
+  CONSTRAINT `fk_rsp_sub` FOREIGN KEY (`id_sub`) REFERENCES `submodulos` (`id_sub`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+CREATE TABLE `temp_importacion_po` (
+  `id_temp` int(11) NOT NULL AUTO_INCREMENT,
+  `num_cobro` int(11) NOT NULL,
+  `nombres` varchar(100) NOT NULL,
+  `ape_pa` varchar(100) DEFAULT NULL,
+  `ape_ma` varchar(100) DEFAULT NULL,
+  `puesto` varchar(255) DEFAULT NULL,
+  `correo` varchar(150) DEFAULT NULL,
+  `dir` varchar(255) DEFAULT NULL,
+  `ext` varchar(50) DEFAULT NULL,
+  `cta_dom` varchar(255) DEFAULT NULL,
+  `clave_dep_raw` varchar(50) DEFAULT NULL,
+  `nom_dep_raw` varchar(255) DEFAULT NULL,
+  `id_dep_final` int(11) DEFAULT NULL,
+  PRIMARY KEY (`id_temp`),
+  KEY `num_cobro` (`num_cobro`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+
+-- =========================================================
+-- 3. INSERCIÓN DE CATÁLOGOS BASE (MÓDULOS, PERMISOS, ADMIN)
+-- =========================================================
+
+-- Inserción del Rol Administrador
+INSERT INTO `roles` (`id_rol`, `nom_rol`, `status`) VALUES 
+(1, 'Administrador', 1);
+
+-- Inserción del Usuario Administrador
+INSERT INTO `usuarios` (`id_usuar`, `nom_usuar`, `pass_hash`, `id_rol`, `nombres`, `ape_pa`, `ape_ma`, `status`) VALUES 
+(1, 'Administrador', '$2y$10$Z2h2GOjTa2mBzydcSBsBoOW99qp636qheNO387AOItgBPPqsRG4NK', 1, 'Admin', 'Apellido Pa', 'Apellido Ma', 1);
+
+-- Inserción de Módulos
+INSERT INTO `modulos` (`id_mod`, `nom_mod`, `descripcion`, `icono`, `orden`) VALUES 
+(1, 'Gestión de Personal', 'Administrar el directorio de trabajadores, actualizar información y asignar equipos de cómputo.', 'fas fa-users', 1),
+(2, 'Infraestructura', 'Gestionar catálogos de servicios, infraestructura de red y formatos de responsiva de equiposs.', 'fas fa-cog', 2),
+(3, 'Consultas y Auditoría', 'Realizar búsquedas avanzadas, auditorías de movimientos y generar reportes del sistema.', 'fas fa-search', 3),
+(4, 'Administración de Usuarios', 'Gestionar cuentas de acceso al sistema, roles y establecer permisos de seguridad.', 'fas fa-shield-alt', 4),
+(5, 'Gestion Dispositivos', 'Gestiona todos los dispositvos asignados al personal operativo', 'fas fa-desktop', 5),
+(6, 'Administración de Roles', 'Gestión de roles y permisos de acceso al sistema.', 'fas fa-user-shield', 6);
+
+-- Inserción de Submódulos
+INSERT INTO `submodulos` (`id_sub`, `id_mod`, `nom_sub`, `slug`, `mostrar_en_menu`, `orden`) VALUES 
+(1, 1, 'Panel de Personal', 'personal', 0, 1),
+(2, 2, 'Catálogo de Servicios', 'servicios', 1, 1),
+(3, 2, 'Infraestructura de Red', 'red', 1, 2),
+(4, 2, 'Responsables de Equipo', 'responsables', 1, 3),
+(5, 2, 'Diccionario de Nomenclaturas', 'diccionario', 1, 5),
+(6, 3, 'Panel de Consultas', 'consultas', 0, 1),
+(7, 4, 'Panel de Usuarios', 'usuarios', 0, 1),
+(8, 5, 'Panel de Dispositivo', 'dispositivos', 1, 5),
+(9, 6, 'Catálogo de Roles', 'roles', 1, 1),
+(10, 2, 'Catálogo de departamentos', 'departamentos', 1, 4);
+
+-- Inserción de Permisos
+INSERT INTO `permisos` (`id_perm`, `nom_perm`, `descripcion`) VALUES 
+(1, 'Editar', 'Capacidad para modificar registros existentes en el sistema'),
+(2, 'Agregar', 'Capacidad para crear y dar de alta nuevos registros'),
+(3, 'Eliminar', 'Capacidad para borrar o dar de baja registros del sistema'),
+(4, 'Consultar', 'Capacidad para hacer consultas en el modulo de Consultas');
+
+-- Inserción de Rol_Modulo (Acceso del Admin a todos los Módulos)
+INSERT INTO `rol_modulo` (`id_rol`, `id_mod`) VALUES 
+(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6);
+
+-- Inserción de Rol_Submodulo_Permiso (Permisos totales del Admin)
+INSERT INTO `rol_submodulo_permiso` (`id_rol`, `id_sub`, `id_perm`) VALUES 
+(1, 1, 1), (1, 1, 2), (1, 1, 3), (1, 1, 4), 
+(1, 2, 1), (1, 2, 2), (1, 2, 3), (1, 2, 4), 
+(1, 3, 1), (1, 3, 2), (1, 3, 3), (1, 3, 4), 
+(1, 4, 1), (1, 4, 2), (1, 4, 3), (1, 4, 4), 
+(1, 5, 1), (1, 5, 2), (1, 5, 3), (1, 5, 4), 
+(1, 6, 1), (1, 6, 2), (1, 6, 3), (1, 6, 4), 
+(1, 7, 1), (1, 7, 2), (1, 7, 3), (1, 7, 4), 
+(1, 8, 1), (1, 8, 2), (1, 8, 3), (1, 8, 4), 
+(1, 9, 1), (1, 9, 2), (1, 9, 3), (1, 9, 4),
+(1, 10, 1), (1, 10, 2), (1, 10, 3), (1, 10, 4);
+
+
+-- =========================================================
+-- 4. CREACIÓN DE VISTAS (VIEWS)
+-- =========================================================
+DROP VIEW IF EXISTS `v_personal_operativo_completo`;
+CREATE VIEW `v_personal_operativo_completo` AS 
+SELECT `po`.`id_po` AS `id_po`,`po`.`num_cobro` AS `num_cobro`,`po`.`nombres` AS `nombres`,
+       `po`.`ape_pa` AS `ape_pa`,`po`.`ape_ma` AS `ape_ma`,`po`.`puesto` AS `puesto`,
+       `po`.`estatus` AS `estatus`,`po`.`id_dep` AS `id_dep`,`d`.`nom_dep` AS `nom_dep`,
+       (SELECT COUNT(`dsp`.`id_disp`) FROM `dispositivos` `dsp` WHERE `dsp`.`asig_po_id` = `po`.`id_po` OR `dsp`.`resp_po_id` = `po`.`id_po`) AS `total_equipos` 
+FROM (`personal_operativo` `po` JOIN `departamentos` `d` ON(`po`.`id_dep` = `d`.`id_dep`));
+
+DROP VIEW IF EXISTS `v_responsivas_personal`;
+CREATE VIEW `v_responsivas_personal` AS 
+SELECT `po`.`id_po` AS `id_po`,`po`.`num_cobro` AS `num_cobro`,
+       TRIM(CONCAT(`po`.`nombres`,' ',`po`.`ape_pa`,' ',COALESCE(`po`.`ape_ma`,''))) AS `nombre_completo`,
+       `po`.`estatus` AS `estatus`,
+       (SELECT COUNT(`dsp`.`id_disp`) FROM `dispositivos` `dsp` WHERE `dsp`.`resp_po_id` = `po`.`id_po`) AS `total_equipos` 
+FROM `personal_operativo` `po`;
+
+
+-- =========================================================
+-- 5. PROCEDIMIENTOS ALMACENADOS Y TRIGGERS (FORMATO SEGURO)
+-- =========================================================
+DELIMITER $$
+
+-- PROCEDIMIENTO: sp_actualizar_ips_segmento
+DROP PROCEDURE IF EXISTS `sp_actualizar_ips_segmento`$$
+CREATE PROCEDURE `sp_actualizar_ips_segmento`(
+    IN p_id_seg INT, 
+    IN p_ip_ini VARCHAR(45), 
+    IN p_ip_lim VARCHAR(45)
+)
+BEGIN
+    DECLARE v_ip_actual INT UNSIGNED;
+    DECLARE v_ip_final INT UNSIGNED;
+    DECLARE v_ip_str VARCHAR(45);
+
+    SET v_ip_actual = INET_ATON(p_ip_ini);
+    SET v_ip_final = INET_ATON(p_ip_lim);
+
+    -- A) Insertar nuevas IPs o RECICLAR las que estén inactivas
+    WHILE v_ip_actual <= v_ip_final DO
+        SET v_ip_str = INET_NTOA(v_ip_actual);
+        
+        INSERT INTO infraestructura_red (ip, est, id_seg) 
+        VALUES (v_ip_str, 'Libre', p_id_seg)
+        ON DUPLICATE KEY UPDATE 
+            id_seg = IF(est = 'Inactivo', p_id_seg, id_seg),
+            est = IF(est = 'Inactivo', 'Libre', est);
+        
+        SET v_ip_actual = v_ip_actual + 1;
+    END WHILE;
+
+    -- B) Eliminar IPs que quedaron fuera del rango (solo si están libres)
+    DELETE FROM infraestructura_red 
+    WHERE id_seg = p_id_seg 
+      AND est = 'Libre' 
+      AND (INET_ATON(ip) < INET_ATON(p_ip_ini) OR INET_ATON(ip) > INET_ATON(p_ip_lim));
+END$$
+
+-- PROCEDIMIENTO: sp_generar_ips_segmento
+DROP PROCEDURE IF EXISTS `sp_generar_ips_segmento`$$
+CREATE PROCEDURE `sp_generar_ips_segmento`(
+    IN p_id_seg INT, 
+    IN p_ip_ini VARCHAR(45), 
+    IN p_ip_lim VARCHAR(45)
+)
+BEGIN
+    DECLARE v_ip_actual INT UNSIGNED;
+    DECLARE v_ip_final INT UNSIGNED;
+    DECLARE v_ip_str VARCHAR(45);
+
+    SET v_ip_actual = INET_ATON(p_ip_ini);
+    SET v_ip_final = INET_ATON(p_ip_lim);
+
+    WHILE v_ip_actual <= v_ip_final DO
+        SET v_ip_str = INET_NTOA(v_ip_actual);
+        
+        -- Insertamos la IP. Si ya existía (por un borrado lógico previo), la "reciclamos"
+        INSERT INTO infraestructura_red (ip, est, id_seg) 
+        VALUES (v_ip_str, 'Libre', p_id_seg)
+        ON DUPLICATE KEY UPDATE 
+            id_seg = IF(est = 'Inactivo', p_id_seg, id_seg),
+            est = IF(est = 'Inactivo', 'Libre', est);
+            
+        SET v_ip_actual = v_ip_actual + 1;
+    END WHILE;
+END$$
+
+-- PROCEDIMIENTO: sp_sincronizar_personal_csv
+DROP PROCEDURE IF EXISTS `sp_sincronizar_personal_csv`$$
+CREATE PROCEDURE `sp_sincronizar_personal_csv`()
+BEGIN
+    -- =====================================================================
+    -- FASE 1: RESOLUCIÓN ESTRICTA DE DEPARTAMENTOS
+    -- =====================================================================
+    
+    -- Paso 1.1: Vincular los departamentos de la tabla temporal que YA existen en tu BD
+    UPDATE temp_importacion_po t
+    INNER JOIN departamentos d ON t.clave_dep_raw = d.clave_dep
+    SET t.id_dep_final = d.id_dep
+    WHERE t.id_dep_final IS NULL AND t.clave_dep_raw != '';
+
+    -- Paso 1.2: Insertar en la tabla 'departamentos' los que aún están en NULL (son nuevos)
+    INSERT INTO departamentos (clave_dep, nom_dep)
+    SELECT DISTINCT clave_dep_raw, nom_dep_raw
+    FROM temp_importacion_po
+    WHERE id_dep_final IS NULL AND clave_dep_raw IS NOT NULL AND clave_dep_raw != '';
+
+    -- Paso 1.3: Recuperar los IDs que se acaban de crear y pasarlos a la tabla temporal
+    UPDATE temp_importacion_po t
+    INNER JOIN departamentos d ON t.clave_dep_raw = d.clave_dep
+    SET t.id_dep_final = d.id_dep
+    WHERE t.id_dep_final IS NULL AND t.clave_dep_raw != '';
+
+    -- =====================================================================
+    -- FASE 2: INSERCIÓN EN PERSONAL_OPERATIVO (Con los IDs ya completos)
+    -- =====================================================================
+
+    -- Paso 2.1: Actualizar a los empleados que ya existían en el sistema
+    UPDATE personal_operativo po
+    INNER JOIN temp_importacion_po t ON po.num_cobro = t.num_cobro
+    SET 
+        po.nombres = t.nombres,
+        po.ape_pa = t.ape_pa,
+        po.ape_ma = t.ape_ma,
+        po.puesto = t.puesto,
+        po.correo = NULLIF(TRIM(t.correo), ''),
+        po.dir = NULLIF(TRIM(t.dir), ''),         -- <-- NUEVO CAMPO AGREGADO
+        po.ext = NULLIF(TRIM(t.ext), ''),         -- <-- NUEVO CAMPO AGREGADO
+        po.cta_dom = NULLIF(TRIM(t.cta_dom), ''), -- <-- NUEVO CAMPO AGREGADO
+        po.id_dep = COALESCE(t.id_dep_final, po.id_dep),
+        po.estatus = 1;
+
+    -- Paso 2.2: Insertar a los empleados que vienen en el CSV pero no en la BD
+    INSERT INTO personal_operativo (num_cobro, nombres, ape_pa, ape_ma, puesto, correo, dir, ext, cta_dom, id_dep, estatus)
+    SELECT 
+        t.num_cobro, 
+        t.nombres, 
+        t.ape_pa, 
+        t.ape_ma, 
+        t.puesto, 
+        NULLIF(TRIM(t.correo), ''), 
+        NULLIF(TRIM(t.dir), ''),         -- <-- NUEVO CAMPO AGREGADO
+        NULLIF(TRIM(t.ext), ''),         -- <-- NUEVO CAMPO AGREGADO
+        NULLIF(TRIM(t.cta_dom), ''),     -- <-- NUEVO CAMPO AGREGADO
+        t.id_dep_final, 
+        1
+    FROM temp_importacion_po t
+    LEFT JOIN personal_operativo po ON t.num_cobro = po.num_cobro
+    WHERE po.id_po IS NULL;
+    
+END$$
+
+-- TRIGGER: trg_red_sincronizar_estatus_bi
+DROP TRIGGER IF EXISTS `trg_red_sincronizar_estatus_bi`$$
+CREATE TRIGGER `trg_red_sincronizar_estatus_bi` BEFORE UPDATE ON `infraestructura_red` FOR EACH ROW 
+BEGIN
+    IF NEW.id_disp IS NOT NULL THEN
+        SET NEW.est = 'Ocupado';
+    ELSEIF NEW.id_disp IS NULL AND OLD.id_disp IS NOT NULL THEN
+        IF OLD.est = 'Ocupado' THEN
+            SET NEW.est = 'Libre';
+        END IF;
+    END IF;
+END$$
+
+-- TRIGGER: trg_generar_ips_after_insert_segmento
+DROP TRIGGER IF EXISTS `trg_generar_ips_after_insert_segmento`$$
+CREATE TRIGGER `trg_generar_ips_after_insert_segmento` AFTER INSERT ON `segmentos` FOR EACH ROW 
+BEGIN
+    CALL sp_generar_ips_segmento(NEW.id_seg, NEW.ip_ini, NEW.ip_lim);
+END$$
+
+-- TRIGGER: trg_actualizar_ips_after_update_segmento
+DROP TRIGGER IF EXISTS `trg_actualizar_ips_after_update_segmento`$$
+CREATE TRIGGER `trg_actualizar_ips_after_update_segmento` AFTER UPDATE ON `segmentos` FOR EACH ROW 
+BEGIN
+    IF OLD.ip_ini != NEW.ip_ini OR OLD.ip_lim != NEW.ip_lim THEN
+        CALL sp_actualizar_ips_segmento(NEW.id_seg, NEW.ip_ini, NEW.ip_lim);
+    END IF;
+END$$
+
+DELIMITER ;
+SET FOREIGN_KEY_CHECKS=1;
