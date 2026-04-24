@@ -13,9 +13,14 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
             <h3 class="fw-bold text-guinda mb-1"><i class="fas fa-network-wired me-2"></i>Infraestructura de Red</h3>
             <p class="text-secondary mb-0 small">Gestión de segmentos, IPs reservadas y asignaciones por VLAN.</p>
         </div>
-        <button class="btn btn-guinda shadow-sm fw-bold" id="btnNuevoSegmento">
-            <i class="fas fa-plus-circle me-1"></i> <span class="d-none d-sm-inline">Nuevo Segmento</span>
-        </button>
+        <div>
+            <button class="btn btn-outline-secondary shadow-sm fw-bold me-2" id="btnConfigVlans">
+                <i class="fas fa-cogs me-1"></i> <span class="d-none d-sm-inline">Configuración VLANs</span>
+            </button>
+            <button class="btn btn-guinda shadow-sm fw-bold" id="btnNuevoSegmento">
+                <i class="fas fa-plus-circle me-1"></i> <span class="d-none d-sm-inline">Nuevo Segmento</span>
+            </button>
+        </div>
     </div>
 
     <?php if(!empty($segmentos)): ?>
@@ -185,13 +190,23 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
                     
                     <div class="mb-3">
                         <label class="form-label fw-bold small text-dark mb-1">VLAN Asignada *</label>
-                        <select class="form-select focus-guinda border-secondary-subtle" name="id_vlan" id="seg_dep" required>
-                            <option value="" selected disabled>Seleccione una VLAN...</option>
-                            <?php foreach($vlans as $vlan): ?>
-                                <option value="<?php echo $vlan['id_vlan']; ?>"><?php echo htmlspecialchars($vlan['nom_vlan']); ?></option>
-                            <?php endforeach; ?>
-                        </select>
-                        <div class="invalid-feedback">Debe seleccionar una VLAN.</div>
+                        
+                        <?php if(empty($vlans)): ?>
+                            <select class="form-select border-danger bg-light text-muted" name="id_vlan" id="seg_dep" disabled>
+                                <option value="">Bloqueado - Catálogo vacío</option>
+                            </select>
+                            <div class="alert alert-danger mt-2 mb-0 py-2 small fw-bold shadow-sm border-0 border-start border-4 border-danger">
+                                <i class="fas fa-exclamation-triangle me-1"></i> ¡Alto! Debe dirigirse al botón "Configuración VLANs" y crear al menos una VLAN antes de poder registrar un segmento.
+                            </div>
+                        <?php else: ?>
+                            <select class="form-select focus-guinda border-secondary-subtle" name="id_vlan" id="seg_dep" required>
+                                <option value="" selected disabled>Seleccione una VLAN...</option>
+                                <?php foreach($vlans as $vlan): ?>
+                                    <option value="<?php echo $vlan['id_vlan']; ?>"><?php echo htmlspecialchars($vlan['nom_vlan']); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <div class="invalid-feedback">Debe seleccionar una VLAN.</div>
+                        <?php endif; ?>
                     </div>
 
                     <div class="row g-3">
@@ -219,11 +234,12 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
                         <i class="fas fa-info-circle me-2 mt-1"></i>
                         <span>El sistema gestionará las direcciones IP automáticamente. Las IPs inactivas recuperadas conservarán su estado anterior si es posible.</span>
                     </div>
-                </div>
-                <div class="modal-footer border-top-0 bg-light">
+                    <div class="modal-footer border-top-0 bg-light">
                     <button type="button" class="btn btn-outline-secondary fw-bold" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="submit" class="btn btn-guinda fw-bold" id="btnGuardarSeg"><i class="fas fa-save me-1"></i> Guardar</button>
+                    <button type="submit" class="btn btn-guinda fw-bold" id="btnGuardarSeg" <?php echo empty($vlans) ? 'disabled' : ''; ?>><i class="fas fa-save me-1"></i> Guardar</button>
                 </div>
+                </div>
+                
             </form>
         </div>
     </div>
@@ -261,7 +277,96 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
         </div>
     </div>
 </div>
+<div class="modal fade" id="modalConfigVlans" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered modal-lg">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-light border-bottom-0">
+                <h5 class="modal-title fw-bold text-dark"><i class="fas fa-tags me-2 text-guinda"></i>Configuración de VLANs</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body p-4">
+                
+                <div id="vlanListSection">
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <h6 class="fw-bold text-secondary mb-0">Directorio de VLANs</h6>
+                        <button type="button" class="btn btn-sm btn-guinda fw-bold shadow-sm" id="btnShowAddVlan">
+                            <i class="fas fa-plus me-1"></i> Nueva VLAN
+                        </button>
+                    </div>
+                    
+                    <div class="table-responsive border rounded" style="max-height: 350px;">
+                        <table class="table table-sm table-hover align-middle mb-0">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th class="ps-3">Nombre VLAN</th>
+                                    <th>Descripción</th>
+                                    <th class="text-end pe-3">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php if(!empty($vlans)): ?>
+                                    <?php foreach($vlans as $v): ?>
+                                        <tr>
+                                            <td class="ps-3 fw-bold text-dark"><?php echo htmlspecialchars($v['nom_vlan']); ?></td>
+                                            <td class="text-muted small"><?php echo htmlspecialchars($v['descripcion'] ?? '--'); ?></td>
+                                            <td class="text-end pe-3">
+                                                <button type="button" class="btn btn-sm btn-outline-secondary btn-editar-vlan me-1" 
+                                                        data-id="<?php echo $v['id_vlan']; ?>" 
+                                                        data-nom="<?php echo htmlspecialchars($v['nom_vlan']); ?>" 
+                                                        data-desc="<?php echo htmlspecialchars($v['descripcion']); ?>" 
+                                                        title="Editar VLAN">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                
+                                                <button type="button" class="btn btn-sm btn-outline-danger btn-eliminar-vlan" 
+                                                        data-id="<?php echo $v['id_vlan']; ?>" 
+                                                        data-nom="<?php echo htmlspecialchars($v['nom_vlan']); ?>" 
+                                                        title="Eliminar Físicamente">
+                                                    <i class="fas fa-trash-alt"></i>
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    <?php endforeach; ?>
+                                <?php else: ?>
+                                    <tr><td colspan="3" class="text-center text-muted py-4">No hay VLANs registradas.</td></tr>
+                                <?php endif; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
 
+                <div id="vlanFormSection" class="d-none">
+                    <div class="d-flex justify-content-between align-items-center mb-3 border-bottom pb-2">
+                        <h6 class="fw-bold text-secondary mb-0" id="vlanFormTitle">Registrar Nueva VLAN</h6>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="btnCancelVlanForm">
+                            <i class="fas fa-arrow-left me-1"></i> Regresar a la lista
+                        </button>
+                    </div>
+
+                    <form id="formVlan" novalidate>
+                        <input type="hidden" name="id_vlan" id="vlan_id" value=""> 
+                        
+                        <div class="row g-3 mt-1">
+                            <div class="col-md-5">
+                                <label class="form-label fw-bold small text-dark mb-1">Nombre VLAN *</label>
+                                <input type="text" class="form-control focus-guinda" name="nom_vlan" id="vlan_nombre" placeholder="Ej. VLAN10" required minlength="4" pattern="^\S+$">
+                                <div class="invalid-feedback" id="vlan_nombre_feedback">Mínimo 4 caracteres (sin espacios).</div>
+                            </div>
+                            <div class="col-md-7">
+                                <label class="form-label fw-bold small text-dark mb-1">Descripción</label>
+                                <div class="input-group">
+                                    <input type="text" class="form-control focus-guinda" name="descripcion" id="vlan_desc" placeholder="Opcional...">
+                                    <button type="submit" class="btn btn-guinda fw-bold" id="btnGuardarVlan"><i class="fas fa-save me-1"></i> Guardar</button>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+
+            </div>
+        </div>
+    </div>
+</div>
 <style>
     .border-dashed { border-style: dashed !important; border-width: 2px !important; }
     .focus-guinda:focus { border-color: #9D2449; box-shadow: 0 0 0 0.25rem rgba(157, 36, 73, 0.25); }

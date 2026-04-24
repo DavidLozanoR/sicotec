@@ -164,7 +164,10 @@ $(document).ready(function() {
         
         
         modalForm.show();
-        aplicarFuzzySearch('#seg_dep')
+        // Solo aplicar buscador si el select NO está deshabilitado
+        if (!$('#seg_dep').prop('disabled')) {
+            aplicarFuzzySearch('#seg_dep');
+        }
     });
 
     // 2. ABRIR MODAL PARA "EDITAR SEGMENTO Y RESERVAS"
@@ -422,6 +425,153 @@ $(document).ready(function() {
         $inputOculto.val($item.data('value')).trigger('change');
     });
 
+    // ====================================================================
+    // 10. SECCIÓN DE CONFIGURACIÓN DE VLANS (PANEL DUAL)
+    // ====================================================================
+    
+    // Inicialización del Modal y Elementos (
+    const modalVlans = new bootstrap.Modal(document.getElementById('modalConfigVlans'));
+    const $formVlan = $('#formVlan');
+    const $vlanListSection = $('#vlanListSection');
+    const $vlanFormSection = $('#vlanFormSection');
+    const $vlanFormTitle = $('#vlanFormTitle');
+
+    // ====================================================================
+    // VALIDACIÓN REACTIVA PARA EL NOMBRE DE LA VLAN
+    // ====================================================================
+    const $vlanNombre = $('#vlan_nombre');
+    const $vlanFeedback = $('#vlan_nombre_feedback');
+
+    $vlanNombre.on('input', function() {
+        // 1. Eliminar espacios en blanco en tiempo real
+        let valorLimpio = $(this).val().replace(/\s/g, '');
+        
+        // (Opcional pero recomendado) Convertir a mayúsculas automáticamente
+        valorLimpio = valorLimpio.toUpperCase();
+
+        // Reasignamos el valor limpio al input
+        if ($(this).val() !== valorLimpio) {
+            $(this).val(valorLimpio);
+        }
+
+        // 2. Validación de longitud
+        if (valorLimpio.length === 0) {
+            this.setCustomValidity('Vacío');
+            $vlanFeedback.text('El nombre es obligatorio.');
+        } else if (valorLimpio.length < 4) {
+            this.setCustomValidity('Corto');
+            $vlanFeedback.text(`Demasiado corto. Faltan ${4 - valorLimpio.length} caracteres.`);
+        } else {
+            this.setCustomValidity(''); // Es válido
+            $vlanFeedback.text('Mínimo 4 caracteres (sin espacios).'); // Resetea el texto por defecto
+        }
+    });
 
 
+    // Botón Principal: Abre el modal siempre en la vista de Lista
+    $('#btnConfigVlans').on('click', function() {
+        $vlanFormSection.addClass('d-none');
+        $vlanListSection.removeClass('d-none');
+        modalVlans.show();
+    });
+
+    // Botón "Nueva VLAN" (Oculta lista, muestra formulario limpio)
+    $('#btnShowAddVlan').on('click', function() {
+        $formVlan[0].reset();
+        $('#vlan_id').val(''); 
+        $formVlan.removeClass('was-validated');
+        $vlanFormTitle.text('Registrar Nueva VLAN');
+        
+        $vlanListSection.addClass('d-none');
+        $vlanFormSection.removeClass('d-none');
+    });
+
+    // Botón "Editar" en la tabla (Oculta lista, muestra formulario con datos)
+    $('.btn-editar-vlan').on('click', function(e) {
+        e.preventDefault();
+        $('#vlan_id').val($(this).data('id'));
+        $('#vlan_nombre').val($(this).data('nom'));
+        $('#vlan_desc').val($(this).data('desc'));
+        
+        $formVlan.removeClass('was-validated');
+        $vlanFormTitle.text('Editar VLAN');
+        
+        $vlanListSection.addClass('d-none');
+        $vlanFormSection.removeClass('d-none');
+    });
+
+    // Botón "Regresar" (Cancela formulario, vuelve a mostrar lista)
+    $('#btnCancelVlanForm').on('click', function() {
+        $vlanFormSection.addClass('d-none');
+        $vlanListSection.removeClass('d-none');
+    });
+
+    // Guardar (Insertar / Actualizar) VLAN vía AJAX
+    $formVlan.on('submit', function(e) {
+        e.preventDefault();
+        
+        if (!this.checkValidity()) {
+            e.stopPropagation();
+            $formVlan.addClass('was-validated');
+            return;
+        }
+
+        let accionPeticion = $('#vlan_id').val() === '' ? 'INSERT_VLAN' : 'UPDATE_VLAN';
+        let formData = $(this).serialize() + '&peticion=' + accionPeticion + '&id_sub=' + idSub;
+        
+        const originalText = $('#btnGuardarVlan').html();
+        $('#btnGuardarVlan').html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
+
+        $.ajax({
+            url: urlAsync,
+            type: 'POST',
+            data: formData,
+            dataType: 'json',
+            success: function(response) {
+                if (response.result === 1) {
+                    Swal.fire({icon: 'success', title: 'Exitoso', text: response.msg, confirmButtonColor: '#285C4D'})
+                    .then(() => location.reload());
+                } else {
+                    Swal.fire({icon: 'warning', title: 'Alerta', text: response.msg, confirmButtonColor: '#9D2449'});
+                }
+            },
+            error: function() {
+                Swal.fire('Error', 'Problema de conexión con el servidor.', 'error');
+            },
+            complete: function() {
+                $('#btnGuardarVlan').html(originalText).prop('disabled', false);
+            }
+        });
+    });
+
+    // Eliminar VLAN (Borrado Físico)
+    $('.btn-eliminar-vlan').on('click', function(e) {
+        e.preventDefault();
+        let id_vlan = $(this).data('id');
+        let nom_vlan = $(this).data('nom');
+
+        Swal.fire({
+            title: '¿Eliminar VLAN?',
+            html: `Está a punto de eliminar físicamente la <b>${nom_vlan}</b>.<br><small class="text-danger">Esta acción no se puede deshacer.</small>`,
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonColor: '#d33',
+            cancelButtonColor: '#6c757d',
+            confirmButtonText: 'Sí, eliminar',
+            cancelButtonText: 'Cancelar'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                $.post(urlAsync, { peticion: 'DELETE_VLAN', id_vlan: id_vlan, id_sub: idSub }, function(response) {
+                    if (response.result === 1) {
+                        Swal.fire({icon: 'success', title: 'Eliminado', text: response.msg, confirmButtonColor: '#285C4D'})
+                        .then(() => location.reload());
+                    } else {
+                        Swal.fire({icon: 'error', title: 'Operación denegada', text: response.msg, confirmButtonColor: '#9D2449'});
+                    }
+                }, 'json').fail(function() {
+                    Swal.fire('Error', 'Problema de comunicación con el servidor.', 'error');
+                });
+            }
+        });
+    });
 });

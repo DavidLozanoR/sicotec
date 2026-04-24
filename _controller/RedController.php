@@ -96,7 +96,7 @@ class RedController {
     private function traerContenido($model) {
       
         // CAMBIO: Ahora traemos el catálogo de VLANs en lugar de Departamentos
-        $vlans = $model->seleccionaRegistros("vlans", ["id_vlan", "nom_vlan"], "1=1 ORDER BY nom_vlan ASC");
+        $vlans = $model->seleccionaRegistros("vlans", ["id_vlan", "nom_vlan", "descripcion"], "1=1 ORDER BY nom_vlan ASC");
         
         // CAMBIO: Ajustamos el JOIN para relacionar con vlans
         $segmentos_db = $model->seleccionaRegistrosJoin(
@@ -345,6 +345,74 @@ class RedController {
             return ["result" => 1, "data" => $ips];
         }
         return ["result" => 0, "msg" => "No se encontraron IPs activas para este segmento."];
+    }
+
+    // ==========================================
+    // GESTIÓN DE VLANS
+    // ==========================================
+
+    public function insertarVlan($id_sub, $nom_vlan, $descripcion) {
+        $model = new MainModel();
+
+        // 1. Validar unicidad (No repetir nombres)
+        $existe = $model->seleccionaRegistros("vlans", ["id_vlan"], "nom_vlan = ?", [$nom_vlan]);
+        if ($existe && count($existe) > 0) {
+            return ["result" => 0, "msg" => "Ya existe una VLAN registrada con el nombre proporcionado."];
+        }
+
+        // 2. Inserción
+        $res = $model->agregaRegistro("vlans", ["nom_vlan", "descripcion"], [$nom_vlan, $descripcion]);
+        if ($res) {
+            $model->registrarBitacora($id_sub, 'INSERT', "Creó nueva VLAN de red: {$nom_vlan}");
+            return ["result" => 1, "msg" => "VLAN registrada correctamente."];
+        }
+        return ["result" => 0, "msg" => "Ocurrió un error al registrar la VLAN en la base de datos."];
+    }
+    public function actualizarVlan($id_sub, $id_vlan, $nom_vlan, $descripcion) {
+        $model = new MainModel();
+
+        // 1. Validar unicidad (Asegurarnos que el nuevo nombre no lo tenga OTRA vlan)
+        $existe = $model->seleccionaRegistros("vlans", ["id_vlan"], "nom_vlan = ? AND id_vlan != ?", [$nom_vlan, $id_vlan]);
+        if ($existe && count($existe) > 0) {
+            return ["result" => 0, "msg" => "El nombre proporcionado ya está siendo usado por otra VLAN."];
+        }
+
+        // 2. Actualización
+        $res = $model->actualizaRegistro("vlans", ["nom_vlan", "descripcion"], "id_vlan = ?", [$nom_vlan, $descripcion, $id_vlan]);
+        
+        if ($res !== false) { // usamos !== false porque si no cambian nada, updateRow devuelve 0 pero no error
+            $model->registrarBitacora($id_sub, 'UPDATE', "Actualizó información de la VLAN ID {$id_vlan}: {$nom_vlan}");
+            return ["result" => 1, "msg" => "VLAN actualizada correctamente."];
+        }
+        
+        return ["result" => 0, "msg" => "Ocurrió un error al actualizar la VLAN en la base de datos."];
+    }
+
+    public function eliminarVlan($id_sub, $id_vlan) {
+        $model = new MainModel();
+
+        // 1. RESTRICCIÓN DE INTEGRIDAD: Validar si la VLAN está asignada a algún segmento
+        $dependencias = $model->seleccionaRegistros("segmentos", ["id_seg", "ip_ini", "ip_lim"], "id_vlan = ?", [$id_vlan]);
+        
+        if ($dependencias && count($dependencias) > 0) {
+            $rango = $dependencias[0]['ip_ini'] . ' - ' . $dependencias[0]['ip_lim'];
+            return [
+                "result" => 0, 
+                "msg" => "No se puede eliminar porque está en uso por " . count($dependencias) . " segmento(s) (Ej. Rango: $rango). Desvincúlelos o elimínelos primero."
+            ];
+        }
+
+        // Recuperar nombre para bitácora
+        $info = $model->seleccionaRegistros("vlans", ["nom_vlan"], "id_vlan = ?", [$id_vlan]);
+        $nombre = $info ? $info[0]['nom_vlan'] : "ID: $id_vlan";
+
+        // 2. BORRADO FÍSICO
+        $res = $model->borraRegistro("vlans", "id_vlan = ?", [$id_vlan]);
+        if ($res) {
+            $model->registrarBitacora($id_sub, 'DELETE', "Eliminó la VLAN: {$nombre}");
+            return ["result" => 1, "msg" => "VLAN eliminada."];
+        }
+        return ["result" => 0, "msg" => "Fallo de servidor al intentar eliminar la VLAN."];
     }
 }
 ?>

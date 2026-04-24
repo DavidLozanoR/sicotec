@@ -103,6 +103,51 @@ switch ($peticion) {
         }
         echo json_encode($controller->obtenerIpsSegmento($id_seg));
         break;
+    /**
+     * Caso: INSERT_VLAN
+     */
+    case 'INSERT_VLAN':
+        if (!$controller->verificarPermiso($id_sub, PERM_AGREGAR)) {
+            echo json_encode(["result" => 0, "msg" => "Acceso denegado: No tiene permisos."]); exit;
+        }
+        $nom_vlan = trim($_POST['nom_vlan'] ?? '');
+        $descripcion = trim($_POST['descripcion'] ?? '');
+        
+        if (empty($nom_vlan)) {
+            echo json_encode(["result" => 0, "msg" => "El nombre de la VLAN es obligatorio."]); exit;
+        }
+        echo json_encode($controller->insertarVlan($id_sub, $nom_vlan, $descripcion));
+        break;
+    /**
+     * Caso: UPDATE_VLAN
+     */
+    case 'UPDATE_VLAN':
+        if (!$controller->verificarPermiso($id_sub, PERM_EDITAR)) {
+            echo json_encode(["result" => 0, "msg" => "Acceso denegado: No tiene permisos para editar."]); exit;
+        }
+        $id_vlan = $_POST['id_vlan'] ?? '';
+        $nom_vlan = trim($_POST['nom_vlan'] ?? '');
+        $descripcion = trim($_POST['descripcion'] ?? '');
+        
+        if (empty($id_vlan) || empty($nom_vlan)) {
+            echo json_encode(["result" => 0, "msg" => "Faltan datos obligatorios para actualizar."]); exit;
+        }
+        echo json_encode($controller->actualizarVlan($id_sub, $id_vlan, $nom_vlan, $descripcion));
+        break;
+
+    /**
+     * Caso: DELETE_VLAN (Borrado Físico)
+     */
+    case 'DELETE_VLAN':
+        if (!$controller->verificarPermiso($id_sub, PERM_ELIMINAR)) {
+            echo json_encode(["result" => 0, "msg" => "Acceso denegado: No tiene permisos para eliminar."]); exit;
+        }
+        $id_vlan = $_POST['id_vlan'] ?? '';
+        if (empty($id_vlan)) {
+            echo json_encode(["result" => 0, "msg" => "Identificador de VLAN no recibido."]); exit;
+        }
+        echo json_encode($controller->eliminarVlan($id_sub, $id_vlan));
+        break;
 
     default:
         // Manejo de peticiones corruptas o no mapeadas
