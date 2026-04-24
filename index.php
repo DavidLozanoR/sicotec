@@ -101,8 +101,13 @@
                 $ctrl = new ImportacionController($slug);
             }
 		break;
+		case "departamentos" :
+            if ($accion == "") {
+                require_once "_controller/DepartamentosController.php";
+                $ctrl = new DepartamentosController($slug);
+            } 
+        break;
         default:
-            
 		break;
     }
 	

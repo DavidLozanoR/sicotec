@@ -1,0 +1,69 @@
+/* ==========================================================================
+   Estilos Globales - Catálogo de Estructura Organizacional
+   ========================================================================== */
+
+/* Colores Base */
+.text-guinda { color: #9D2449 !important; }
+.bg-guinda { background-color: #9D2449 !important; }
+
+/* Botones Principales */
+.btn-guinda { 
+    background-color: #9D2449; 
+    color: white; 
+    border: 1px solid #9D2449;
+    transition: all 0.2s ease-in-out; 
+}
+.btn-guinda:hover, 
+.btn-guinda:focus { 
+    background-color: #7a1c39; 
+    border-color: #7a1c39;
+    color: white; 
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px rgba(157, 36, 73, 0.2);
+}
+
+/* Inputs / Selects */
+.focus-guinda:focus { 
+    border-color: #9D2449; 
+    box-shadow: 0 0 0 0.25rem rgba(157, 36, 73, 0.25); 
+    outline: 0;
+}
+
+/* Estilos de las Pestañas (Tabs) */
+.nav-pills .nav-link {
+    color: #6c757d;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    transition: all 0.2s;
+}
+.nav-pills .nav-link:hover {
+    background-color: #e9ecef;
+}
+.nav-pills .nav-link.active, 
+.nav-pills .show > .nav-link {
+    background-color: #9D2449;
+    color: white;
+    border-color: #9D2449;
+}
+
+/* Tarjetas */
+.ring-1 { box-shadow: 0 0 0 1px var(--bs-border-color); }
+.card { transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
+.card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 .5rem 1rem rgba(0,0,0,.08) !important;
+}
+
+/* Dropdowns */
+.dropdown-menu {
+    border: none;
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+    border-radius: 0.5rem;
+}
+.dropdown-item {
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: background-color 0.2s;
+}
+.dropdown-item:hover { background-color: #f8f9fa; }
