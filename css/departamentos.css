@@ -1,8 +1,4 @@
-/* ==========================================================================
-   Estilos Globales - Catálogo de Estructura Organizacional
-   ========================================================================== */
-
-/* Colores Base */
+/* Paleta Institucional */
 .text-guinda { color: #9D2449 !important; }
 .bg-guinda { background-color: #9D2449 !important; }
 
@@ -47,7 +43,7 @@
     border-color: #9D2449;
 }
 
-/* Tarjetas */
+/* Tarjetas y Dropdowns */
 .ring-1 { box-shadow: 0 0 0 1px var(--bs-border-color); }
 .card { transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
 .card:hover {
@@ -55,7 +51,6 @@
     box-shadow: 0 .5rem 1rem rgba(0,0,0,.08) !important;
 }
 
-/* Dropdowns */
 .dropdown-menu {
     border: none;
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);

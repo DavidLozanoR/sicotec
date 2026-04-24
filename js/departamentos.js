@@ -1,122 +1,143 @@
 document.addEventListener('DOMContentLoaded', () => {
     
-    // --- Referencias Modales ---
     const modalDeptoEl = document.getElementById('modalFormDepto');
-    const modalPuestoEl = document.getElementById('modalFormPuesto');
-    if (!modalDeptoEl || !modalPuestoEl) return;
+    if (!modalDeptoEl) return;
 
     const modalDepto = new bootstrap.Modal(modalDeptoEl);
-    const modalPuesto = new bootstrap.Modal(modalPuestoEl);
+    const formDepto = document.getElementById('formDepto');
     const idSub = document.getElementById('id_sub_dep') ? document.getElementById('id_sub_dep').value : 3;
 
-    // ==========================================
-    // LÓGICA: DEPARTAMENTOS
-    // ==========================================
-    const formDepto = document.getElementById('formDepto');
-    const btnNuevoDepto = document.getElementById('btnNuevoDepto');
+    // --- CAMPOS ---
+    const inputClave = document.getElementById('dep_clave');
+    const inputNom = document.getElementById('dep_nom');
 
+    // --- RESTRICCIONES Y LIMPIEZA DE INPUTS EN TIEMPO REAL ---
+
+    // Clave: Solo números, máximo 20 (el max length ya está en HTML, pero aseguramos).
+    inputClave.addEventListener('input', function() {
+        this.value = this.value.replace(/[^0-9]/g, '');
+    });
+
+    // Función global para limpiar espacios (al final, antes de validar/enviar)
+    const limpiarEspacios = (str) => {
+        if (!str) return '';
+        // trim() quita inicio y fin. replace(/\s+/g, ' ') deja solo un espacio entre palabras.
+        return str.trim().replace(/\s+/g, ' ');
+    };
+
+    // --- NUEVO DEPARTAMENTO ---
+    const btnNuevoDepto = document.getElementById('btnNuevoDepto');
     if (btnNuevoDepto) {
         btnNuevoDepto.addEventListener('click', () => {
             formDepto.reset();
+            formDepto.classList.remove('was-validated');
             document.getElementById('dep_id').value = '';
             document.getElementById('tituloModalDepto').innerHTML = '<i class="fas fa-building me-2 text-guinda"></i>Nuevo Departamento';
             modalDepto.show();
         });
     }
 
-    // ==========================================
-    // LÓGICA: PUESTOS
-    // ==========================================
-    const formPuesto = document.getElementById('formPuesto');
-    const btnNuevoPuesto = document.getElementById('btnNuevoPuesto');
-
-    if (btnNuevoPuesto) {
-        btnNuevoPuesto.addEventListener('click', () => {
-            formPuesto.reset();
-            document.getElementById('puesto_id').value = '';
-            document.getElementById('tituloModalPuesto').innerHTML = '<i class="fas fa-briefcase me-2 text-guinda"></i>Nuevo Puesto';
-            modalPuesto.show();
-        });
-    }
-
-    // ==========================================
-    // DELEGACIÓN DE EVENTOS (Botones Editar)
-    // ==========================================
+    // --- EDITAR DEPARTAMENTO ---
     document.body.addEventListener('click', (e) => {
-        // Editar Departamento
         const btnEditDep = e.target.closest('.btn-editar-dep');
         if (btnEditDep) {
             e.preventDefault();
+            formDepto.classList.remove('was-validated');
             document.getElementById('dep_id').value = btnEditDep.dataset.id;
             document.getElementById('dep_clave').value = btnEditDep.dataset.clave;
             document.getElementById('dep_nom').value = btnEditDep.dataset.nom;
             document.getElementById('tituloModalDepto').innerHTML = '<i class="fas fa-edit me-2 text-guinda"></i>Editar Departamento';
             modalDepto.show();
         }
-
-        // Editar Puesto
-        const btnEditPuesto = e.target.closest('.btn-editar-puesto');
-        if (btnEditPuesto) {
-            e.preventDefault();
-            document.getElementById('puesto_id').value = btnEditPuesto.dataset.id;
-            document.getElementById('puesto_nom').value = btnEditPuesto.dataset.nom;
-            document.getElementById('tituloModalPuesto').innerHTML = '<i class="fas fa-edit me-2 text-guinda"></i>Editar Puesto';
-            modalPuesto.show();
-        }
     });
 
-    // ==========================================
-    // ENVÍO DE FORMULARIOS (AJAX Reutilizable)
-    // ==========================================
-    const procesarFormulario = async (formElement, accionInsertar, accionActualizar, modalInstance) => {
-        formElement.addEventListener('submit', async (e) => {
-            e.preventDefault();
+    // --- ENVIAR FORMULARIO (AJAX CON SWEETALERT2 Y VALIDACIONES) ---
+    formDepto.addEventListener('submit', async (e) => {
+        e.preventDefault();
 
-            if (!formElement.checkValidity()) {
-                formElement.classList.add('was-validated');
-                return;
-            }
+        // 1. Limpieza final de valores antes de procesar
+        inputClave.value = limpiarEspacios(inputClave.value);
+        inputNom.value = limpiarEspacios(inputNom.value);
 
-            // Detectar si el primer input hidden (el ID) tiene valor
-            const idValue = formElement.querySelector('input[type="hidden"]').value;
-            const peticionAccion = (idValue !== '') ? accionActualizar : accionInsertar;
+        // 2. Validación Nativa de Bootstrap/HTML5
+        if (!formDepto.checkValidity()) {
+            formDepto.classList.add('was-validated');
+            return;
+        }
 
-            const formData = new FormData(formElement);
-            formData.append('peticion', peticionAccion);
-            formData.append('id_sub', idSub);
+        // 3. Validaciones Custom (Largo de campos)
+        if (inputNom.value.length < 5) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Nombre muy corto',
+                text: 'El nombre del departamento debe tener al menos 5 caracteres.',
+                confirmButtonColor: '#9D2449'
+            });
+            return;
+        }
 
-            const btnSubmit = formElement.querySelector('button[type="submit"]');
-            const textoOriginal = btnSubmit.innerHTML;
-            btnSubmit.disabled = true;
-            btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Guardando...';
+        if (inputClave.value !== '' && inputClave.value.length < 2) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Clave muy corta',
+                text: 'Si decide ingresar una clave, esta debe tener al menos 2 números.',
+                confirmButtonColor: '#9D2449'
+            });
+            return;
+        }
 
-            try {
-                // TODO se maneja en el mismo archivo Asíncrono
-                const response = await fetch('DepartamentosAsync.php', {
-                    method: 'POST',
-                    body: formData
-                });
+        // 4. Preparar Petición
+        const idValue = document.getElementById('dep_id').value;
+        const peticionAccion = (idValue !== '') ? 'UPDATE_DEP' : 'INSERT_DEP';
 
-                const data = await response.json();
+        const formData = new FormData(formDepto);
+        formData.append('peticion', peticionAccion);
+        formData.append('id_sub', idSub);
 
-                if (data.result === 1 || data.status === 'success') {
-                    alert(data.msg || 'Guardado correctamente.');
-                    modalInstance.hide();
+        const btnSubmit = formDepto.querySelector('button[type="submit"]');
+        const textoOriginal = btnSubmit.innerHTML;
+        btnSubmit.disabled = true;
+        btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Guardando...';
+
+        try {
+            const response = await fetch('_controller/DepartamentosAsync.php', {
+                method: 'POST',
+                body: formData
+            });
+
+            const data = await response.json();
+
+            if (data.result === 1 || data.status === 'success') {
+                modalDepto.hide();
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Éxito!',
+                    text: data.msg || 'Guardado correctamente.',
+                    confirmButtonColor: '#285C4D',
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => {
                     window.location.reload(); 
-                } else {
-                    alert('Error: ' + (data.msg || 'No se pudo procesar.'));
-                }
-            } catch (error) {
-                console.error('Error:', error);
-                alert('Error de conexión con el servidor.');
-            } finally {
-                btnSubmit.disabled = false;
-                btnSubmit.innerHTML = textoOriginal;
+                });
+            } else {
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Error',
+                    text: data.msg || 'No se pudo procesar la solicitud.',
+                    confirmButtonColor: '#9D2449'
+                });
             }
-        });
-    };
-
-    // Vincular ambos formularios a la misma función pero con diferentes acciones
-    procesarFormulario(formDepto, 'INSERT_DEP', 'UPDATE_DEP', modalDepto);
-    procesarFormulario(formPuesto, 'INSERT_PUESTO', 'UPDATE_PUESTO', modalPuesto);
+        } catch (error) {
+            console.error('Error:', error);
+            Swal.fire({
+                icon: 'error',
+                title: 'Error de Comunicación',
+                text: 'Hubo un problema al contactar con el servidor.',
+                confirmButtonColor: '#9D2449'
+            });
+        } finally {
+            btnSubmit.disabled = false;
+            btnSubmit.innerHTML = textoOriginal;
+        }
+    });
 });
