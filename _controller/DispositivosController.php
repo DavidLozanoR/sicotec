@@ -1,7 +1,7 @@
 <?php
 
 /**
- * Rutinas comunes para CRUD elemental de una BD. Versión Mysql
+ * Rutinas comunes para CRUD elemental de una BD. Versión MariaDB
  * @author Rodrigo Robledo Solares
  * @author Angel David Lozano Rojas  
  * @fecha 2026-02-25

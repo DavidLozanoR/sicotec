@@ -80,7 +80,10 @@ switch ($peticion) {
             echo json_encode(["result" => 0, "msg" => "Acceso denegado: No cuenta con permisos para editar personal."]);
             exit;
         }
-
+        
+        // Extracción y sanitización de los datos enviados mediante el payload POST.
+        // Se aplica trim() para remover espacios en los extremos y preg_replace() 
+        // para colapsar múltiples espacios en blanco internos en las cadenas de texto.
         $id_po = $_POST['id_po'] ?? '';
         $num_cobro = trim($_POST['num_cobro'] ?? '');
         $nombres = preg_replace('/\s+/', ' ', trim($_POST['nombres'] ?? ''));
