@@ -43,22 +43,7 @@
     border-color: #9D2449;
 }
 
-/* Tarjetas y Dropdowns */
+/* Utilidad para la Tabla */
 .ring-1 { box-shadow: 0 0 0 1px var(--bs-border-color); }
-.card { transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out; }
-.card:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 .5rem 1rem rgba(0,0,0,.08) !important;
-}
-
-.dropdown-menu {
-    border: none;
-    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
-    border-radius: 0.5rem;
-}
-.dropdown-item {
-    font-size: 0.9rem;
-    font-weight: 500;
-    transition: background-color 0.2s;
-}
-.dropdown-item:hover { background-color: #f8f9fa; }
+.table-hover tbody tr { transition: background-color 0.2s; }
+.table-hover tbody tr:hover { background-color: #f8f9fa; }

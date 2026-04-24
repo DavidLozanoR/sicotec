@@ -60,6 +60,20 @@ switch ($peticion) {
 
         echo json_encode($controller->actualizarDepartamento($id_sub, $id_dep, $clave_dep, $nom_dep));
         break;
+    /**
+     * Caso: DELETE_DEP
+     * Elimina un departamento verificando que esté vacío.
+     */
+    case 'DELETE_DEP':
+        $id_dep = $_POST['id_dep'] ?? '';
+
+        if (empty($id_dep)) {
+            echo json_encode(["result" => 0, "msg" => "No se identificó el departamento a eliminar."]); 
+            exit;
+        }
+
+        echo json_encode($controller->eliminarDepartamento($id_sub, $id_dep));
+        break;
 
     default:
         // Manejo de peticiones corruptas o no mapeadas

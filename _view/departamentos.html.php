@@ -38,89 +38,113 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
                 </button>
             </div>
             
-            <div class="row g-4">
-                <?php if(empty($departamentos)): ?>
-                    <div class="col-12 text-center py-5 text-muted border border-dashed rounded-3 bg-light">
-                        <i class="fas fa-building-user fa-3x mb-3 opacity-25"></i>
-                        <p class="mb-0">El catálogo de departamentos está vacío.</p>
-                    </div>
-                <?php else: ?>
-                    <?php foreach($departamentos as $dep): ?>
-                    <div class="col-12 col-md-6 col-xl-4">
-                        <div class="card h-100 shadow-sm border-0 ring-1 ring-secondary-subtle">
-                            <div class="card-body p-4 position-relative">
-                                <div class="d-flex justify-content-between align-items-start">
-                                    <div class="d-flex align-items-center">
-                                        <div class="bg-light rounded p-3 me-3 fs-4 text-guinda">
-                                            <i class="fas fa-building"></i>
-                                        </div>
-                                        <div>
-                                            <h5 class="fw-bold text-dark mb-0 text-truncate" style="max-width: 220px;" title="<?php echo htmlspecialchars($dep['nom_dep']); ?>">
-                                                <?php echo htmlspecialchars($dep['nom_dep']); ?>
-                                            </h5>
-                                            <?php if(!empty($dep['clave_dep'])): ?>
-                                            <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle mt-1">
-                                                Clave: <?php echo htmlspecialchars($dep['clave_dep']); ?>
-                                            </span>
-                                            <?php else: ?>
-                                            <span class="badge bg-light text-muted border mt-1">Sin Clave</span>
-                                            <?php endif; ?>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="dropdown">
-                                        <button class="btn btn-sm btn-light border-0 text-muted" data-bs-toggle="dropdown">
-                                            <i class="fas fa-ellipsis-v"></i>
-                                        </button>
-                                        <ul class="dropdown-menu dropdown-menu-end shadow-sm">
-                                            <li>
-                                                <a class="dropdown-item py-2 btn-editar-dep" href="#" 
-                                                   data-id="<?php echo $dep['id_dep']; ?>" 
-                                                   data-clave="<?php echo htmlspecialchars($dep['clave_dep'] ?? ''); ?>" 
-                                                   data-nom="<?php echo htmlspecialchars($dep['nom_dep']); ?>">
-                                                   <i class="fas fa-edit me-2 text-secondary"></i> Editar Datos
-                                                </a>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+            <div class="table-responsive bg-white rounded-3 shadow-sm border ring-1 ring-secondary-subtle">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light border-bottom">
+                        <tr>
+                            <th class="ps-4 py-3 text-muted small text-uppercase">Clave</th>
+                            <th class="py-3 text-muted small text-uppercase">Nombre del Departamento</th>
+                            <th class="py-3 text-muted small text-uppercase">Personal Asignado</th>
+                            <th class="text-end pe-4 py-3 text-muted small text-uppercase">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if(empty($departamentos)): ?>
+                        <tr>
+                            <td colspan="4" class="text-center py-5 text-muted">
+                                <i class="fas fa-building-user fa-3x mb-3 opacity-25 d-block"></i>
+                                El catálogo de departamentos está vacío.
+                            </td>
+                        </tr>
+                        <?php else: ?>
+                            <?php foreach($departamentos as $dep): ?>
+                            <tr>
+                                <td class="ps-4">
+                                    <?php if(!empty($dep['clave_dep'])): ?>
+                                        <span class="badge bg-secondary bg-opacity-10 text-secondary border border-secondary-subtle">
+                                            <?php echo htmlspecialchars($dep['clave_dep']); ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="text-muted small">N/A</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="fw-bold text-dark">
+                                    <?php echo htmlspecialchars($dep['nom_dep']); ?>
+                                </td>
+                                <td>
+                                    <?php if($dep['total_empleados'] > 0): ?>
+                                        <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">
+                                            <i class="fas fa-users me-1"></i> <?php echo $dep['total_empleados']; ?>
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="badge bg-light text-muted border px-2 py-1">0</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="text-end pe-4">
+                                    <button class="btn btn-sm btn-light text-secondary border btn-editar-dep me-1" 
+                                            title="Editar"
+                                            data-id="<?php echo $dep['id_dep']; ?>" 
+                                            data-clave="<?php echo htmlspecialchars($dep['clave_dep'] ?? ''); ?>" 
+                                            data-nom="<?php echo htmlspecialchars($dep['nom_dep']); ?>">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-light text-danger border btn-eliminar-dep" 
+                                            title="Eliminar"
+                                            data-id="<?php echo $dep['id_dep']; ?>" 
+                                            data-nom="<?php echo htmlspecialchars($dep['nom_dep']); ?>"
+                                            data-total="<?php echo $dep['total_empleados']; ?>">
+                                        <i class="fas fa-trash-alt"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
 
         <div class="tab-pane fade" id="puestos" role="tabpanel">
-            <div class="alert alert-secondary border-0 border-start border-4 border-secondary shadow-sm mb-4">
-                <i class="fas fa-info-circle me-2"></i> <strong>Aviso:</strong> Este catálogo es de solo lectura. Los nuevos puestos se agregan automáticamente al sistema cuando se registran en el expediente de un trabajador en el módulo de Personal Operativo.
+            <div class="alert alert-secondary border-0 border-start border-4 border-secondary shadow-sm mb-3">
+                <i class="fas fa-info-circle me-2"></i> <strong>Aviso:</strong> Catálogo de solo lectura. Los puestos se agregan automáticamente al registrar a un trabajador.
             </div>
             
-            <div class="row g-3">
-                <?php if(empty($puestos)): ?>
-                    <div class="col-12 text-center py-5 text-muted border border-dashed rounded-3 bg-light">
-                        <i class="fas fa-user-tie fa-3x mb-3 opacity-25"></i>
-                        <p class="mb-0">Aún no hay puestos registrados en el personal operativo.</p>
-                    </div>
-                <?php else: ?>
-                    <?php foreach($puestos as $puesto): ?>
-                    <div class="col-12 col-sm-6 col-md-4 col-xl-3">
-                        <div class="card shadow-sm border-0 ring-1 ring-secondary-subtle">
-                            <div class="card-body p-3 d-flex align-items-center">
-                                <div class="bg-light rounded p-2 me-3 text-secondary">
-                                    <i class="fas fa-briefcase"></i>
-                                </div>
-                                <div>
-                                    <h6 class="fw-bold text-dark mb-0 text-truncate" style="max-width: 180px;" title="<?php echo htmlspecialchars($puesto['puesto']); ?>">
-                                        <?php echo htmlspecialchars($puesto['puesto']); ?>
-                                    </h6>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <?php endforeach; ?>
-                <?php endif; ?>
+            <div class="table-responsive bg-white rounded-3 shadow-sm border ring-1 ring-secondary-subtle">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light border-bottom">
+                        <tr>
+                            <th class="ps-4 py-3 text-muted small text-uppercase">Nombre del Puesto</th>
+                            <th class="py-3 text-muted small text-uppercase">Estado</th>
+                            <th class="text-end pe-4 py-3 text-muted small text-uppercase">Personal Activo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if(empty($puestos)): ?>
+                        <tr>
+                            <td colspan="3" class="text-center py-5 text-muted">
+                                <i class="fas fa-user-tie fa-3x mb-3 opacity-25 d-block"></i>
+                                Aún no hay puestos registrados en el personal.
+                            </td>
+                        </tr>
+                        <?php else: ?>
+                            <?php foreach($puestos as $puesto): ?>
+                            <tr>
+                                <td class="ps-4 fw-bold text-dark">
+                                    <i class="fas fa-briefcase text-secondary me-2"></i> <?php echo htmlspecialchars($puesto['puesto']); ?>
+                                </td>
+                                <td>
+                                    <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle">Activo</span>
+                                </td>
+                                <td class="text-end pe-4">
+                                    <span class="badge bg-primary bg-opacity-10 text-primary border border-primary-subtle px-2 py-1">
+                                        <i class="fas fa-user-tie me-1"></i> <?php echo $puesto['total_empleados']; ?>
+                                    </span>
+                                </td>
+                            </tr>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
 
@@ -156,4 +180,3 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
         </div>
     </div>
 </div>
-

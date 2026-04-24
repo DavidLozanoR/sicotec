@@ -77,18 +77,63 @@ class DepartamentosController {
     /**
      * Obtiene los datos de departamentos y puestos únicos.
      */
+    /**
+     * Obtiene los datos enriquecidos con el contador de empleados.
+     */
     private function traerContenido($model) {
-        // 1. Departamentos (Tabla existente)
-        $departamentos = $model->seleccionaRegistros("departamentos", ["*"], "1=1 ORDER BY nom_dep ASC");
+        // 1. Departamentos (Subconsulta para contar empleados activos)
+        $queryDeptos = "
+            SELECT d.*, 
+                   (SELECT COUNT(id_po) FROM personal_operativo po WHERE po.id_dep = d.id_dep AND po.estatus = 1) AS total_empleados
+            FROM departamentos d 
+            ORDER BY d.nom_dep ASC
+        ";
+        $departamentos = $model->consultarLibre($queryDeptos);
         
-        // 2. Puestos (Consulta dinámica para evitar crear tablas nuevas)
-        // Obtenemos los puestos únicos que ya están asignados al personal operativo
-        $puestosRaw = $model->consultarLibre("SELECT DISTINCT puesto FROM personal_operativo WHERE puesto IS NOT NULL AND puesto != '' ORDER BY puesto ASC");
+        // 2. Puestos (Agrupamos y contamos directamente del personal)
+        $queryPuestos = "
+            SELECT puesto, COUNT(id_po) AS total_empleados 
+            FROM personal_operativo 
+            WHERE puesto IS NOT NULL AND puesto != '' AND estatus = 1 
+            GROUP BY puesto 
+            ORDER BY puesto ASC
+        ";
+        $puestosRaw = $model->consultarLibre($queryPuestos);
 
         return [
             'departamentos' => $departamentos ?: [],
             'puestos'       => $puestosRaw ?: []
         ];
+    }
+
+    // ... (Mantén insertarDepartamento y actualizarDepartamento igual) ...
+
+    /**
+     * Elimina físicamente un departamento solo si está vacío.
+     */
+    public function eliminarDepartamento($id_sub, $id_dep) {
+        $model = new MainModel();
+        
+        if (!$this->verificarPermiso($id_sub, self::PERMISO_ELIMINAR)) {
+            return ["result" => 0, "msg" => "No tiene permiso para eliminar registros."];
+        }
+
+        // VALIDACIÓN CRÍTICA: Verificar que no tenga empleados activos o inactivos atados a él
+        $empleados = $model->seleccionaRegistros("personal_operativo", ["id_po"], "id_dep = ?", [$id_dep]);
+        
+        if ($empleados && count($empleados) > 0) {
+            return ["result" => 0, "msg" => "Operación denegada. Hay " . count($empleados) . " empleado(s) vinculado(s) a este departamento."];
+        }
+
+        // Borrado Físico Seguro
+        $res = $model->borraRegistroConBitacora(
+            "departamentos", 
+            "id_dep = ?", 
+            [$id_dep],
+            $id_sub, "Eliminó definitivamente el departamento ID: $id_dep"
+        );
+
+        return $res ? ["result" => 1, "msg" => "Departamento eliminado correctamente."] : ["result" => 0, "msg" => "Error al intentar eliminar de la base de datos."];
     }
 
     // ==========================================================
