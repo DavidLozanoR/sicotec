@@ -93,11 +93,11 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 2;
                     <div class="row g-3 mb-3">
                         <div class="col-md-6">
                             <label class="form-label fw-bold small">Tipo de Servicio *</label>
-                            <input type="text" class="form-control focus-guinda" name="tipo_serv" id="serv_tipo" placeholder="Ej. Sistema Operativo" required>
+                            <input type="text" class="form-control focus-guinda" name="tipo_serv" id="serv_tipo" placeholder="Ej. Sistema Operativo" required maxlength="50">
                         </div>
                         <div class="col-md-6">
                             <label class="form-label fw-bold small">Nombre del Software *</label>
-                            <input type="text" class="form-control focus-guinda" name="nom" id="serv_nom" placeholder="Ej. Windows 11" required>
+                            <input type="text" class="form-control focus-guinda" name="nom" id="serv_nom" placeholder="Ej. Windows 11" required maxlength="30">
                         </div>
                     </div>
 

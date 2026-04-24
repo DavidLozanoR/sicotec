@@ -11,6 +11,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const selectServicio = document.getElementById('filtro-servicio');
     const selectEstadoSoft = document.getElementById('filtro-estado-soft');
     const thSoftware = document.querySelector('.th-software');
+    const selectVlanRed = document.getElementById('vlan-select')
 
     const formBitacora = document.getElementById('form-bitacora');
     const btnGenerarBitacora = document.getElementById('btn-generar-bitacora');
@@ -19,8 +20,178 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const btnExportarExcel = document.getElementById('btn-exportar-excel');
 
+    // ==========================================
+    // BUSCADOR FUZZY FINDER
+    // ==========================================
+    function aplicarFuzzySearch(selector) {
+        const selectOriginal = typeof selector === 'string' ? document.querySelector(selector) : selector;
+        if (!selectOriginal) return;
+
+        // REACTIVIDAD: Si ya existe una lista, la borramos para reconstruirla con los datos nuevos (ej. IPs)
+        if (selectOriginal.nextElementSibling && selectOriginal.nextElementSibling.classList.contains('fuzzy-container')) {
+            selectOriginal.nextElementSibling.remove();
+        }
+
+        selectOriginal.style.display = 'none';
+
+        const container = document.createElement('div');
+        container.className = 'position-relative w-100 fuzzy-container';
+        container.style.fontFamily = 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif';
+
+        const inputBuscador = document.createElement('input');
+        inputBuscador.type = 'text';
+        inputBuscador.className = 'form-control focus-guinda pe-4 shadow-sm';
+        inputBuscador.style.cssText = 'border-radius: 0.5rem; border: 1px solid #dee2e6; font-size: 0.95rem; padding: 0.6rem 2.5rem 0.6rem 1rem; transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;';
+        
+        if (selectOriginal.classList.contains('font-monospace')) inputBuscador.classList.add('font-monospace');
+        if (selectOriginal.classList.contains('form-select-sm')) inputBuscador.classList.add('form-control-sm');
+        
+        // Sincronizar bloqueo (disabled) y estilos de alerta
+        if (selectOriginal.disabled) {
+            inputBuscador.disabled = true;
+            inputBuscador.classList.add('bg-light');
+            
+            // FIX: Si el select original fue marcado en rojo por falta de VLAN, heredamos el diseño
+            if (selectOriginal.classList.contains('border-danger')) {
+                inputBuscador.classList.remove('border-secondary-subtle');
+                inputBuscador.classList.add('border-danger', 'text-danger', 'fw-bold');
+            }
+        }
+
+        inputBuscador.placeholder = selectOriginal.options.length > 0 && selectOriginal.options[0].text ? selectOriginal.options[0].text : 'Buscar...';
+        inputBuscador.autocomplete = 'off';
+
+        const iconClear = document.createElement('span');
+        iconClear.innerHTML = '&#x2715;'; // Aspa más estética
+        iconClear.className = 'position-absolute text-secondary';
+        iconClear.style.cssText = 'right: 14px; top: 50%; transform: translateY(-50%); cursor: pointer; display: none; font-size: 0.85rem; z-index: 4; opacity: 0.6; transition: opacity 0.2s ease;';
+        iconClear.onmouseover = () => iconClear.style.opacity = '1';
+        iconClear.onmouseout = () => iconClear.style.opacity = '0.6';
+
+        const listaDesplegable = document.createElement('ul');
+        listaDesplegable.className = 'list-group position-absolute w-100 z-3 d-none overflow-x-hidden shadow-sm';
+        listaDesplegable.style.cssText = 'max-height: 220px; overflow-y: auto; top: calc(100% + 4px); left: 0; border-radius: 0.5rem; border: 1px solid #e5e7eb; background-color: #fff; scrollbar-width: thin;';
+
+        Array.from(selectOriginal.options).forEach(opt => {
+            if (opt.value === '') return;
+
+            // Conservamos soporte para OPTGROUP si lo usaran los demás selects
+            if (opt.parentElement.tagName === 'OPTGROUP') {
+                if (opt.parentElement.firstElementChild === opt) {
+                    const headerLi = document.createElement('li');
+                    headerLi.className = 'list-group-item pe-none';
+                    headerLi.style.cssText = 'background-color: #f8f9fa; color: #6c757d; font-size: 0.75rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; border: none; padding: 0.75rem 1rem 0.25rem 1rem;';
+                    headerLi.textContent = opt.parentElement.label;
+                    listaDesplegable.appendChild(headerLi);
+                }
+            }
+
+            const li = document.createElement('li');
+            li.className = 'list-group-item list-group-item-action';
+            li.style.cssText = 'cursor: pointer; border: none; border-bottom: 1px solid #f3f4f6; padding: 0.6rem 1rem; font-size: 0.9rem; color: #374151; transition: background-color 0.2s ease;';
+            li.title = opt.text;
+            if (opt.parentElement.tagName === 'OPTGROUP') li.style.paddingLeft = '1.5rem';
+            
+            // Si el option tiene un HTML inyectado (como las VLANs), lo renderizamos. Sino, texto normal.
+            if (opt.dataset.htmlText) {
+                li.innerHTML = opt.dataset.htmlText;
+            } else {
+                li.textContent = opt.text;
+            }
+
+            li.dataset.value = opt.value;
+            listaDesplegable.appendChild(li);
+
+            if (opt.selected && opt.value !== "") {
+                inputBuscador.value = opt.text;
+                if (!inputBuscador.disabled) iconClear.style.display = 'block';
+            }
+        });
+
+        // Eliminar el último borde inferior de la lista
+        if (listaDesplegable.lastChild) {
+            listaDesplegable.lastChild.style.borderBottom = 'none';
+        }
+
+        container.appendChild(inputBuscador);
+        container.appendChild(iconClear);
+        container.appendChild(listaDesplegable);
+        selectOriginal.parentNode.insertBefore(container, selectOriginal.nextSibling);
+
+        function filtrarResultados(texto) {
+            const query = texto.toLowerCase();
+            let coincidencias = 0;
+            const items = listaDesplegable.querySelectorAll('li:not(.pe-none)');
+
+            items.forEach(li => {
+                const textoItem = li.textContent.toLowerCase();
+                if (textoItem.includes(query)) {
+                    li.style.display = 'block';
+                    coincidencias++;
+                } else {
+                    li.style.display = 'none';
+                }
+            });
+
+            if (coincidencias > 0) {
+                listaDesplegable.classList.remove('d-none');
+            } else {
+                listaDesplegable.classList.add('d-none');
+            }
+        }
+
+        inputBuscador.addEventListener('focus', () => {
+            if (!inputBuscador.disabled) {
+                listaDesplegable.classList.remove('d-none');
+                filtrarResultados(inputBuscador.value);
+            }
+        });
+
+        inputBuscador.addEventListener('input', (e) => {
+            const valor = e.target.value;
+            filtrarResultados(valor);
+            iconClear.style.display = valor ? 'block' : 'none';
+            selectOriginal.value = ''; 
+        });
+
+        listaDesplegable.addEventListener('click', (e) => {
+            const li = e.target.closest('li:not(.pe-none)');
+            if (!li) return;
+
+            inputBuscador.value = li.textContent;
+            listaDesplegable.classList.add('d-none');
+            iconClear.style.display = 'block';
+            selectOriginal.value = li.dataset.value;
+            selectOriginal.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        iconClear.addEventListener('click', () => {
+            inputBuscador.value = '';
+            selectOriginal.value = '';
+            iconClear.style.display = 'none';
+            filtrarResultados('');
+            inputBuscador.focus();
+            selectOriginal.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        document.addEventListener('click', (e) => {
+            if (!container.contains(e.target)) {
+                listaDesplegable.classList.add('d-none');
+                if (selectOriginal.value === '') {
+                    inputBuscador.value = '';
+                    iconClear.style.display = 'none';
+                } else {
+                    const opcionSeleccionada = selectOriginal.options[selectOriginal.selectedIndex];
+                    if (opcionSeleccionada) {
+                        inputBuscador.value = opcionSeleccionada.text;
+                    }
+                }
+            }
+        });
+    }
+
     // =======================================================
-    // REGLAS DE NEGOCIO Y COMPORTAMIENTO DE FILTROS
+    // REGLAS DE NEGOCIO Y COMPORTAMIENTO DES
     // =======================================================
     if (selectServicio) {
         selectServicio.addEventListener('change', function() {
@@ -45,6 +216,12 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    //Llamar a la funcion de fuzzy search para los selects que se desvordan
+    aplicarFuzzySearch(filtroDepartamento);
+    aplicarFuzzySearch(selectVlanRed);
+    aplicarFuzzySearch(selectServicio);
+
 
     // =======================================================
     // PETICIÓN AJAX: AUDITORÍA DE EQUIPOS
@@ -158,6 +335,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ejecutarConsultaAuditoria();
         });
     }
+
 
     // =======================================================
     // PETICIÓN AJAX: BITÁCORA DEL SISTEMA

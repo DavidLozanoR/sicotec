@@ -65,7 +65,7 @@ $usuarios = $usuarios ?? [];
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label small fw-bold">Ubicación Física / Red</label>
-                                    <select class="form-select form-select-sm" name="id_vlan">
+                                    <select id="vlan-select" class="form-select form-select-sm" name="id_vlan">
                                         <option value="">Cualquier VLAN / Segmento</option>
                                         <?php foreach($vlans as $v): ?>
                                             <option value="<?= $v['id_vlan'] ?>"><?= htmlspecialchars($v['nom_vlan']) ?></option>
