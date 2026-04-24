@@ -103,7 +103,10 @@ switch ($peticion) {
         $resDepts = $input_json['resolucionesDepts'] ?? [];
         $bajas    = $input_json['numCobrosBaja']     ?? [];
         
-        echo json_encode($controller->finalizarSincronizacion($resDepts, $bajas, $id_sub));
+        $ignorarCambio = $input_json['ignorarCambioCobros'] ?? [];
+        $liberarEquipos = $input_json['liberarEquiposCobros'] ?? [];
+        
+        echo json_encode($controller->finalizarSincronizacion($resDepts, $bajas, $ignorarCambio, $liberarEquipos, $id_sub));
         break;
 
     default:
