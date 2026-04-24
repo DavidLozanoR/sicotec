@@ -47,3 +47,96 @@
 .ring-1 { box-shadow: 0 0 0 1px var(--bs-border-color); }
 .table-hover tbody tr { transition: background-color 0.2s; }
 .table-hover tbody tr:hover { background-color: #f8f9fa; }
+
+/* --- OPTIMIZACIÓN MÓVIL (Media Queries) --- */
+
+@media (max-width: 768px) {
+    /* Ajuste de contenedores principales */
+    .container-fluid {
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+    }
+
+    /* Tabs: Convertir a lista vertical o botones de ancho completo */
+    .nav-pills {
+        flex-direction: column;
+        width: 100%;
+        gap: 0.5rem !important;
+    }
+
+    .nav-pills .nav-item, 
+    .nav-pills .nav-link {
+        width: 100%;
+        text-align: center;
+    }
+
+    /* Botones de acción: Ancho completo */
+    .btn-guinda {
+        width: 100%;
+        margin-bottom: 1rem;
+    }
+
+    /* Transformación de Tabla a Card-view (Opcional pero recomendado) */
+    /* Si no se desea scroll horizontal, se usa este bloque: */
+    .table-responsive table, 
+    .table-responsive thead, 
+    .table-responsive tbody, 
+    .table-responsive th, 
+    .table-responsive td, 
+    .table-responsive tr { 
+        display: block; 
+    }
+
+    .table-responsive thead tr { 
+        position: absolute;
+        top: -9999px;
+        left: -9999px;
+    }
+
+    .table-responsive tr.fila-registro { 
+        border: 1px solid #dee2e6;
+        margin-bottom: 1rem;
+        border-radius: 0.5rem;
+        padding: 0.5rem;
+        background-color: #fff;
+    }
+
+    .table-responsive td { 
+        border: none;
+        position: relative;
+        padding-left: 50% !important; 
+        text-align: right !important;
+    }
+
+    /* Generar etiquetas para las celdas desde el CSS */
+    .table-responsive td:before { 
+        position: absolute;
+        left: 1rem;
+        width: 45%; 
+        padding-right: 10px; 
+        white-space: nowrap;
+        text-align: left;
+        font-weight: bold;
+        color: #6c757d;
+        content: attr(data-label); /* Requiere añadir data-label en el HTML */
+    }
+
+    .table-responsive td.text-end {
+        text-align: center !important;
+        padding-left: 0 !important;
+        border-top: 1px solid #eee;
+        margin-top: 0.5rem;
+        padding-top: 1rem !important;
+    }
+
+    /* Modal: Ajustar para que ocupe más pantalla en móvil */
+    .modal-dialog {
+        margin: 0.5rem;
+    }
+
+    /* Paginación: Centrar y simplificar */
+    .pagination {
+        justify-content: center;
+        width: 100%;
+    }
+}

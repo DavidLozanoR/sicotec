@@ -116,13 +116,13 @@ if ($personal) {
                                         <div class="invalid-feedback">El número de cobro es obligatorio.</div>
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label fw-bold small text-dark mb-1">Extensión</label>
-                                        <input type="number" class="form-control focus-guinda border-secondary-subtle" name="ext" value="<?php echo $personal['ext'] ?? ''; ?>">
+                                        <label class="form-label fw-bold small text-dark mb-1">Extensión *</label>
+                                        <input type="number" class="form-control focus-guinda border-secondary-subtle" name="ext" value="<?php echo $personal['ext'] ?? ''; ?>" required>
                                         <div class="invalid-feedback">La extensión es obligatoria y debe ser numérica.</div>
                                     </div>
                                     <div class="col-md-4">
-                                        <label class="form-label fw-bold small text-dark mb-1">No. Cuenta Dom.</label>
-                                        <input type="text" class="form-control focus-guinda border-secondary-subtle" name="cta_dom" value="<?php echo $personal['cta_dom'] ?? ''; ?>">
+                                        <label class="form-label fw-bold small text-dark mb-1">No. Cuenta Dom. *</label>
+                                        <input type="text" class="form-control focus-guinda border-secondary-subtle" name="cta_dom" value="<?php echo $personal['cta_dom'] ?? ''; ?>" required>
                                         <div class="invalid-feedback">El No. de cuenta de dominio es obligatorio.</div>
                                     </div>
 

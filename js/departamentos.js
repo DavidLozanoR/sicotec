@@ -12,9 +12,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputNom = document.getElementById('dep_nom');
 
     // Restricción: Clave solo números
-    inputClave.addEventListener('input', function() {
-        this.value = this.value.replace(/[^0-9]/g, '');
-    });
+    if (inputClave) {
+        inputClave.addEventListener('input', function() {
+            this.value = this.value.replace(/[^0-9]/g, '');
+        });
+    }
 
     const limpiarEspacios = (str) => {
         if (!str) return '';
@@ -56,7 +58,6 @@ document.addEventListener('DOMContentLoaded', () => {
             const nomDep = btnEliminarDep.dataset.nom;
             const total = parseInt(btnEliminarDep.dataset.total);
 
-            // Bloqueo si hay empleados
             if (total > 0) {
                 Swal.fire({
                     icon: 'error',
@@ -67,7 +68,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
-            // Confirmación de borrado
             Swal.fire({
                 title: '¿Eliminar Departamento?',
                 html: `Estás a punto de eliminar definitivamente <b>${nomDep}</b>.<br>Esta acción no se puede deshacer.`,
@@ -79,7 +79,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 cancelButtonText: 'Cancelar'
             }).then(async (result) => {
                 if (result.isConfirmed) {
-                    
                     Swal.fire({
                         title: 'Eliminando...',
                         allowOutsideClick: false,
@@ -107,7 +106,6 @@ document.addEventListener('DOMContentLoaded', () => {
                                 timer: 2000,
                                 showConfirmButton: false
                             }).then(() => {
-                                // Recarga exacta en el mismo módulo
                                 window.location.href = window.location.href;
                             });
                         } else {
@@ -169,7 +167,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     timer: 2000,
                     showConfirmButton: false
                 }).then(() => {
-                    // Recarga exacta en el mismo módulo
                     window.location.href = window.location.href;
                 });
             } else {
@@ -184,3 +181,87 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 });
+
+// ==========================================
+// MANEJO DE TABLAS (PAGINACIÓN CLIENT-SIDE)
+// ==========================================
+$(document).ready(function() {
+    
+    const registrosPorPagina = 10;
+    let paginaActualDeptos = 1;
+    let paginaActualPuestos = 1;
+
+    // Función principal de renderizado de paginación
+    function renderizarPaginacion(idTabla, paginaActual, callbackPagina) {
+        const $filas = $(`${idTabla} tbody tr.fila-registro`);
+        const totalRegistros = $filas.length;
+        const totalPaginas = Math.ceil(totalRegistros / registrosPorPagina);
+
+        // Ocultar todas las filas y mostrar solo el bloque correspondiente
+        $filas.hide();
+        const inicio = (paginaActual - 1) * registrosPorPagina;
+        const fin = inicio + registrosPorPagina;
+        $filas.slice(inicio, fin).show();
+
+        // Actualizar contador de texto
+        const textoInicio = totalRegistros === 0 ? 0 : inicio + 1;
+        const textoFin = Math.min(fin, totalRegistros);
+        $('#contador-registros').text(`Mostrando ${textoInicio} - ${textoFin} de ${totalRegistros} registros`);
+
+        // Renderizar botones HTML
+        const $paginacion = $('#paginacionTabla');
+        $paginacion.empty();
+
+        if (totalPaginas <= 1) return; // No generar botones si hay 1 página o menos
+
+        // Botón Anterior
+        const claseAnterior = paginaActual === 1 ? 'disabled' : '';
+        $paginacion.append(`<li class="page-item ${claseAnterior}"><a class="page-link text-dark" href="#" data-page="${paginaActual - 1}">Anterior</a></li>`);
+
+        // Botones de números
+        for (let i = 1; i <= totalPaginas; i++) {
+            const claseActiva = i === paginaActual ? 'active' : '';
+            // El color "guinda" requiere clases específicas, aquí se usa un estilo inline o clases de Bootstrap estándar
+            const estiloActivo = i === paginaActual ? 'background-color: #9D2449; border-color: #9D2449; color: white;' : 'color: #333;';
+            $paginacion.append(`<li class="page-item ${claseActiva}"><a class="page-link" href="#" style="${estiloActivo}" data-page="${i}">${i}</a></li>`);
+        }
+
+        // Botón Siguiente
+        const claseSiguiente = paginaActual === totalPaginas ? 'disabled' : '';
+        $paginacion.append(`<li class="page-item ${claseSiguiente}"><a class="page-link text-dark" href="#" data-page="${paginaActual + 1}">Siguiente</a></li>`);
+
+        // Asignar eventos de clic
+        $paginacion.find('a.page-link').off('click').on('click', function(e) {
+            e.preventDefault();
+            const $parent = $(this).parent();
+            if ($parent.hasClass('disabled') || $parent.hasClass('active')) return;
+            
+            const nuevaPagina = parseInt($(this).attr('data-page'));
+            callbackPagina(nuevaPagina);
+        });
+    }
+
+    // Funciones enlazadoras
+    function actualizarDeptos(pagina) {
+        paginaActualDeptos = pagina;
+        renderizarPaginacion('#tablaDeptos', paginaActualDeptos, actualizarDeptos);
+    }
+
+    function actualizarPuestos(pagina) {
+        paginaActualPuestos = pagina;
+        renderizarPaginacion('#tablaPuestos', paginaActualPuestos, actualizarPuestos);
+    }
+
+    // Inicialización primaria (pestaña activa por defecto)
+    actualizarDeptos(1);
+
+    // Control de navegación en pestañas para recargar la paginación pertinente
+    $('button[data-bs-toggle="pill"]').on('shown.bs.tab', function (e) {
+        const target = $(e.target).attr('data-bs-target');
+        if (target === '#deptos') {
+            actualizarDeptos(paginaActualDeptos);
+        } else if (target === '#puestos') {
+            actualizarPuestos(paginaActualPuestos);
+        }
+    });
+}); 
