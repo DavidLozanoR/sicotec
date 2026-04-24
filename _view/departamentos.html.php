@@ -136,7 +136,7 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
                     <div class="row g-3">
                         <div class="col-md-4">
                             <label class="form-label fw-bold small">Clave (Numérica)</label>
-                            <input type="text" class="form-control focus-guinda" name="clave_dep" id="dep_clave" placeholder="Ej. 101" maxlength="20">
+                            <input type="text" class="form-control focus-guinda" name="clave_dep" id="dep_clave" placeholder="Ej. 101" maxlength="20" required>
                         </div>
                         <div class="col-md-8">
                             <label class="form-label fw-bold small">Nombre del Depto. *</label>
