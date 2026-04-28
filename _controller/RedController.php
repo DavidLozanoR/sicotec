@@ -216,7 +216,7 @@ class RedController {
         
         if ($seg_creado && count($seg_creado) > 0) {
             $id_seg_real = $seg_creado[0]['id_seg'];
-            $model->registrarBitacora($id_sub, 'INSERT', "Creó segmento ID: {$id_seg_real} | Rango: {$ip_ini} a {$ip_lim}");
+            $model->registrarBitacora($id_sub, 'CREAR', "Creó segmento ID: {$id_seg_real} | Rango: {$ip_ini} a {$ip_lim}");
 
             if (!empty($ips_a_reservar)) {
                 $count_reservas = 0;
@@ -224,7 +224,7 @@ class RedController {
                     $res = $model->actualizaRegistro("infraestructura_red", ["est"], "id_seg = ? AND ip = ?", ['Reservado', $id_seg_real, $ip_res]);
                     if($res !== false) $count_reservas++;
                 }
-                $model->registrarBitacora($id_sub, 'UPDATE', "Se reservaron $count_reservas IPs al crear el segmento ID: $id_seg_real");
+                $model->registrarBitacora($id_sub, 'MODIFICAR', "Se reservaron $count_reservas IPs al crear el segmento ID: $id_seg_real");
                 return ["result" => 1, "msg" => "Segmento creado exitosamente con $count_reservas IPs reservadas."];
             }
             return ["result" => 1, "msg" => "Segmento creado exitosamente."];
@@ -232,7 +232,7 @@ class RedController {
         return ["result" => 0, "msg" => "Error al localizar el segmento recién creado."];
     }
 
-    // CAMBIO: Renombrado de parámetro $id_dep a $id_vlan
+    // : Renombrado de parámetro $id_dep a $id_vlan
     public function actualizarSegmento($id_sub, $id_seg, $id_vlan, $ip_ini, $ip_lim, $reservas) {
         $model = new MainModel();
         if (!$this->verificarPermiso($id_sub, 1)) return ["result" => 0, "msg" => "Permiso denegado."];
@@ -316,20 +316,37 @@ class RedController {
         $msg = "Segmento y reservas actualizadas correctamente.";
         if ($fallos > 0) $msg .= " (Aviso: $fallos IP(s) no se reservaron por estar ocupadas o fuera del nuevo rango).";
 
-        $model->registrarBitacora($id_sub, 'UPDATE', "Actualizó rango y reservas del segmento ID: {$id_seg}");
+        $model->registrarBitacora($id_sub, 'MODIFICAR', "Actualizó rango y reservas del segmento ID: {$id_seg}");
         return ["result" => 1, "msg" => $msg];
     }
 
     public function eliminarSegmento($id_sub, $id_seg) {
         $model = new MainModel();
+        
+        // 1. Validación: Evitar borrar si hay dispositivos conectados
         $uso = $model->seleccionaRegistros("infraestructura_red", ["id_disp"], "id_seg = ? AND id_disp IS NOT NULL", [$id_seg]);
-        if ($uso && count($uso) > 0) return ["result" => 0, "msg" => "No puede eliminar este segmento porque tiene " . count($uso) . " dispositivo(s) conectado(s)."];
-
-        $res = $model->actualizaRegistro("segmentos", ["estatus"], "id_seg = ?", [0, $id_seg]);
-        if ($res !== false) {
-            $model->registrarBitacora($id_sub, 'DELETE', "Realizó borrado lógico del segmento de red ID: {$id_seg}");
-            return ["result" => 1, "msg" => "Segmento desactivado correctamente."];
+        if ($uso && count($uso) > 0) {
+            return ["result" => 0, "msg" => "No puede eliminar este segmento porque tiene " . count($uso) . " dispositivo(s) conectado(s)."];
         }
+
+        // 2. Borrado lógico del segmento
+        $res = $model->actualizaRegistro("segmentos", ["estatus"], "id_seg = ?", [0, $id_seg]);
+        
+        if ($res !== false) {
+            // 3. Desvincular y liberar las IPs en la tabla infraestructura_red
+            // Esto permite que el SP "sp_generar_ips_segmento" pueda reciclar estas IPs en el futuro
+            $model->actualizaRegistro(
+                "infraestructura_red", 
+                ["id_seg", "est"], 
+                "id_seg = ?", 
+                [null, 'Inactivo', $id_seg]
+            );
+
+            $model->registrarBitacora($id_sub, 'BAJA', "Realizó borrado lógico del segmento de red ID: {$id_seg} y liberó sus IPs");
+            
+            return ["result" => 1, "msg" => "Segmento desactivado y direcciones IP liberadas correctamente."];
+        }
+        
         return ["result" => 0, "msg" => "Error al intentar desactivar el segmento."];
     }
 
@@ -363,7 +380,7 @@ class RedController {
         // 2. Inserción
         $res = $model->agregaRegistro("vlans", ["nom_vlan", "descripcion"], [$nom_vlan, $descripcion]);
         if ($res) {
-            $model->registrarBitacora($id_sub, 'INSERT', "Creó nueva VLAN de red: {$nom_vlan}");
+            $model->registrarBitacora($id_sub, 'CREAR', "Creó nueva VLAN de red: {$nom_vlan}");
             return ["result" => 1, "msg" => "VLAN registrada correctamente."];
         }
         return ["result" => 0, "msg" => "Ocurrió un error al registrar la VLAN en la base de datos."];
@@ -381,7 +398,7 @@ class RedController {
         $res = $model->actualizaRegistro("vlans", ["nom_vlan", "descripcion"], "id_vlan = ?", [$nom_vlan, $descripcion, $id_vlan]);
         
         if ($res !== false) { // usamos !== false porque si no cambian nada, updateRow devuelve 0 pero no error
-            $model->registrarBitacora($id_sub, 'UPDATE', "Actualizó información de la VLAN ID {$id_vlan}: {$nom_vlan}");
+            $model->registrarBitacora($id_sub, 'MODIFICAR', "Actualizó información de la VLAN ID {$id_vlan}: {$nom_vlan}");
             return ["result" => 1, "msg" => "VLAN actualizada correctamente."];
         }
         
@@ -392,7 +409,7 @@ class RedController {
         $model = new MainModel();
 
         // 1. RESTRICCIÓN DE INTEGRIDAD: Validar si la VLAN está asignada a algún segmento
-        $dependencias = $model->seleccionaRegistros("segmentos", ["id_seg", "ip_ini", "ip_lim"], "id_vlan = ?", [$id_vlan]);
+        $dependencias = $model->seleccionaRegistros("segmentos", ["id_seg", "ip_ini", "ip_lim"], "id_vlan = ? AND estatus=1", [$id_vlan]);
         
         if ($dependencias && count($dependencias) > 0) {
             $rango = $dependencias[0]['ip_ini'] . ' - ' . $dependencias[0]['ip_lim'];
@@ -409,7 +426,7 @@ class RedController {
         // 2. BORRADO FÍSICO
         $res = $model->borraRegistro("vlans", "id_vlan = ?", [$id_vlan]);
         if ($res) {
-            $model->registrarBitacora($id_sub, 'DELETE', "Eliminó la VLAN: {$nombre}");
+            $model->registrarBitacora($id_sub, 'BAJA', "Eliminó la VLAN: {$nombre}");
             return ["result" => 1, "msg" => "VLAN eliminada."];
         }
         return ["result" => 0, "msg" => "Fallo de servidor al intentar eliminar la VLAN."];

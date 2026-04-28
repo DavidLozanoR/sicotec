@@ -219,7 +219,7 @@ class ServiciosController {
             "id_serv = ?", 
             [0, $id_serv],
             $id_sub,
-            "Desactivó (borrado lógico) el servicio ID: {$id_serv}"
+            "Desactivó (borrado lógico) el servicio ID: {$id_serv}",1
         );
 
         if ($res !== false) {
@@ -257,7 +257,7 @@ class ServiciosController {
         );
 
         if ($id_ver_nueva) {
-            $model->registrarBitacora($id_sub, 'INSERT', "Agregó la versión '{$nueva_version}' al servicio ID: {$id_serv}");
+            $model->registrarBitacora($id_sub, 'CREAR', "Agregó la versión '{$nueva_version}' al servicio ID: {$id_serv}");
             $model->actualizaRegistro("servicios", ["u_act"], "id_serv = ?", [date('Y-m-d H:i:s'), $id_serv]);
             return ["result" => 1, "msg" => "Versión agregada al historial exitosamente."];
         }
@@ -277,7 +277,7 @@ class ServiciosController {
         if ($res !== false) {
             $model->actualizaRegistro("servicios", ["u_act"], "id_serv = ?", [date('Y-m-d H:i:s'), $id_serv]);
             $estadoStr = ($nuevo_estado == 1) ? 'Obsoleta' : 'Aceptada';
-            $model->registrarBitacora($id_sub, 'UPDATE', "Marcó versión ID: {$id_ver} como {$estadoStr}");
+            $model->registrarBitacora($id_sub, 'MODIFICAR', "Marcó versión ID: {$id_ver} como {$estadoStr}");
             return ["result" => 1, "msg" => "El estado de la versión se actualizó correctamente."];
         }
         return ["result" => 0, "msg" => "Error al actualizar la versión."];

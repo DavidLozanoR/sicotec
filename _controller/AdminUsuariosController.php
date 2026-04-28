@@ -171,7 +171,7 @@ class AdminUsuariosController {
         );
         
         if ($res) {
-            $model->registrarBitacora($id_sub, 'INSERT', "Creó al nuevo usuario '{$nom_usuar}'");
+            $model->registrarBitacora($id_sub, 'CREAR', "Creó al nuevo usuario '{$nom_usuar}'");
             return ["result" => 1, "msg" => "Usuario creado con éxito."];
         }
         return ["result" => 0, "msg" => "Error al guardar el usuario"];
@@ -215,7 +215,7 @@ class AdminUsuariosController {
         }
 
         if ($res) {
-            $model->registrarBitacora($id_sub, 'UPDATE', "Actualizó datos del usuario '{$nom_usuar}'");
+            $model->registrarBitacora($id_sub, 'MODIFICAR', "Actualizó datos del usuario '{$nom_usuar}'");
             if (isset($_SESSION['usuario']['id_usuar']) && $_SESSION['usuario']['id_usuar'] == $id_usuar) {
                 $_SESSION['usuario']['nom_usuar'] = $nom_usuar;
                 $_SESSION['usuario']['nombres'] = $nombres;
@@ -235,7 +235,7 @@ class AdminUsuariosController {
         $res = $model->actualizaRegistro("Usuarios", ["status"], "id_usuar=?", [0, $id_usuar]);
         
         if ($res) {
-            $model->registrarBitacora($id_sub, 'DELETE', "Dio de baja al usuario '{$nom_baja}'");
+            $model->registrarBitacora($id_sub, 'BAJA', "Dio de baja al usuario '{$nom_baja}'");
             return ["result" => 1, "msg" => "Usuario dado de baja exitosamente."];
         }
         return ["result" => 0, "msg" => "Error al dar de baja al usuario."];
@@ -265,7 +265,7 @@ class AdminUsuariosController {
         $res = $model->actualizaRegistro("Usuarios", $campos_actualizar, "id_usuar = ?", $valores_actualizar);
         
         if ($res) {
-            $model->registrarBitacora($id_sub, 'REACTIVATE', "Reactivó al usuario '{$nuevo_nickname}' y actualizó sus accesos");
+            $model->registrarBitacora($id_sub, 'REACTIVAR', "Reactivó al usuario '{$nuevo_nickname}' y actualizó sus accesos");
             return ["result" => 1, "msg" => "Usuario reactivado exitosamente."];
         }
         return ["result" => 0, "msg" => "Error al reactivar el usuario."];

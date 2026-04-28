@@ -173,7 +173,7 @@ class DispositivosFormController {
             }
         }
 
-        $puede_eliminar = $this->verificarPermiso($this->id_submod, 3);
+        $puede_eliminar = $this->verificarPermiso($this->id_submod, PERM_ELIMINAR);
 
         return [
             'redes_disponibles'   => $redes_disponibles ?: [],

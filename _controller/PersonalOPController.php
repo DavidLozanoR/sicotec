@@ -242,7 +242,7 @@ public function validarDatosPO($num_cobro, $nombres, $ape_pa, $ape_ma, $correo_p
         );
 
         if ($res) {
-            $bitacora = $model->registrarBitacora($id_sub, 'UPDATE', "Actualizó datos del empleado ID: {$id_po} (Cobro: {$num_cobro})");
+            $bitacora = $model->registrarBitacora($id_sub, 'MODIFICAR', "Actualizó datos del empleado ID: {$id_po} (Cobro: {$num_cobro})");
             $msg_extra = ($bitacora !== true) ? "\n\n" . $bitacora : "";
             
             return ["result" => 1, "msg" => "Personal actualizado con éxito." . $msg_extra];
@@ -271,7 +271,7 @@ public function validarDatosPO($num_cobro, $nombres, $ape_pa, $ape_ma, $correo_p
         );
         
         if ($res) {
-            $bitacora = $model->registrarBitacora($id_sub, 'DELETE', "Realizó baja lógica del empleado ID: {$id_po}");
+            $bitacora = $model->registrarBitacora($id_sub, 'BAJA', "Realizó baja lógica del empleado ID: {$id_po}");
             $msg_extra = ($bitacora !== true) ? "\n\n" . $bitacora : "";
             return ["result" => 1, "msg" => "Empleado dado de baja exitosamente." . $msg_extra];
         }
@@ -297,7 +297,7 @@ public function validarDatosPO($num_cobro, $nombres, $ape_pa, $ape_ma, $correo_p
 
         if ($res) {
             // Dejamos registro en la auditoría
-            $model->registrarBitacora($id_sub, 'UPDATE', "Se {$texto_bitacora} del equipo ID: {$id_disp} asociado al empleado ID: {$id_po}");
+            $model->registrarBitacora($id_sub, 'MODIFICAR', "Se {$texto_bitacora} del equipo ID: {$id_disp} asociado al empleado ID: {$id_po}");
             
             return ["result" => 1, "msg" => "El equipo ha sido desvinculado correctamente."];
         }

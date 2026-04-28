@@ -186,7 +186,7 @@ class AdminRolesController {
                 }
                 
                 // Si el permiso es Consultar (ID 4 en tu base de datos)
-                if ((int)$id_perm === 4) {
+                if ((int)$id_perm === PERM_CONSULTAR) {
                     $tiene_consultar = true;
                 }
             }
@@ -226,7 +226,7 @@ class AdminRolesController {
                 $this->guardarPermisosSubmodulo($id_rol_nuevo, $permisos, $model);
                 $this->sincronizarModulosPadre($id_rol_nuevo, $permisos, $model);
                 
-                $model->registrarBitacora($id_sub, 'INSERT', "Creó el nuevo rol '{$nom_rol}' con sus permisos");
+                $model->registrarBitacora($id_sub, 'CREAR', "Creó el nuevo rol '{$nom_rol}' con sus permisos");
                 return ["result" => 1, "msg" => "Rol creado correctamente."];
             }
         }
@@ -261,7 +261,7 @@ class AdminRolesController {
             $this->guardarPermisosSubmodulo($id_rol, $permisos, $model);
             $this->sincronizarModulosPadre($id_rol, $permisos, $model);
 
-            $model->registrarBitacora($id_sub, 'UPDATE', "Actualizó los datos y permisos del rol '{$nom_rol}'");
+            $model->registrarBitacora($id_sub, 'MODIFICAR', "Actualizó los datos y permisos del rol '{$nom_rol}'");
             return ["result" => 1, "msg" => "Rol actualizado correctamente."];
         }
         return ["result" => 0, "msg" => "Error al actualizar el rol."];
@@ -282,7 +282,7 @@ class AdminRolesController {
 
         $res = $model->actualizaRegistro("roles", ["status"], "id_rol = ?", [0, $id_rol]);
         if ($res !== false) {
-            $model->registrarBitacora($id_sub, 'DELETE', "Dio de baja el rol '{$nom_rol_baja}'");
+            $model->registrarBitacora($id_sub, 'BAJA', "Dio de baja el rol '{$nom_rol_baja}'");
             return ["result" => 1, "msg" => "Rol dado de baja correctamente."];
         }
         return ["result" => 0, "msg" => "Error al dar de baja el rol."];
@@ -292,7 +292,7 @@ class AdminRolesController {
         $model = new MainModel();
         $res = $model->actualizaRegistro("roles", ["status"], "id_rol = ?", [1, $id_rol]);
         if ($res !== false) {
-            $model->registrarBitacora($id_sub, 'REACTIVATE', "Reactivó el rol '{$nom_rol}'");
+            $model->registrarBitacora($id_sub, 'REACTIVAR', "Reactivó el rol '{$nom_rol}'");
             return ["result" => 1, "msg" => "Rol reactivado con éxito."];
         }
         return ["result" => 0, "msg" => "Error al reactivar el rol."];
