@@ -185,23 +185,65 @@ document.addEventListener('DOMContentLoaded', () => {
 // ==========================================
 // MANEJO DE TABLAS (PAGINACIÓN CLIENT-SIDE)
 // ==========================================
+// ==========================================
+// MANEJO DE TABLAS (BÚSQUEDA Y PAGINACIÓN)
+// ==========================================
 $(document).ready(function() {
     
     const registrosPorPagina = 10;
     let paginaActualDeptos = 1;
     let paginaActualPuestos = 1;
 
-    // Función principal de renderizado de paginación
+    // 1. BUSCADOR EN VIVO DEPARTAMENTOS
+    $('#buscadorDeptos').on('keyup', function() {
+        let valor = $(this).val().toLowerCase().trim();
+        $('#tablaDeptos tbody tr.fila-registro').each(function() {
+            let textoFila = $(this).text().toLowerCase();
+            if (textoFila.includes(valor)) {
+                $(this).removeClass('oculto-por-busqueda');
+            } else {
+                $(this).addClass('oculto-por-busqueda');
+            }
+        });
+        actualizarDeptos(1); // Resetear a la página 1 y recalcular
+    });
+
+    // 2. BUSCADOR EN VIVO PUESTOS
+    $('#buscadorPuestos').on('keyup', function() {
+        let valor = $(this).val().toLowerCase().trim();
+        $('#tablaPuestos tbody tr.fila-registro').each(function() {
+            let textoFila = $(this).text().toLowerCase();
+            if (textoFila.includes(valor)) {
+                $(this).removeClass('oculto-por-busqueda');
+            } else {
+                $(this).addClass('oculto-por-busqueda');
+            }
+        });
+        actualizarPuestos(1); // Resetear a la página 1 y recalcular
+    });
+
+    // 3. FUNCIÓN DE PAGINACIÓN ADAPTADA A BÚSQUEDA
     function renderizarPaginacion(idTabla, paginaActual, callbackPagina) {
-        const $filas = $(`${idTabla} tbody tr.fila-registro`);
-        const totalRegistros = $filas.length;
+        const $todasLasFilas = $(`${idTabla} tbody tr.fila-registro`);
+        // Seleccionamos solo las filas que NO fueron filtradas por la búsqueda
+        const $filasVisibles = $todasLasFilas.not('.oculto-por-busqueda');
+        
+        const totalRegistros = $filasVisibles.length;
         const totalPaginas = Math.ceil(totalRegistros / registrosPorPagina);
 
-        // Ocultar todas las filas y mostrar solo el bloque correspondiente
-        $filas.hide();
+        // Ocultar absolutamente todas las filas primero
+        $todasLasFilas.hide();
+        
+        // Calcular el bloque a mostrar y hacerlo visible
         const inicio = (paginaActual - 1) * registrosPorPagina;
         const fin = inicio + registrosPorPagina;
-        $filas.slice(inicio, fin).show();
+        $filasVisibles.slice(inicio, fin).show();
+
+        // Control del mensaje de "No hay resultados"
+        $(`${idTabla} tbody tr.fila-sin-resultados`).remove(); 
+        if (totalRegistros === 0 && $todasLasFilas.length > 0) {
+            $(`${idTabla} tbody`).append('<tr class="fila-sin-resultados"><td colspan="4" class="text-center py-4 text-muted"><i class="fas fa-search fa-2x mb-2 opacity-25"></i><br>No se encontraron resultados para la búsqueda.</td></tr>');
+        }
 
         // Actualizar contador de texto
         const textoInicio = totalRegistros === 0 ? 0 : inicio + 1;
@@ -212,7 +254,7 @@ $(document).ready(function() {
         const $paginacion = $('#paginacionTabla');
         $paginacion.empty();
 
-        if (totalPaginas <= 1) return; // No generar botones si hay 1 página o menos
+        if (totalPaginas <= 1) return;
 
         // Botón Anterior
         const claseAnterior = paginaActual === 1 ? 'disabled' : '';
@@ -221,7 +263,6 @@ $(document).ready(function() {
         // Botones de números
         for (let i = 1; i <= totalPaginas; i++) {
             const claseActiva = i === paginaActual ? 'active' : '';
-            // El color "guinda" requiere clases específicas, aquí se usa un estilo inline o clases de Bootstrap estándar
             const estiloActivo = i === paginaActual ? 'background-color: #9D2449; border-color: #9D2449; color: white;' : 'color: #333;';
             $paginacion.append(`<li class="page-item ${claseActiva}"><a class="page-link" href="#" style="${estiloActivo}" data-page="${i}">${i}</a></li>`);
         }
@@ -252,10 +293,9 @@ $(document).ready(function() {
         renderizarPaginacion('#tablaPuestos', paginaActualPuestos, actualizarPuestos);
     }
 
-    // Inicialización primaria (pestaña activa por defecto)
     actualizarDeptos(1);
 
-    // Control de navegación en pestañas para recargar la paginación pertinente
+    // Control de navegación en pestañas
     $('button[data-bs-toggle="pill"]').on('shown.bs.tab', function (e) {
         const target = $(e.target).attr('data-bs-target');
         if (target === '#deptos') {
@@ -264,4 +304,4 @@ $(document).ready(function() {
             actualizarPuestos(paginaActualPuestos);
         }
     });
-}); 
+});
