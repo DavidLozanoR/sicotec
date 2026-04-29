@@ -154,7 +154,7 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
                         </div>
                         <div class="col-md-8">
                             <label class="form-label fw-bold small">Nombre del Depto. *</label>
-                            <input type="text" class="form-control focus-guinda" name="nom_dep" id="dep_nom" placeholder="Ej. Recursos Humanos" required>
+                            <input type="text" class="form-control focus-guinda" name="nom_dep" id="dep_nom" placeholder="Ej. Recursos Humanos" minlength="5" maxlength="80" required>
                         </div>
                     </div>
                 </div>

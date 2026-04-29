@@ -17,6 +17,38 @@ document.addEventListener('DOMContentLoaded', () => {
             this.value = this.value.replace(/[^0-9]/g, '');
         });
     }
+    // Restricción reactiva: Nombre del Departamento
+    if (inputNom) {
+        // Mientras el usuario escribe (Reacciona en tiempo real)
+        inputNom.addEventListener('input', function() {
+            let valor = this.value;
+            
+            // 1. Convertir todo a mayúsculas automáticamente
+            valor = valor.toUpperCase();
+            
+            // 2. Permitir SOLO letras (incluyendo acentos y Ñ) y espacios en blanco. Elimina números o símbolos.
+            valor = valor.replace(/[^A-ZÁÉÍÓÚÑ\s]/g, '');
+            
+            // 3. Eliminar espacios al inicio (para que no pueda empezar con un espacio)
+            valor = valor.replace(/^\s+/, '');
+            
+            // 4. Prevenir múltiples espacios (Si teclea dos espacios seguidos, los convierte en uno solo)
+            valor = valor.replace(/\s{2,}/g, ' ');
+
+            // 5. Validar longitud Máxima
+            if(valor.length > 80){
+                valor= valor.substring(0,80);
+            }
+            // Actualizar el valor en el input
+            this.value = valor;
+        });
+
+        // Cuando el usuario sale del campo (pierde el foco)
+        inputNom.addEventListener('blur', function() {
+            // Elimina cualquier espacio que haya quedado colgando al final
+            this.value = this.value.trim();
+        });
+    }
 
     const limpiarEspacios = (str) => {
         if (!str) return '';
@@ -126,6 +158,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         inputClave.value = limpiarEspacios(inputClave.value);
         inputNom.value = limpiarEspacios(inputNom.value);
+            
+
 
         if (!formDepto.checkValidity()) {
             formDepto.classList.add('was-validated');

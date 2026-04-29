@@ -14,6 +14,7 @@ $(document).ready(function() {
     valor = valor.replace(/^\s+/g, ''); // Quita espacios al inicio
     valor = valor.replace(/[^a-zA-ZáéíóúÁÉÍÓÚñÑ\s]/g, ''); // Solo letras y espacios
     valor = valor.replace(/\s{2,}/g, ' '); // Evita espacios dobles
+    valor = valor.toUpperCase();
     
     // Actualizamos el valor limpio en el input
     $(this).val(valor);
@@ -41,6 +42,8 @@ $(document).ready(function() {
         valor = valor.replace(/^\s+/g, '');
         valor = valor.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s]/g, '');
         valor = valor.replace(/\s{2,}/g, ' ');
+        valor = valor.toUpperCase();
+
         $(this).val(valor);
     });
 

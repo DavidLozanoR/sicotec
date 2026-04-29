@@ -36,11 +36,14 @@ switch ($peticion) {
         $clave_dep = trim($_POST['clave_dep'] ?? '');
         $nom_dep   = trim($_POST['nom_dep'] ?? '');
 
-        if (empty($nom_dep)) {
-            echo json_encode(["result" => 0, "msg" => "El nombre del departamento es obligatorio."]); 
+        // Llamamos a la validación unificada del controlador
+        $validacion = $controller->validarAtributos($clave_dep, $nom_dep);
+        if ($validacion !== true) {
+            echo json_encode(["result" => 0, "msg" => $validacion]);
             exit;
         }
 
+        $clave_dep_final = !empty($clave_dep) ? $clave_dep : null;
         echo json_encode($controller->insertarDepartamento($id_sub, $clave_dep, $nom_dep));
         break;
 
@@ -53,11 +56,14 @@ switch ($peticion) {
         $clave_dep = trim($_POST['clave_dep'] ?? '');
         $nom_dep   = trim($_POST['nom_dep'] ?? '');
 
-        if (empty($id_dep) || empty($nom_dep)) {
-            echo json_encode(["result" => 0, "msg" => "Faltan datos obligatorios para la actualización."]); 
+        // Llamamos a la validación unificada del controlador
+        $validacion = $controller->validarAtributos($clave_dep, $nom_dep);
+        if ($validacion !== true) {
+            echo json_encode(["result" => 0, "msg" => $validacion]);
             exit;
         }
 
+        $clave_dep_final = !empty($clave_dep) ? $clave_dep : null;
         echo json_encode($controller->actualizarDepartamento($id_sub, $id_dep, $clave_dep, $nom_dep));
         break;
     /**
