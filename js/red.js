@@ -8,6 +8,102 @@ $(document).ready(function() {
     
     const $form = $('#formSegmento');
     const $tituloModal = $('#tituloModalSegmento');
+    // ====================================================================
+    // VALIDACIÓN REACTIVA PARA DIRECCIONES IP (Rango de Segmentos)
+    // ====================================================================
+    const ipInputs = document.querySelectorAll('#seg_ini, #seg_lim');
+    // Expresión Regular estricta para formato IPv4 (Ej. 0-255.0-255.0-255.0-255)
+    const ipv4Regex = /^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+
+    ipInputs.forEach(input => {
+        
+        // 1. Mientras escribe (input): Filtro en tiempo real y auto-formato
+        input.addEventListener('input', function(e) {
+            // Eliminar cualquier cosa que no sea número o punto
+            let val = this.value.replace(/[^0-9\.]/g, ''); 
+            
+            // Separar la IP por los puntos
+            let octetos = val.split('.');
+            
+            // Bloquear que existan más de 4 bloques
+            if (octetos.length > 4) {
+                octetos = octetos.slice(0, 4);
+            }
+
+            // Reglas de Negocio para cada bloque
+            octetos = octetos.map(octeto => {
+                // REGLA 1: Nunca permitir más de 3 dígitos (evita el desborde de ceros: 0000)
+                if (octeto.length > 3) {
+                    octeto = octeto.substring(0, 3);
+                }
+                
+                // REGLA 2: Ningún bloque puede ser matemáticamente mayor a 255
+                if (parseInt(octeto) > 255) {
+                    // Si intenta escribir 256 o 300, lo recorta (se queda en 25 o 30)
+                    return octeto.substring(0, 2); 
+                }
+                
+                return octeto;
+            });
+
+            // Auto-Completado: Poner el punto si llegó a 3 dígitos 
+            // Evitamos poner el punto si el usuario está borrando o si ya está en el 4to bloque
+            if (e.inputType !== 'deleteContentBackward' && octetos.length < 4) {
+                let ultimoOcteto = octetos[octetos.length - 1];
+                if (ultimoOcteto.length === 3) {
+                    octetos.push(''); // Forzamos un bloque vacío para imprimir el punto
+                }
+            }
+
+            // Unir el arreglo de nuevo a texto con puntos
+            this.value = octetos.join('.');
+        });
+
+        // 2. Al perder el foco (blur): Valida el formato lógico de extremo a extremo
+        input.addEventListener('blur', function() {
+            if (this.value === '') {
+                this.setCustomValidity('La dirección IP es obligatoria.');
+            } else if (!ipv4Regex.test(this.value)) {
+                this.setCustomValidity('Formato de IP inválido. Ejemplo: 192.168.1.1');
+                
+                if(this.parentElement.querySelector('.invalid-feedback')) {
+                    this.parentElement.querySelector('.invalid-feedback').innerText = 'Debe ser una IP completa (ej. 192.168.1.100)';
+                }
+            } else {
+                this.setCustomValidity(''); // Todo perfecto
+            }
+        });
+    });
+    // ====================================================================
+    // VALIDACIÓN REACTIVA PARA LA DESCRIPCIÓN
+    // ====================================================================
+    const $vlanDesc = $('textarea[name="descripcion"], input[name="descripcion"]');
+    const MAX_LONGITUD_DESC = 150; //longitud maxima
+
+    $vlanDesc.on('input', function() {
+        let valor = $(this).val();
+
+        // 1. TOPE MÁXIMO: Cortar el texto si supera el límite permitido
+        if (valor.length > MAX_LONGITUD_DESC) {
+            valor = valor.substring(0, MAX_LONGITUD_DESC);
+            $(this).val(valor); // Actualiza el input truncando el excedente
+        }
+
+        // 2. VALIDACIÓN LÓGICA DE BOOTSTRAP (Opcional)
+        // Si tu descripción NO es obligatoria, simplemente asegúrate de limpiar errores:
+        this.setCustomValidity(''); 
+        
+        // Pero si tu descripción SÍ es obligatoria, descomenta estas líneas:
+        /*
+        if (valor.trim().length === 0) {
+            this.setCustomValidity('Vacío');
+        } else if (valor.trim().length < 10) {
+            this.setCustomValidity('Muy corto'); // Exige al menos 10 caracteres
+        } else {
+            this.setCustomValidity(''); 
+        }
+        */
+    });
 
     // ==========================================
     // FUNCIÓN GENÉRICA: BUSCADOR FUZZY PARA SELECTS
@@ -441,18 +537,23 @@ $(document).ready(function() {
     // ====================================================================
     const $vlanNombre = $('#vlan_nombre');
     const $vlanFeedback = $('#vlan_nombre_feedback');
+    const MAX_LONGITUD_VLAN = 50;
 
     $vlanNombre.on('input', function() {
-        // 1. Eliminar espacios en blanco en tiempo real
-        let valorLimpio = $(this).val().replace(/\s/g, '');
+        // 1. Permitir letras (mayúsculas/minúsculas), números y guiones bajos (_). Eliminar espacios u otros símbolos.
+        let valorLimpio = $(this).val().replace(/[^a-zA-ZÁÉÍÓÚÑáéíóúñ]/g, '');
         
-        // (Opcional pero recomendado) Convertir a mayúsculas automáticamente
+        //  Convertir a mayúsculas automáticamente
         valorLimpio = valorLimpio.toUpperCase();
+        if (valorLimpio.length > MAX_LONGITUD_VLAN) {
+            valorLimpio = valorLimpio.substring(0, MAX_LONGITUD_VLAN);
+        }
 
         // Reasignamos el valor limpio al input
         if ($(this).val() !== valorLimpio) {
             $(this).val(valorLimpio);
         }
+        
 
         // 2. Validación de longitud
         if (valorLimpio.length === 0) {
