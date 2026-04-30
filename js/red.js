@@ -90,10 +90,10 @@ $(document).ready(function() {
         }
 
         // 2. VALIDACIÓN LÓGICA DE BOOTSTRAP (Opcional)
-        // Si tu descripción NO es obligatoria, simplemente asegúrate de limpiar errores:
+        // Si la descripción NO es obligatoria, simplemente asegúrate de limpiar errores:
         this.setCustomValidity(''); 
         
-        // Pero si tu descripción SÍ es obligatoria, descomenta estas líneas:
+        // Pero si la descripción SÍ es obligatoria, descomenta estas líneas:
         /*
         if (valor.trim().length === 0) {
             this.setCustomValidity('Vacío');

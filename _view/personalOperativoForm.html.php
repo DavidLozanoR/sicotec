@@ -96,17 +96,17 @@ if ($personal) {
                                 <div class="row g-4">
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold small text-dark mb-1">Nombres *</label>
-                                        <input type="text" class="form-control focus-guinda border-secondary-subtle" name="nombres" value="<?php echo $personal['nombres'] ?? ''; ?>" required>
+                                        <input type="text" class="form-control focus-guinda border-secondary-subtle" name="nombres" value="<?php echo $personal['nombres'] ?? ''; ?>" maxlength="70" required>
                                         <div class="invalid-feedback">Por favor, ingrese el nombre(s) minimo 3 carácteres.</div>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold small text-dark mb-1">Apellido Paterno *</label>
-                                        <input type="text" class="form-control focus-guinda border-secondary-subtle" name="ape_pa" value="<?php echo $personal['ape_pa'] ?? ''; ?>" required>
+                                        <input type="text" class="form-control focus-guinda border-secondary-subtle" name="ape_pa" value="<?php echo $personal['ape_pa'] ?? ''; ?>" maxlength="70" required>
                                         <div class="invalid-feedback">El apellido paterno es obligatorio, minimo 3 carácteres.</div>
                                     </div>
                                     <div class="col-md-4">
                                         <label class="form-label fw-bold small text-dark mb-1">Apellido Materno</label>
-                                        <input type="text" class="form-control focus-guinda border-secondary-subtle" name="ape_ma" value="<?php echo $personal['ape_ma'] ?? ''; ?>" >
+                                        <input type="text" class="form-control focus-guinda border-secondary-subtle" name="ape_ma" value="<?php echo $personal['ape_ma'] ?? ''; ?>" maxlength="70" >
                                         <div class="invalid-feedback">El apellido materno es obligatorio, minimo 3 carácteres.</div>
                                     </div>
                                     

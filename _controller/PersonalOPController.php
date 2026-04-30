@@ -193,7 +193,7 @@ public function validarDatosPO($num_cobro, $nombres, $ape_pa, $ape_ma, $correo_p
         if ($estatus == 0) {return ["result" => 0, "msg" => "No se puede registrar a un usuario como baja."];}  
 
         //registra un limite a los nombres
-        if (strlen($nombres) < 3 || strlen($ape_ma) < 3 || strlen($ape_pa) < 3 ) {return ["result" => 0, "msg" => "El nombre o apellidos deben de tener al menos 3 letras."];  }
+        if (strlen($nombres) < 3 ||  !empty($ape_ma).strlen($ape_ma) < 3 || strlen($ape_pa) < 3 ) {return ["result" => 0, "msg" => "El nombre o apellidos deben de tener al menos 3 letras."];  }
 
         $id_u_int = $_SESSION['usuario']['id_usuar'];
         $fec_u_int = date('Y-m-d H:i:s');
@@ -228,7 +228,7 @@ public function validarDatosPO($num_cobro, $nombres, $ape_pa, $ape_ma, $correo_p
         }
 
         //registra un limite a los nombres
-        if (strlen($nombres) < 3 || strlen($ape_ma) < 3 || strlen($ape_pa) < 3 ) return ["result" => 0, "msg" => "El nombre o apellidos deben de tener al menos 3 letras."];  
+        if (strlen($nombres) < 3 || empty($ape_ma).strlen($ape_ma) < 3 || strlen($ape_pa) < 3 ) return ["result" => 0, "msg" => "El nombre o apellidos deben de tener al menos 3 letras."];  
 
         $id_u_int = $_SESSION['usuario']['id_usuar'];
         $fec_u_int = date('Y-m-d H:i:s');
