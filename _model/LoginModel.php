@@ -195,4 +195,33 @@ class LoginModel {
         session_destroy();
         return true;
     }
+
+
+    /**
+     * Registra una acción del usuario en la bitacora del sistema.
+     */
+    public function registrarBitacora($id_sub, $accion, $detalle) {
+        $bd = new MariaDBAux(DB_HOST, DB_PORT, DB_BASE, DB_USR, DB_PASS);
+        $id_usuar = $_SESSION['usuario']['id_usuar'] ?? null;
+
+        // CORRECCIÓN AQUÍ: Usamos !isset en lugar de empty para permitir el número 0
+        if (!$id_usuar || !isset($id_sub)) {
+            return "ATENCIÓN: Error de sesión. La acción no pudo ser registrada en Bitácora.";
+        }
+
+        date_default_timezone_set('America/Mexico_City');
+        $fecha = date('Y-m-d');
+        $hora = date('H:i:s');
+        
+        try {
+            $exito = $bd->insertRow(
+                "Bitacora", 
+                ["id_usuar", "id_sub", "accion", "detalle", "fecha", "hora"], 
+                [$id_usuar, $id_sub, $accion, $detalle, $fecha, $hora]
+            );
+            return $exito ?: "ATENCIÓN: Fallo al registrar entrada en Bitácora.";
+        } catch (Exception $e) {
+            return "ATENCIÓN: Excepción de base de datos durante el registro de auditoría."; 
+        }
+    }
 }

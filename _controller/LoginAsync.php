@@ -14,6 +14,7 @@ $model = new LoginModel();
 
 // 1. Intercept Logout Request
 if (isset($_POST["action"]) && $_POST["action"] === "logout") {
+    $model->registrarBitacora(1, 'SALIR', 'El usuario cerró sesión en el sistema.');
     if ($model->logout()) {
         echo json_encode(["result" => 1, "msg" => "Sesion finalizada"]);
     } else {
@@ -32,6 +33,7 @@ $pass = isset($_POST["pass"]) ? $_POST["pass"] : "";
 
     if ($respuestaLogin["status"]){
         echo json_encode(["result" => 1, "msg" => $respuestaLogin["msg"]]);
+        $model->registrarBitacora(1, 'ENTRAR', 'El usuario inició sesión en el sistema.');
     } else {
         echo json_encode(["result" => 0, "msg" => $respuestaLogin["msg"]]);
     }
