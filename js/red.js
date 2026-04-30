@@ -541,10 +541,10 @@ $(document).ready(function() {
 
     $vlanNombre.on('input', function() {
         // 1. Permitir letras (mayúsculas/minúsculas), números y guiones bajos (_). Eliminar espacios u otros símbolos.
-        let valorLimpio = $(this).val().replace(/[^a-zA-ZÁÉÍÓÚÑáéíóúñ]/g, '');
+        let valorLimpio = $(this).val().replace(/[^a-zA-ZÁÉÍÓÚÑáéíóúñ]_/g, '');
         
         //  Convertir a mayúsculas automáticamente
-        valorLimpio = valorLimpio.toUpperCase();
+        valorLimpio = valorLimpio;
         if (valorLimpio.length > MAX_LONGITUD_VLAN) {
             valorLimpio = valorLimpio.substring(0, MAX_LONGITUD_VLAN);
         }
