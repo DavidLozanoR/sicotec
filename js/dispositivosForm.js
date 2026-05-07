@@ -502,6 +502,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     aplicarFuzzySearch('select[name="resp_po_id"]');
     aplicarFuzzySearch('select[name="asig_po_id"]');
+    aplicarFuzzySearch('select[name="id_dep"]');
+
 
     // ==========================================
     // 3. LÓGICA DE CONSULTA DE CATÁLOGO (MODAL)

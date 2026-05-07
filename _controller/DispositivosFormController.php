@@ -136,6 +136,9 @@ class DispositivosFormController {
         $condicionRed .= " AND LOWER(r.est) != 'inactivo' AND LOWER(r.est) != 'reservado' ORDER BY v.nom_vlan ASC, INET_ATON(r.ip) ASC";
         $redes_disponibles = $model->seleccionaRegistrosJoin($tablaRed, $joinsRed, $camposRed, $condicionRed, $paramsRed);
         
+        $departamentos =  $model->seleccionaRegistros("departamentos", ["id_dep","clave_dep","nom_dep"]);
+
+
         $campos_po = ["id_po", "id_dep", "TRIM(CONCAT(nombres, ' ', ape_pa, ' ', COALESCE(ape_ma, ''))) AS nombre_completo"];
         $personal_operativo = $model->seleccionaRegistros("personal_operativo", $campos_po, "1=1 ORDER BY nombres ASC");
 
@@ -179,6 +182,7 @@ class DispositivosFormController {
             'redes_disponibles'   => $redes_disponibles ?: [],
             'personal_operativo'  => $personal_operativo ?: [],
             'servicios'           => $servicios ?: [],
+            'departamentos'       => $departamentos ?: [],
             'versiones'           => $versiones ?: [],
             'servicios_asignados' => $servicios_asignados ?: [],
             'dispositivo'         => $dispositivo,

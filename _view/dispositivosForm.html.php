@@ -107,6 +107,28 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                                         <label class="form-label fw-bold small text-dark mb-1">Número de Inventario</label>
                                         <input type="text" class="form-control focus-guinda border-secondary-subtle font-monospace" name="num_inv" value="<?php echo htmlspecialchars($dispositivo['num_inv'] ?? ''); ?>" maxlength="26" placeholder="INEA-I-000000000-000000-00" pattern="^INEA-I-\d{9}-\d{6}-\d{2}$">
                                     </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label fw-bold small text-dark mb-1">Departamento</label>
+                                        <select class="form-select focus-guinda border-secondary-subtle" name="id_dep">
+                                            <option value="">-- Sin asignar --</option>
+                                            
+                                            <?php if (!empty($departamentos) && is_array($departamentos)): ?>
+                                                <?php foreach($departamentos as $dep): ?>
+                                                    
+                                                    <option value="<?php echo $dep['id_dep']; ?>" 
+                                                        <?php echo ((isset($dispositivo['id_dep']) ? $dispositivo['id_dep'] : null) == $dep['id_dep']) ? 'selected' : ''; ?>>
+                                                        
+                                                        <?php 
+                                                            echo htmlspecialchars($dep['nom_dep']); 
+                                                        ?>
+                                                        
+                                                    </option>
+
+                                                <?php endforeach; ?>
+                                            <?php endif; ?>
+                                            
+                                        </select>
+                                    </div>
                                     <div class="col-12">
                                         <label class="form-label fw-bold small text-dark mb-1">Especificaciones de Hardware</label>
                                         <textarea class="form-control focus-guinda border-secondary-subtle" name="especs_hw" rows="4"><?php echo htmlspecialchars($dispositivo['especs_hw'] ?? ''); ?></textarea>
@@ -341,6 +363,12 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
             <div class="modal-footer bg-light border-top-0">
                 <button type="button" class="btn btn-secondary px-4 fw-bold shadow-sm" data-bs-dismiss="modal">Cerrar Catálogo</button>
             </div>
+            
         </div>
     </div>
 </div>
+
+<script>
+    const usuario = <?= json_encode($departamentos); ?>;
+    console.log(usuario);
+</script>

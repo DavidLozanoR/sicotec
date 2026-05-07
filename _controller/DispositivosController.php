@@ -193,7 +193,9 @@ class DispositivosController {
         $num_inv = !empty(trim($datos['num_inv'] ?? '')) ? trim($datos['num_inv']) : null;
         $dom = !empty(trim($datos['dom'] ?? '')) ? trim($datos['dom']) : null;
         $especs_hw = !empty(trim($datos['especs_hw'] ?? '')) ? trim($datos['especs_hw']) : null;
-        
+        $id_dep= !empty(trim($datos['id_dep'] ?? '')) ? trim($datos['id_dep']) : null;
+
+
         $resp_po_id = !empty($datos['resp_po_id']) ? $datos['resp_po_id'] : null;
         $asig_po_id = !empty($datos['asig_po_id']) ? $datos['asig_po_id'] : null;
         $id_u_int = $_SESSION['usuario']['id_usuar'] ?? null;
@@ -212,8 +214,8 @@ class DispositivosController {
             if ($intf['tipo_conexion'] === 'WiFi') $mac_wifi = trim($intf['mac']);
         }
 
-        $camposDispositivo = ["nom_host", "marca", "modelo", "num_ser", "num_inv", "mac_ethernet", "mac_wifi", "dom", "especs_hw", "resp_po_id", "asig_po_id", "id_u_int", "fec_u_int"];
-        $paramsDispositivo = [$nom_host, $marca, $modelo, $num_ser, $num_inv, $mac_ethernet, $mac_wifi, $dom, $especs_hw, $resp_po_id, $asig_po_id, $id_u_int, $fec_u_int];
+        $camposDispositivo = ["nom_host", "marca", "modelo", "num_ser", "num_inv", "mac_ethernet", "mac_wifi", "dom", "especs_hw", "resp_po_id","id_dep", "asig_po_id", "id_u_int", "fec_u_int"];
+        $paramsDispositivo = [$nom_host, $marca, $modelo, $num_ser, $num_inv, $mac_ethernet, $mac_wifi, $dom, $especs_hw, $resp_po_id,$id_dep,$asig_po_id, $id_u_int, $fec_u_int];
 
         $detalle = "Registro de nuevo dispositivo. Host: " . ($nom_host ?: 'N/A');
         $id_disp = $model->agregaRegistroConBitacora("dispositivos", $camposDispositivo, $paramsDispositivo, $id_sub, $detalle);
@@ -234,7 +236,9 @@ class DispositivosController {
         $num_inv = !empty(trim($datos['num_inv'] ?? '')) ? trim($datos['num_inv']) : null;
         $dom = !empty(trim($datos['dom'] ?? '')) ? trim($datos['dom']) : null;
         $especs_hw = !empty(trim($datos['especs_hw'] ?? '')) ? trim($datos['especs_hw']) : null;
-        
+        $id_dep= !empty(trim($datos['id_dep'] ?? '')) ? trim($datos['id_dep']) : null;
+
+
         $resp_po_id = !empty($datos['resp_po_id']) ? $datos['resp_po_id'] : null;
         $asig_po_id = !empty($datos['asig_po_id']) ? $datos['asig_po_id'] : null;
 
@@ -263,8 +267,8 @@ class DispositivosController {
         }
 
         // 2. Si todo está en orden, procedemos con la actualización principal
-        $camposDispositivo = ["nom_host", "marca", "modelo", "num_ser", "num_inv", "mac_ethernet", "mac_wifi", "dom", "especs_hw", "resp_po_id", "asig_po_id", "id_u_int", "fec_u_int"];
-        $paramsUpdate = [$nom_host, $marca, $modelo, $num_ser, $num_inv, $mac_ethernet, $mac_wifi, $dom, $especs_hw, $resp_po_id, $asig_po_id, $id_u_int, $fec_u_int, $id_disp];
+        $camposDispositivo = ["nom_host", "marca", "modelo", "num_ser", "num_inv", "mac_ethernet", "mac_wifi", "dom", "especs_hw", "resp_po_id","id_dep", "asig_po_id", "id_u_int", "fec_u_int"];
+        $paramsUpdate = [$nom_host, $marca, $modelo, $num_ser, $num_inv, $mac_ethernet, $mac_wifi, $dom, $especs_hw, $resp_po_id,$id_dep, $asig_po_id, $id_u_int, $fec_u_int, $id_disp];
 
         $detalle = "Actualización de dispositivo. Host: " . ($nom_host ?: 'N/A');
         $model->actualizaRegistroConBitacora("dispositivos", $camposDispositivo, "id_disp = ?", $paramsUpdate, $id_sub, $detalle);
