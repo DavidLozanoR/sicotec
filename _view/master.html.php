@@ -20,6 +20,8 @@ if (empty($nombre_completo)) {
 $rol_usuario = $datos_usuario['nom_rol'] ?? 'Invitado';
 $menu_dinamico = $_SESSION['menu'] ?? [];
 $controlador = $controlador ?? '';
+$creadores = $_SERVER['REQUEST_URI'];
+
 ?>
 <!DOCTYPE html>
 <html lang="es-MX">
@@ -146,17 +148,29 @@ $controlador = $controlador ?? '';
                         </a>
                     <?php endif; ?>
                 <?php endforeach; ?>
-
+              
+                       <a href="creadores/" class="nav-link rounded-2 px-3 py-2 mt-2 <?php echo ($controlador === 'creadores') ? 'active bg-light fw-bold text-guinda' : 'text-dark'; ?>">
+                            <i class="fas fa-users-cog me-2 text-muted"></i> Creadores
+                        </a>
             </div>
         </div>
     </div>
 
     <main id="main-content" class="flex-grow-1 py-4">
         <div class="container-fluid px-4">
-            <?php 
+            <?php
+                // 2. INCLUDE DIRECTO: Si la URL dice 'creadores', incluimos la vista sin controlador
+                if (isset($creadores) && strpos($creadores, '/creadores') !== false) {
+                        include "_view/creadores.html.php";            
+                } 
+                
+                // 1. Si existe un controlador enrutado, lo ejecuta
                 if (isset($ctrl) && is_object($ctrl) && method_exists($ctrl, 'renderContent')) {
                     $ctrl->renderContent(); 
-                } else {
+                } 
+                
+                // 3. Fallback: Si NO hay controlador Y TAMPOCO es la ruta creadores
+                else if (!isset($ctrl) && (empty($creadores) || strpos($creadores, '/creadores') === false)) {
                     $nombre_modulo = ucfirst($controlador ?? 'desconocido'); 
                     if(file_exists("_view/enConstruccion.html.php")) {
                         include "_view/enConstruccion.html.php";
