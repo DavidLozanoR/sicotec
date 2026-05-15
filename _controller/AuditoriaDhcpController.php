@@ -1,14 +1,14 @@
 <?php
 /**
  * Controlador para la Auditoría y Conciliación del Servidor DHCP vs SICOSOTE.
- * Implementa OpenSpout para la lectura nativa de CSV, Excel y XML.
+ * Implementa OpenSpout para Excel, extracción nativa blindada para CSV 
+ * y un algoritmo recursivo inteligente para XML genéricos.
  */
 
 require_once __DIR__ . "/../vendor/autoload.php"; 
-require_once "MainModel.php";
+require_once "MainModel.php"; 
 
 use OpenSpout\Reader\XLSX\Reader as XLSXReader;
-use OpenSpout\Reader\CSV\Reader as CSVReader;
 
 class AuditoriaDhcpController {
 
@@ -53,168 +53,172 @@ class AuditoriaDhcpController {
     // ==========================================
 
     public function procesarArchivoConciliacion($ruta_temporal, $nombre_archivo_original, $id_sub) {
-        
-        $extension = strtolower(pathinfo($nombre_archivo_original, PATHINFO_EXTENSION));
-        $filas_crudas = $this->extraerDatosNativos($ruta_temporal, $extension);
-        
-        if (isset($filas_crudas['status'])) {
-            return $filas_crudas; // Retorna si hubo error de lectura
-        }
-
-        $dhcp_records = [];
-        $headerEncontrado = false;
-        $cHost = -1; $cIp = -1; $cMac = -1; $cUser = -1;
-
-        // Búsqueda inteligente de cabeceras en toda la matriz
-        foreach ($filas_crudas as $row) {
+        try {
+            $extension = strtolower(pathinfo($nombre_archivo_original, PATHINFO_EXTENSION));
             
-            // Si la fila no es un array indexado (XML genérico), sacamos sus valores
-            if (!isset($row[0])) { $row = array_values($row); }
+            // 1. Extraer datos crudos (Ahora soporta XLSX, CSV y XML de forma robusta)
+            $filas_crudas = $this->extraerDatosNativos($ruta_temporal, $extension);
+            
+            if (isset($filas_crudas['status'])) {
+                return $filas_crudas; 
+            }
 
-            if (!$headerEncontrado) {
-                foreach ($row as $index => $columna) {
-                    $val = strtoupper(trim((string)$columna));
-                    if (strpos($val, 'HOSTNAME') !== false) $cHost = $index;
-                    if ($val === 'IP' || strpos($val, 'DIRECCIÓN IP') !== false || strpos($val, 'DIRECCION IP') !== false) $cIp = $index;
-                    if (strpos($val, 'MAC') !== false) $cMac = $index;
-                    if (strpos($val, 'USUARIO') !== false) $cUser = $index;
+            $dhcp_records = [];
+            $headerEncontrado = false;
+            $cHost = -1; $cIp = -1; $cMac = -1; $cUser = -1;
+
+            foreach ($filas_crudas as $row) {
+                // Forzar que la fila sea indexada (0, 1, 2...)
+                if (!isset($row[0])) { $row = array_values($row); }
+
+                // Identificación dinámica de columnas
+                if (!$headerEncontrado) {
+                    foreach ($row as $index => $columna) {
+                        $val = strtoupper(trim((string)$columna));
+                        if (strpos($val, 'HOSTNAME') !== false) $cHost = $index;
+                        if ($val === 'IP' || strpos($val, 'DIRECCIÓN IP') !== false || strpos($val, 'DIRECCION IP') !== false) $cIp = $index;
+                        if (strpos($val, 'MAC') !== false) $cMac = $index;
+                        if (strpos($val, 'USUARIO') !== false) $cUser = $index;
+                    }
+                    if ($cIp !== -1 && $cMac !== -1) { $headerEncontrado = true; }
+                    continue;
                 }
-                if ($cIp !== -1 && $cMac !== -1) { $headerEncontrado = true; }
-                continue;
-            }
 
-            // Extracción de datos de la fila
-            $ip = isset($row[$cIp]) ? trim((string)$row[$cIp]) : '';
-            $mac = isset($row[$cMac]) ? trim((string)$row[$cMac]) : '';
+                $ip = isset($row[$cIp]) ? trim((string)$row[$cIp]) : '';
+                $mac = isset($row[$cMac]) ? trim((string)$row[$cMac]) : '';
 
-            if (empty($ip) || empty($mac)) continue;
+                if (empty($ip) || empty($mac)) continue;
 
-            $hostname = ($cHost !== -1 && isset($row[$cHost])) ? trim((string)$row[$cHost]) : '';
-            $usuario  = ($cUser !== -1 && isset($row[$cUser])) ? trim((string)$row[$cUser]) : '';
+                $hostname = ($cHost !== -1 && isset($row[$cHost])) ? trim((string)$row[$cHost]) : '';
+                $usuario  = ($cUser !== -1 && isset($row[$cUser])) ? trim((string)$row[$cUser]) : '';
 
-            $mac_norm = strtoupper(str_replace('-', ':', $mac)); 
-            $host_norm = strtolower(str_ireplace('.ineadom.gob.mx', '', $hostname));
+                $mac_norm = strtoupper(str_replace('-', ':', $mac)); 
+                $host_norm = strtolower(str_ireplace('.ineadom.gob.mx', '', $hostname));
 
-            $dhcp_records[$ip] = [
-                'hostname'     => $host_norm,
-                'hostname_raw' => $hostname,
-                'ip'           => $ip,
-                'mac'          => $mac_norm,
-                'usuario'      => $usuario
-            ];
-        }
-
-        if (empty($dhcp_records)) {
-            return ["status" => "error", "msg" => "El archivo no contenía registros válidos o no se detectaron las columnas IP y MAC."];
-        }
-
-        // ==========================================
-        // 2. Extraer datos de la Base de Datos (SICOSOTE)
-        // ==========================================
-        $model = new MainModel();
-        $joins = ["JOIN dispositivos d ON r.id_disp = d.id_disp"];
-        $campos = ["r.ip", "d.id_disp", "d.nom_host", "d.mac_ethernet", "d.mac_wifi", "d.num_inv"];
-        
-        $db_records_raw = $model->seleccionaRegistrosJoin("infraestructura_red r", $joins, $campos, "r.id_disp IS NOT NULL AND LOWER(r.est) != 'inactivo'");
-
-        $db_records = [];
-        $mac_to_ip_db = []; 
-
-        if ($db_records_raw) {
-            foreach ($db_records_raw as $row) {
-                $ip = trim($row['ip']);
-                $mac_eth = !empty($row['mac_ethernet']) ? strtoupper(str_replace('-', ':', trim($row['mac_ethernet']))) : null;
-                $mac_wifi = !empty($row['mac_wifi']) ? strtoupper(str_replace('-', ':', trim($row['mac_wifi']))) : null;
-
-                $db_records[$ip] = [
-                    'id_disp'      => $row['id_disp'],
-                    'hostname'     => strtolower(trim($row['nom_host'])),
-                    'nom_host_raw' => $row['nom_host'],
-                    'mac_eth'      => $mac_eth,
-                    'mac_wifi'     => $mac_wifi,
-                    'num_inv'      => $row['num_inv']
+                $dhcp_records[$ip] = [
+                    'hostname'     => $host_norm,
+                    'hostname_raw' => $hostname,
+                    'ip'           => $ip,
+                    'mac'          => $mac_norm,
+                    'usuario'      => $usuario
                 ];
-
-                if ($mac_eth) $mac_to_ip_db[$mac_eth] = $ip;
-                if ($mac_wifi) $mac_to_ip_db[$mac_wifi] = $ip;
             }
-        }
 
-        $fantasmas = [];  
-        $conflictos = []; 
-        $huerfanas = [];  
+            if (empty($dhcp_records)) {
+                return ["status" => "error", "msg" => "El archivo no contenía registros válidos o no se detectaron las columnas IP y MAC."];
+            }
 
-        // 3. Lógica de Conciliación
-        foreach ($dhcp_records as $ip => $dhcp) {
-            if (!isset($db_records[$ip])) {
-                if (isset($mac_to_ip_db[$dhcp['mac']])) {
-                    $ip_correcta_db = $mac_to_ip_db[$dhcp['mac']];
-                    $fantasmas[] = [
-                        'tipo'          => 'IP Desactualizada',
-                        'ip_dhcp'       => $ip,
-                        'mac'           => $dhcp['mac'],
-                        'hostname_dhcp' => $dhcp['hostname_raw'],
-                        'usuario_dhcp'  => $dhcp['usuario'],
-                        'detalle'       => "La MAC existe en SICOSOTE, pero tiene asignada la IP: {$ip_correcta_db}"
+            // ==========================================
+            // 2. Extraer datos de la Base de Datos (SICOSOTE)
+            // ==========================================
+            $model = new MainModel();
+            $joins = ["JOIN dispositivos d ON r.id_disp = d.id_disp"];
+            $campos = ["r.ip", "d.id_disp", "d.nom_host", "d.mac_ethernet", "d.mac_wifi", "d.num_inv"];
+            
+            $db_records_raw = $model->seleccionaRegistrosJoin("infraestructura_red r", $joins, $campos, "r.id_disp IS NOT NULL AND LOWER(r.est) != 'inactivo'");
+
+            $db_records = [];
+            $mac_to_ip_db = []; 
+
+            if ($db_records_raw) {
+                foreach ($db_records_raw as $row) {
+                    $ip = trim($row['ip']);
+                    $mac_eth = !empty($row['mac_ethernet']) ? strtoupper(str_replace('-', ':', trim($row['mac_ethernet']))) : null;
+                    $mac_wifi = !empty($row['mac_wifi']) ? strtoupper(str_replace('-', ':', trim($row['mac_wifi']))) : null;
+
+                    $db_records[$ip] = [
+                        'id_disp'      => $row['id_disp'],
+                        'hostname'     => strtolower(trim($row['nom_host'])),
+                        'nom_host_raw' => $row['nom_host'],
+                        'mac_eth'      => $mac_eth,
+                        'mac_wifi'     => $mac_wifi,
+                        'num_inv'      => $row['num_inv']
                     ];
+
+                    if ($mac_eth) $mac_to_ip_db[$mac_eth] = $ip;
+                    if ($mac_wifi) $mac_to_ip_db[$mac_wifi] = $ip;
+                }
+            }
+
+            $fantasmas = [];  
+            $conflictos = []; 
+            $huerfanas = [];  
+
+            foreach ($dhcp_records as $ip => $dhcp) {
+                if (!isset($db_records[$ip])) {
+                    if (isset($mac_to_ip_db[$dhcp['mac']])) {
+                        $ip_correcta_db = $mac_to_ip_db[$dhcp['mac']];
+                        $fantasmas[] = [
+                            'tipo'          => 'IP Desactualizada',
+                            'ip_dhcp'       => $ip,
+                            'mac'           => $dhcp['mac'],
+                            'hostname_dhcp' => $dhcp['hostname_raw'],
+                            'usuario_dhcp'  => $dhcp['usuario'],
+                            'detalle'       => "La MAC existe en SICOSOTE, pero tiene asignada la IP: {$ip_correcta_db}"
+                        ];
+                    } else {
+                        $fantasmas[] = [
+                            'tipo'          => 'Equipo Fantasma',
+                            'ip_dhcp'       => $ip,
+                            'mac'           => $dhcp['mac'],
+                            'hostname_dhcp' => $dhcp['hostname_raw'],
+                            'usuario_dhcp'  => $dhcp['usuario'],
+                            'detalle'       => "Equipo detectado en la red no registrado en el inventario."
+                        ];
+                    }
                 } else {
-                    $fantasmas[] = [
-                        'tipo'          => 'Equipo Fantasma',
-                        'ip_dhcp'       => $ip,
-                        'mac'           => $dhcp['mac'],
-                        'hostname_dhcp' => $dhcp['hostname_raw'],
-                        'usuario_dhcp'  => $dhcp['usuario'],
-                        'detalle'       => "Equipo detectado en la red no registrado en el inventario."
-                    ];
+                    $db = $db_records[$ip];
+                    if ($dhcp['mac'] !== $db['mac_eth'] && $dhcp['mac'] !== $db['mac_wifi']) {
+                        $conflictos[] = [
+                            'ip'                => $ip,
+                            'mac_dhcp'          => $dhcp['mac'],
+                            'hostname_dhcp'     => $dhcp['hostname_raw'],
+                            'mac_sicosote'      => $db['mac_eth'] . ($db['mac_wifi'] ? ' / ' . $db['mac_wifi'] : ''),
+                            'hostname_sicosote' => $db['nom_host_raw'],
+                            'detalle'           => "Conflicto de Hardware. Posible suplantación de IP o equipo reemplazado sin notificar."
+                        ];
+                    }
                 }
-            } else {
-                $db = $db_records[$ip];
-                if ($dhcp['mac'] !== $db['mac_eth'] && $dhcp['mac'] !== $db['mac_wifi']) {
-                    $conflictos[] = [
+            }
+
+            foreach ($db_records as $ip => $db) {
+                if (!isset($dhcp_records[$ip])) {
+                    $huerfanas[] = [
                         'ip'                => $ip,
-                        'mac_dhcp'          => $dhcp['mac'],
-                        'hostname_dhcp'     => $dhcp['hostname_raw'],
-                        'mac_sicosote'      => $db['mac_eth'] . ($db['mac_wifi'] ? ' / ' . $db['mac_wifi'] : ''),
                         'hostname_sicosote' => $db['nom_host_raw'],
-                        'detalle'           => "Conflicto de Hardware. Posible suplantación de IP o equipo reemplazado sin notificar."
+                        'mac_sicosote'      => $db['mac_eth'] . ($db['mac_wifi'] ? ' / ' . $db['mac_wifi'] : ''),
+                        'inventario'        => $db['num_inv'],
+                        'detalle'           => "Equipo en inventario pero el servidor DHCP no lo detecta en la red activa."
                     ];
                 }
             }
+
+            $total_analizados = count($dhcp_records);
+            $model->registrarBitacora($id_sub, 'AUDITORIA', "Conciliación DHCP: {$total_analizados} registros cruzados.");
+
+            return [
+                "status" => "success", 
+                "data" => [
+                    "resumen" => ["total_dhcp" => $total_analizados, "total_db" => count($db_records)],
+                    "fantasmas"  => $fantasmas,
+                    "conflictos" => $conflictos,
+                    "huerfanas"  => $huerfanas
+                ]
+            ];
+
+        } catch (\Throwable $e) {
+            return ["status" => "error", "msg" => "Fallo durante el análisis: " . $e->getMessage()];
         }
-
-        foreach ($db_records as $ip => $db) {
-            if (!isset($dhcp_records[$ip])) {
-                $huerfanas[] = [
-                    'ip'                => $ip,
-                    'hostname_sicosote' => $db['nom_host_raw'],
-                    'mac_sicosote'      => $db['mac_eth'] . ($db['mac_wifi'] ? ' / ' . $db['mac_wifi'] : ''),
-                    'inventario'        => $db['num_inv'],
-                    'detalle'           => "Equipo en inventario pero el servidor DHCP no lo detecta en la red activa."
-                ];
-            }
-        }
-
-        $total_analizados = count($dhcp_records);
-        $model->registrarBitacora($id_sub, 'AUDITORIA', "Conciliación DHCP: {$total_analizados} registros cruzados.");
-
-        return [
-            "status" => "success", 
-            "data" => [
-                "resumen" => ["total_dhcp" => $total_analizados, "total_db" => count($db_records)],
-                "fantasmas"  => $fantasmas,
-                "conflictos" => $conflictos,
-                "huerfanas"  => $huerfanas
-            ]
-        ];
     }
 
     // ==========================================
-    // EXTRACTOR NATIVO CON OPENSPOUT
+    // EXTRACTOR MULTIFORMATO
     // ==========================================
     private function extraerDatosNativos($ruta, $extension) {
         try {
-            if (in_array($extension, ['xlsx', 'csv'])) {
-                $reader = ($extension === 'csv') ? new CSVReader() : new XLSXReader(); 
+            // 1. EXCEL (XLSX)
+            if ($extension === 'xlsx') {
+                $reader = new XLSXReader(); 
                 $reader->open($ruta);
                 $datos = [];
                 foreach ($reader->getSheetIterator() as $sheet) {
@@ -226,37 +230,129 @@ class AuditoriaDhcpController {
                 $reader->close();
                 return $datos;
             } 
+            
+            // 2. CSV (Nativo y a prueba de codificaciones Windows)
+            elseif ($extension === 'csv') {
+                $datos = [];
+                if (($handle = fopen($ruta, "r")) !== FALSE) {
+                    // Usamos fgetcsv nativo que ignora los problemas de codificación estructural
+                    while (($data = fgetcsv($handle, 4000, ",")) !== FALSE) {
+                        // Limpieza de caracteres problemáticos de Windows-1252 a UTF-8
+                        $datos[] = array_map(function($val) {
+                            $val_utf8 = mb_convert_encoding((string)$val, 'UTF-8', 'Windows-1252');
+                            return trim($val_utf8);
+                        }, $data);
+                    }
+                    fclose($handle);
+                }
+                return $datos;
+            } 
+            
+            // 3. XML (Genérico y Microsoft Spreadsheet)
             elseif ($extension === 'xml') {
-                $xml = simplexml_load_file($ruta);
-                if ($xml === false) { return ["status" => "error", "msg" => "El archivo XML no se pudo leer."]; }
-
                 $xmlString = file_get_contents($ruta);
-                // Detección del formato Spreadsheet XML de Windows Server
+                if (empty($xmlString)) return ["status" => "error", "msg" => "El archivo XML está vacío."];
+
+                // A) Detección del formato Spreadsheet XML de Windows Server
                 if (strpos($xmlString, 'urn:schemas-microsoft-com:office:spreadsheet') !== false) {
-                    $datosExcel = [];
-                    $xml->registerXPathNamespace('ss', 'urn:schemas-microsoft-com:office:spreadsheet');
-                    $rows = $xml->xpath('//ss:Row') ?: $xml->xpath('//Row'); 
-                    
-                    if ($rows) {
-                        foreach ($rows as $row) {
-                            $filaPlana = [];
-                            $cells = $row->xpath('ss:Cell') ?: $row->xpath('Cell');
-                            foreach ($cells as $cell) {
-                                $data = $cell->xpath('ss:Data') ?: $cell->xpath('Data');
-                                $filaPlana[] = !empty($data) ? trim((string)$data[0]) : '';
+                    $xml = simplexml_load_string($xmlString);
+                    if ($xml !== false) {
+                        $datosExcel = [];
+                        $xml->registerXPathNamespace('ss', 'urn:schemas-microsoft-com:office:spreadsheet');
+                        $rows = $xml->xpath('//ss:Row') ?: $xml->xpath('//Row'); 
+                        
+                        if ($rows) {
+                            foreach ($rows as $row) {
+                                $filaPlana = [];
+                                $cells = $row->xpath('ss:Cell') ?: $row->xpath('Cell');
+                                foreach ($cells as $cell) {
+                                    $data = $cell->xpath('ss:Data') ?: $cell->xpath('Data');
+                                    $filaPlana[] = !empty($data) ? trim((string)$data[0]) : '';
+                                }
+                                if (!empty(array_filter($filaPlana))) { $datosExcel[] = $filaPlana; }
                             }
-                            if (!empty(array_filter($filaPlana))) { $datosExcel[] = $filaPlana; }
+                            if (!empty($datosExcel)) return $datosExcel; 
                         }
-                        if (!empty($datosExcel)) return $datosExcel; 
                     }
                 }
-                return ["status" => "error", "msg" => "Formato XML no soportado. Por favor expórtelo como CSV o Excel."];
+
+                // B) Extracción XML Genérica (Algoritmo Recursivo Inteligente)
+                // Limpiar namespaces que rompen simplexml
+                $xmlString = preg_replace('/xmlns[^=]*="[^"]*"/i', '', $xmlString);
+                $xml = simplexml_load_string($xmlString);
+                if ($xml === false) return ["status" => "error", "msg" => "Formato XML corrupto o no estructurado."]; 
+
+                $json = json_decode(json_encode($xml), true);
+                $datosFilas = $this->encontrarMatrizXML($json);
+                
+                if (empty($datosFilas)) {
+                    return ["status" => "error", "msg" => "El XML no tiene un formato tabular válido."];
+                }
+
+                $filasLimpias = [];
+                foreach ($datosFilas as $fila) {
+                    if (!is_array($fila)) continue;
+                    
+                    $filaLimpia = [];
+                    foreach ($fila as $k => $v) {
+                        if ($k === '@attributes' && is_array($v)) {
+                            $filaLimpia = array_merge($filaLimpia, $v);
+                        } elseif (!is_array($v)) { 
+                            $filaLimpia[$k] = $v;
+                        }
+                    }
+                    // Aplanar el arreglo asociativo para que coincida con el estilo de CSV/XLSX
+                    $filasLimpias[] = array_values($filaLimpia); 
+                }
+                return $filasLimpias;
             }
             return ["status" => "error", "msg" => "Formato no soportado ($extension)."];
             
         } catch (\Exception $e) {
-            return ["status" => "error", "msg" => "Error interno al procesar el archivo: " . $e->getMessage()];
+            return ["status" => "error", "msg" => "Error interno al extraer los datos: " . $e->getMessage()];
         }
+    }
+
+    // ==========================================
+    // BUSCADOR RECURSIVO DE MATRICES (XML)
+    // ==========================================
+    private function encontrarMatrizXML($array) {
+        if (!is_array($array)) return [];
+
+        // 1. ¿Es una lista estándar de múltiples nodos hermanos?
+        if (isset($array[0]) && is_array($array[0])) {
+            return $array;
+        }
+
+        // 2. Buscar más profundo ignorando etiquetas envoltorio
+        foreach ($array as $key => $value) {
+            if (is_array($value)) {
+                $resultado = $this->encontrarMatrizXML($value);
+                if (!empty($resultado)) return $resultado;
+            }
+        }
+
+        // 3. Fallback: ¿Es un archivo de un solo registro?
+        $esFilaUnica = true;
+        $claves = array_keys($array);
+        if (in_array('@attributes', $claves)) {
+            $claves = array_merge($claves, array_keys($array['@attributes']));
+        }
+        $claves_str = strtoupper(implode('_', $claves));
+
+        // Filtro heúristico: Debe contener palabras clave de redes
+        if (strpos($claves_str, 'IP') !== false || strpos($claves_str, 'MAC') !== false || strpos($claves_str, 'HOST') !== false) {
+            foreach ($array as $k => $v) {
+                if (is_array($v) && $k !== '@attributes') {
+                    $esFilaUnica = false;
+                    break;
+                }
+            }
+            if ($esFilaUnica && !empty($array)) {
+                return [$array]; 
+            }
+        }
+        return [];
     }
 }
 ?>
