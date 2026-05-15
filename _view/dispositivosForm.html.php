@@ -92,12 +92,41 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                                 <h5 class="fw-bold text-guinda mb-4 border-bottom border-secondary-subtle pb-3">Características Físicas del Equipo</h5>
                                 <div class="row g-4">
                                     <div class="col-md-6">
-                                        <label class="form-label fw-bold small text-dark mb-1">Marca *</label>
-                                        <input type="text" class="form-control focus-guinda border-secondary-subtle" name="marca" value="<?php echo htmlspecialchars($dispositivo['marca'] ?? ''); ?>" maxlength="50" required>
+                                        <div class="d-flex justify-content-between align-items-end mb-1">
+                                            <label class="form-label fw-bold small text-dark mb-0">Marca *</label>
+                                            <a href="marcas/" class="badge bg-secondary text-decoration-none bg-opacity-75"><i class="fas fa-external-link-alt"></i> Ir al Catálogo</a>
+                                        </div>
+                                        <?php if(empty($marcas)): ?>
+                                            <select class="form-select border-danger text-dark bg-light" name="id_marca" id="selectMarca" required disabled>
+                                                <option value="">No hay marcas registradas</option>
+                                            </select>
+                                            <small class="fw-bold mt-1 d-block" style="color: #dc3545 !important;">
+                                                <i class="fas fa-exclamation-triangle"></i> Debe ir al catálogo para añadir marcas.
+                                            </small>
+                                        <?php else: ?>
+                                            <select class="form-select focus-guinda border-secondary-subtle" name="id_marca" id="selectMarca" required>
+                                                <option value="">-- Seleccionar Marca --</option>
+                                                <?php foreach($marcas as $m): ?>
+                                                    <option value="<?php echo $m['id_marca']; ?>" <?php echo (isset($dispositivo['id_marca']) && $dispositivo['id_marca'] == $m['id_marca']) ? 'selected' : ''; ?>>
+                                                        <?php echo htmlspecialchars($m['nom_marca']); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                        <?php endif; ?>
                                     </div>
+                                    
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold small text-dark mb-1">Modelo *</label>
-                                        <input type="text" class="form-control focus-guinda border-secondary-subtle" name="modelo" value="<?php echo htmlspecialchars($dispositivo['modelo'] ?? ''); ?>" maxlength="50" required>
+                                        <select class="form-select focus-guinda border-secondary-subtle" name="id_modelo" id="selectModelo" required <?php echo empty($marcas) ? 'disabled' : ''; ?>>
+                                            <option value="">-- Seleccione una marca primero --</option>
+                                            <?php if(!empty($modelos_marca)): ?>
+                                                <?php foreach($modelos_marca as $mod): ?>
+                                                    <option value="<?php echo $mod['id_modelo']; ?>" <?php echo (isset($dispositivo['id_modelo']) && $dispositivo['id_modelo'] == $mod['id_modelo']) ? 'selected' : ''; ?>>
+                                                        <?php echo htmlspecialchars($mod['nom_modelo']); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            <?php endif; ?>
+                                        </select>
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold small text-dark mb-1">Número de Serie</label>
@@ -105,29 +134,28 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold small text-dark mb-1">Número de Inventario</label>
-                                        <input type="text" class="form-control focus-guinda border-secondary-subtle font-monospace" name="num_inv" value="<?php echo htmlspecialchars($dispositivo['num_inv'] ?? ''); ?>" maxlength="26" placeholder="INEA-I-000000000-000000-00" pattern="^INEA-I-\d{9}-\d{6}-\d{2}$">
+                                        <input type="text" class="form-control focus-guinda border-secondary-subtle font-monospace" name="num_inv" value="<?php echo htmlspecialchars($dispositivo['num_inv'] ?? ''); ?>" maxlength="25" placeholder="INEA-I-000000000-00000-00" pattern="^INEA-I-\d{9}-\d{5}-\d{2}$">
                                     </div>
                                     <div class="col-md-6">
-                                        <label class="form-label fw-bold small text-dark mb-1">Departamento</label>
-                                        <select class="form-select focus-guinda border-secondary-subtle" name="id_dep">
-                                            <option value="">-- Sin asignar --</option>
-                                            
-                                            <?php if (!empty($departamentos) && is_array($departamentos)): ?>
+                                        <div class="d-flex justify-content-between align-items-end mb-1">
+                                            <label class="form-label fw-bold small text-dark mb-0">Departamento</label>
+                                            <a href="departamentos/" class="badge bg-secondary text-decoration-none bg-opacity-75"><i class="fas fa-external-link-alt"></i> Ir al Catálogo</a>
+                                        </div>
+                                        <?php if(empty($departamentos)): ?>
+                                            <select class="form-select border-danger text-danger bg-light" name="id_dep" disabled>
+                                                <option value="">No hay departamentos registrados</option>
+                                            </select>
+                                            <small class="text-danger fw-bold"><i class="fas fa-exclamation-triangle"></i> Debe ir al catálogo para añadir departamentos.</small>
+                                        <?php else: ?>
+                                            <select class="form-select focus-guinda border-secondary-subtle" name="id_dep">
+                                                <option value="">-- Sin asignar --</option>
                                                 <?php foreach($departamentos as $dep): ?>
-                                                    
-                                                    <option value="<?php echo $dep['id_dep']; ?>" 
-                                                        <?php echo ((isset($dispositivo['id_dep']) ? $dispositivo['id_dep'] : null) == $dep['id_dep']) ? 'selected' : ''; ?>>
-                                                        
-                                                        <?php 
-                                                            echo htmlspecialchars($dep['nom_dep']); 
-                                                        ?>
-                                                        
+                                                    <option value="<?php echo $dep['id_dep']; ?>" <?php echo ((isset($dispositivo['id_dep']) ? $dispositivo['id_dep'] : null) == $dep['id_dep']) ? 'selected' : ''; ?>>
+                                                        <?php echo htmlspecialchars($dep['nom_dep']); ?>
                                                     </option>
-
                                                 <?php endforeach; ?>
-                                            <?php endif; ?>
-                                            
-                                        </select>
+                                            </select>
+                                        <?php endif; ?>
                                     </div>
                                     <div class="col-12">
                                         <label class="form-label fw-bold small text-dark mb-1">Especificaciones de Hardware</label>
@@ -368,7 +396,3 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
     </div>
 </div>
 
-<script>
-    const usuario = <?= json_encode($departamentos); ?>;
-    console.log(usuario);
-</script>

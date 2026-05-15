@@ -13,7 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // 0. VALIDACIONES VISUALES Y WIZARD (PESTAÑAS)
     // ==========================================
-    const INEA_REGEX = /^INEA-I-\d{9}-\d{6}-\d{2}$/;
+    const INEA_REGEX = /^INEA-I-\d{9}-\d{5}-\d{2}$/;
 
     function validarCampoUI(campo) {
         const valor = campo.value.trim();
@@ -38,14 +38,14 @@ document.addEventListener('DOMContentLoaded', () => {
     const inputInv = document.querySelector('input[name="num_inv"]');
     if (inputInv) {
         inputInv.addEventListener('input', function() {
-            let nums = this.value.replace(/\D/g, '').slice(0, 17);
+            let nums = this.value.replace(/\D/g, '').slice(0, 16);
 
             if (!nums) {
                 this.value = '';
             } else {
                 let fmt = 'INEA-I-' + nums.slice(0, 9);
-                if (nums.length > 9)  fmt += '-' + nums.slice(9, 15);
-                if (nums.length > 15) fmt += '-' + nums.slice(15, 17);
+                if (nums.length > 9)  fmt += '-' + nums.slice(9, 14);
+                if (nums.length > 14) fmt += '-' + nums.slice(14, 16);
                 this.value = fmt;
             }
             validarCampoUI(this);
@@ -56,7 +56,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 Swal.fire({
                     icon: 'warning',
                     title: 'Formato Incorrecto',
-                    text: 'El número de inventario debe estar completo: INEA-I-000000000-000000-00',
+                    text: 'El número de inventario debe estar completo: INEA-I-000000000-00000-00',
                     confirmButtonColor: '#9D2449'
                 });
             }
@@ -504,7 +504,65 @@ document.addEventListener('DOMContentLoaded', () => {
     aplicarFuzzySearch('select[name="asig_po_id"]');
     aplicarFuzzySearch('select[name="id_dep"]');
 
+// ==========================================
+    // 2.5 CASCADA MARCAS Y MODELOS
+    // ==========================================
+    const selectMarca = document.getElementById('selectMarca');
+    const selectModelo = document.getElementById('selectModelo');
 
+    if (selectMarca && selectModelo) {
+        // Aplicamos el buscador Fuzzy a ambos
+        aplicarFuzzySearch(selectMarca);
+        aplicarFuzzySearch(selectModelo);
+
+        selectMarca.addEventListener('change', async function() {
+            const id_marca = this.value;
+            
+            // Limpiar modelos actuales
+            selectModelo.innerHTML = '<option value="">-- Seleccionar Modelo --</option>';
+            selectModelo.disabled = true;
+            validarCampoUI(selectModelo);
+            
+            if(!id_marca) {
+                aplicarFuzzySearch(selectModelo);
+                return;
+            }
+
+            try {
+                const response = await fetch('_controller/DispositivosAsync.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ peticion: 'GET_MODELOS_POR_MARCA', id_marca: id_marca })
+                });
+                const data = await response.json();
+
+                if(data.status === 'success' && data.data.length > 0) {
+                    data.data.forEach(mod => {
+                        const opt = document.createElement('option');
+                        opt.value = mod.id_modelo;
+                        opt.textContent = mod.nom_modelo;
+                        selectModelo.appendChild(opt);
+                    });
+                    selectModelo.disabled = false;
+                } else {
+                    Swal.fire({
+                        icon: 'info',
+                        title: 'Marca sin modelos',
+                        text: 'Esta marca aún no tiene modelos registrados.',
+                        confirmButtonColor: '#13322B',
+                        footer: '<a href="marcas/" class="fw-bold text-guinda text-decoration-none"><i class="fas fa-plus"></i> Ir a añadir modelos</a>'
+                    });
+                }
+                
+                // Actualizar el UI del buscador con las nuevas opciones
+                aplicarFuzzySearch(selectModelo);
+
+            } catch (e) {
+                console.error("Error obteniendo modelos:", e);
+                Toast.fire({ icon: 'error', title: 'Error al cargar modelos.' });
+            }
+        });
+    }
     // ==========================================
     // 3. LÓGICA DE CONSULTA DE CATÁLOGO (MODAL)
     // ==========================================

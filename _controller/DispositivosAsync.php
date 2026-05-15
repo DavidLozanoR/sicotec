@@ -108,7 +108,14 @@ switch ($peticion) {
         }
         echo json_encode($controller->obtenerVersionesActualizar($id_serv));
         break;
-
+    case 'GET_MODELOS_POR_MARCA':
+            $id_marca = $input['id_marca'] ?? null;
+            if (empty($id_marca)) {
+                echo json_encode(["status" => "error", "msg" => "ID de marca no proporcionado."]);
+                exit;
+            }
+            echo json_encode($controller->obtenerModelosPorMarca($id_marca));
+            break;
     /**
      * Caso: UPDATE_VERSION_DISPOSITIVO
      * Realiza una actualización rápida de la versión de un software ya instalado 
