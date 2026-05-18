@@ -33,8 +33,14 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
             
         <div class="tab-pane fade show active" id="deptos" role="tabpanel" aria-labelledby="deptos-tab">
             
-            <div class="row mb-3 align-items-center">
-                <div class="col-12 text-end">
+            <div class="row mb-3 align-items-center g-3">
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="input-group shadow-sm">
+                        <span class="input-group-text bg-white text-muted border-end-0"><i class="fas fa-search"></i></span>
+                        <input type="text" id="buscadorDeptos" class="form-control border-start-0 focus-guinda" placeholder="Buscar depto o clave..." autocomplete="off">
+                    </div>
+                </div>
+                <div class="col-12 col-md-6 col-lg-8 d-grid d-md-block text-md-end">
                     <button class="btn btn-guinda shadow-sm fw-bold px-4" id="btnNuevoDepto">
                         <i class="fas fa-plus-circle me-1"></i> Agregar Departamento
                     </button>
@@ -89,6 +95,14 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
             <div class="alert alert-secondary border-0 border-start border-4 border-secondary shadow-sm mb-4">
                 <i class="fas fa-info-circle me-2"></i> <strong>Catálogo de solo lectura:</strong> Los puestos se sincronizan automáticamente desde el sistema de personal.
             </div>
+            <div class="row mb-3 align-items-center g-3">
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="input-group shadow-sm">
+                        <span class="input-group-text bg-white text-muted border-end-0"><i class="fas fa-search"></i></span>
+                        <input type="text" id="buscadorPuestos" class="form-control border-start-0 focus-guinda" placeholder="Buscar puesto..." autocomplete="off">
+                    </div>
+                </div>
+            </div>
             
             <div class="table-responsive bg-white rounded-3 shadow-sm border mb-3">
                 <table class="table table-hover align-middle mb-0" id="tablaPuestos">
@@ -140,7 +154,7 @@ $id_sub_actual = $_SESSION['submodulo_actual'] ?? 3;
                         </div>
                         <div class="col-md-8">
                             <label class="form-label fw-bold small">Nombre del Depto. *</label>
-                            <input type="text" class="form-control focus-guinda" name="nom_dep" id="dep_nom" placeholder="Ej. Recursos Humanos" required>
+                            <input type="text" class="form-control focus-guinda" name="nom_dep" id="dep_nom" placeholder="Ej. Recursos Humanos" minlength="5" maxlength="80" required>
                         </div>
                     </div>
                 </div>

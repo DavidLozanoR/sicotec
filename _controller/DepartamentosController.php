@@ -18,11 +18,7 @@ class DepartamentosController {
     /** @var string|null Identificador para navegación */
     private $slug;
     
-    /** @var int Constantes de permisos (RBAC) */
-    const PERMISO_EDITAR    = 1;
-    const PERMISO_AGREGAR   = 2;
-    const PERMISO_ELIMINAR  = 3;
-    const PERMISO_CONSULTAR = 4;
+
 
     public function __construct($slug = null) { 
         if (session_status() === PHP_SESSION_NONE) { session_start(); }
@@ -38,7 +34,7 @@ class DepartamentosController {
         // Se asume ID 3 para el submódulo de Departamentos/Estructura
         $id_sub = $_SESSION['submodulo_actual'] ?? 3; 
 
-        if (!$this->verificarPermiso($id_sub, self::PERMISO_CONSULTAR)) {
+        if (!$this->verificarPermiso($id_sub, PERM_CONSULTAR)) {
             echo '<div class="container mt-5">
                     <div class="alert alert-danger shadow-sm border-0 border-start border-5 border-danger">
                         <h4 class="alert-heading fw-bold"><i class="fas fa-lock me-2"></i>Acceso Denegado</h4>
@@ -114,7 +110,7 @@ class DepartamentosController {
     public function eliminarDepartamento($id_sub, $id_dep) {
         $model = new MainModel();
         
-        if (!$this->verificarPermiso($id_sub, self::PERMISO_ELIMINAR)) {
+        if (!$this->verificarPermiso($id_sub, PERM_ELIMINAR)) {
             return ["result" => 0, "msg" => "No tiene permiso para eliminar registros."];
         }
 
@@ -143,7 +139,7 @@ class DepartamentosController {
     public function insertarDepartamento($id_sub, $clave_dep, $nom_dep) {
         $model = new MainModel();
         
-        if (!$this->verificarPermiso($id_sub, self::PERMISO_AGREGAR)) {
+        if (!$this->verificarPermiso($id_sub, PERM_AGREGAR)) {
             return ["result" => 0, "msg" => "No tiene permiso para agregar departamentos."];
         }
 
@@ -168,7 +164,7 @@ class DepartamentosController {
     public function actualizarDepartamento($id_sub, $id_dep, $clave_dep, $nom_dep) {
         $model = new MainModel();
 
-        if (!$this->verificarPermiso($id_sub, self::PERMISO_EDITAR)) {
+        if (!$this->verificarPermiso($id_sub, PERM_EDITAR)) {
             return ["result" => 0, "msg" => "No tiene permiso para editar."];
         }
 
@@ -189,5 +185,42 @@ class DepartamentosController {
         );
 
         return $res ? ["result" => 1, "msg" => "Cambios aplicados."] : ["result" => 0, "msg" => "Sin cambios o error."];
+    }
+    /**
+     * Valida las reglas de negocio para los datos de un departamento.
+     * 
+     * @param string $clave_dep Clave numérica (opcional).
+     * @param string $nom_dep Nombre del departamento (obligatorio).
+     * @return bool|string True si pasa la validación, o un string con el mensaje de error.
+     */
+    public function validarAtributos($clave_dep, $nom_dep) {
+        if (empty($nom_dep)) {
+            return "El nombre del departamento es obligatorio.";
+        }
+
+        if (mb_strlen($nom_dep) < 5 || mb_strlen($nom_dep) > 80) {
+            return "El nombre del departamento debe tener entre 5 y 80 caracteres.";
+        }
+
+        if (!preg_match('/^[A-ZÁÉÍÓÚÑa-záéíóúñ\s]+$/', $nom_dep)) {
+            return "El nombre solo puede contener letras y espacios.";
+        }
+
+        if (!empty($clave_dep) && !preg_match('/^[0-9]+$/', $clave_dep)) {
+            return "La clave del departamento solo debe contener números.";
+        }
+
+        if ($clave_dep == 0){
+            return "La clave del departamento debe ser mayor a 0";
+        }
+        if ($clave_dep == null){
+            return "La clave del departamento no puede ser nula";
+        }
+
+        if (mb_strlen($clave_dep) < 1 || mb_strlen($clave_dep) > 20) {
+            return "La clave del departamento debe tener entre 1 y 20 caracteres.";
+        }
+
+        return true;
     }
 }

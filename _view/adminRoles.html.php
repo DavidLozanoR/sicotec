@@ -32,11 +32,7 @@
                                 <tr>
                                     <td class="fw-bold text-dark">
                                         <?php echo htmlspecialchars($rol['nom_rol']); ?>
-                                        <?php if ($protegido): ?>
-                                            <span class="badge bg-danger ms-2" title="Rol protegido del sistema">
-                                                <i class="fas fa-lock"></i> Protegido
-                                            </span>
-                                        <?php endif; ?>
+                                        
                                     </td>
                                     <td>
                                         <small class="text-muted">

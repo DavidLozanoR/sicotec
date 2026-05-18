@@ -226,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // =======================================================
     // PETICIÓN AJAX: AUDITORÍA DE EQUIPOS
     // =======================================================
-    const ejecutarConsultaAuditoria = () => {
+   const ejecutarConsultaAuditoria = () => {
         const originalText = btnGenerar.innerHTML;
         btnGenerar.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i>Buscando...';
         btnGenerar.disabled = true;
@@ -290,6 +290,31 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const vlanBadge = row.nom_vlan ? `<span class="badge bg-secondary ms-1" style="font-size:0.7rem;">VLAN: ${row.nom_vlan}</span>` : '';
                     
+                    // --- NUEVA LÓGICA DE REDES DESEMPAQUETADAS ---
+                    let redesHTML = '<span class="font-monospace small text-muted d-block mb-1"><i class="fas fa-network-wired me-1"></i> IP No Asignada</span>';
+                    
+                    if (row.ip_data) {
+                        redesHTML = '';
+                        let ips = row.ip_data.split('||');
+                        let vlans = row.nom_vlan ? row.nom_vlan.split('||') : [];
+                        
+                        ips.forEach((info, index) => {
+                            let partes = info.split('::'); // partes[0] = tipo, partes[1] = IP
+                            
+                            // Validación de seguridad por si el string viene mal formado de BD
+                            if (partes.length === 2) {
+                                // Detecta si es WiFi para cambiar el icono
+                                let tipoStr = partes[0].toLowerCase();
+                                let icono = (tipoStr.includes('wi-fi') || tipoStr.includes('wifi') || tipoStr.includes('wlan')) ? 'fa-wifi' : 'fa-network-wired';
+                                
+                                let badgeVlan = vlans[index] ? `<span class="badge bg-secondary ms-1" style="font-size:0.7rem;">VLAN: ${vlans[index]}</span>` : '';
+                                
+                                redesHTML += `<span class="font-monospace small text-primary d-block mb-1"><i class="fas ${icono} me-1 text-dark" title="${partes[0]}"></i> ${partes[1]} ${badgeVlan}</span>`;
+                            }
+                        });
+                    }
+
+                    // 3. CONSTRUIR LA FILA COMPLETA
                     const tr = document.createElement('tr');
                     tr.innerHTML = `
                         <td class="py-3 ps-4">
@@ -298,8 +323,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             <small class="text-muted"><strong class="text-dark">Inv:</strong> ${row.num_inv || 'N/A'}</small>
                         </td>
                         <td class="py-3">
-                            <span class="font-monospace small text-primary d-block mb-1"><i class="fas fa-network-wired me-1"></i> ${row.ip || 'IP No Asignada'}</span>
-                            ${vlanBadge}
+                            ${redesHTML}
                         </td>
                         <td class="py-3">
                             ${row.responsable ? 
@@ -313,6 +337,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     `;
                     tbodyResultados.appendChild(tr);
                 });
+                
 
             } else {
                 Swal.fire('Error en la Consulta', data.msg, 'error');
@@ -390,18 +415,20 @@ document.addEventListener('DOMContentLoaded', () => {
                     if(row.accion === 'DELETE' || row.accion === 'BACKUP_BAJA') colorAccion = 'text-danger';
 
                     const tr = document.createElement('tr');
+                    tr.className = 'fila-bitacora'; // <--- Clase necesaria para paginar
                     tr.innerHTML = `
-                        <td class="ps-4">
+                        <td class="ps-4" data-label="Fecha y Hora">
                             <span class="d-block fw-bold">${row.fecha_fmt}</span>
                             <small class="text-muted"><i class="far fa-clock me-1"></i>${row.hora}</small>
                         </td>
-                        <td><i class="fas fa-user-circle me-1 text-primary"></i> <span class="fw-bold">${row.nom_usuar}</span></td>
-                        <td><span class="badge bg-light text-dark border">${row.nom_sub}</span></td>
-                        <td class="fw-bold ${colorAccion}">${row.accion}</td>
-                        <td class="small">${row.detalle}</td>
+                        <td data-label="Usuario"><i class="fas fa-user-circle me-1 text-primary"></i> <span class="fw-bold">${row.nom_usuar}</span></td>
+                        <td data-label="Módulo"><span class="badge bg-light text-dark border">${row.nom_sub}</span></td>
+                        <td class="fw-bold ${colorAccion}" data-label="Acción">${row.accion}</td>
+                        <td class="small" data-label="Detalles">${row.detalle}</td>
                     `;
                     tbodyBitacora.appendChild(tr);
                 });
+                actualizarPaginacionBitacora(1);
 
             } else {
                 Swal.fire('Error', data.msg, 'error');
@@ -447,4 +474,56 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
+
+    // ==========================================
+    // MOTOR DE PAGINACIÓN CLIENT-SIDE (BITÁCORA)
+    // ==========================================
+    const registrosPorPagina = 10; // Muestra 10 registros por página (puedes cambiarlo)
+
+    function actualizarPaginacionBitacora(paginaActual) {
+        const $filas = $('#tbody-bitacora tr.fila-bitacora');
+        const totalRegistros = $filas.length;
+        const totalPaginas = Math.ceil(totalRegistros / registrosPorPagina);
+
+        // Ocultar todas y mostrar el bloque de la página actual
+        $filas.hide();
+        const inicio = (paginaActual - 1) * registrosPorPagina;
+        const fin = inicio + registrosPorPagina;
+        $filas.slice(inicio, fin).show();
+
+        // Actualizar textos informativos
+        const textoInicio = totalRegistros === 0 ? 0 : inicio + 1;
+        const textoFin = Math.min(fin, totalRegistros);
+        $('#contador-bitacora').text(`Mostrando ${textoInicio} - ${textoFin} de ${totalRegistros} registros`);
+
+        const $paginacion = $('#paginacionBitacora');
+        $paginacion.empty();
+
+        if (totalPaginas <= 1) return; // Ocultar botones si solo hay 1 página
+
+        // Botón Anterior
+        const claseAnterior = paginaActual === 1 ? 'disabled' : '';
+        $paginacion.append(`<li class="page-item ${claseAnterior}"><a class="page-link text-dark" href="#" data-page="${paginaActual - 1}">Anterior</a></li>`);
+
+        // Botones Numéricos
+        for (let i = 1; i <= totalPaginas; i++) {
+            const claseActiva = i === paginaActual ? 'active' : '';
+            const estiloActivo = i === paginaActual ? 'background-color: #9D2449; border-color: #9D2449; color: white;' : 'color: #333;';
+            $paginacion.append(`<li class="page-item ${claseActiva}"><a class="page-link" href="#" style="${estiloActivo}" data-page="${i}">${i}</a></li>`);
+        }
+
+        // Botón Siguiente
+        const claseSiguiente = paginaActual === totalPaginas ? 'disabled' : '';
+        $paginacion.append(`<li class="page-item ${claseSiguiente}"><a class="page-link text-dark" href="#" data-page="${paginaActual + 1}">Siguiente</a></li>`);
+
+        // Eventos de clic
+        $paginacion.find('a.page-link').off('click').on('click', function(e) {
+            e.preventDefault();
+            const $parent = $(this).parent();
+            if ($parent.hasClass('disabled') || $parent.hasClass('active')) return;
+            
+            actualizarPaginacionBitacora(parseInt($(this).attr('data-page')));
+        });
+    }
+
 });

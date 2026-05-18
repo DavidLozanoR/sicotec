@@ -18,6 +18,7 @@
 
     //variables de entorno
 
+<<<<<<< HEAD
     define("SITE_URL", "http://sicosote/"); //importante que esto sea correcto; todo se basa en esto
     define("RUTA_DEFAULT", "inicio");
     define("DB_HOST", "194.168.198.22");
@@ -25,6 +26,15 @@
     define("DB_BASE", "sicosote");
     define("DB_USR", "passwprdse");
     define("DB_PASS", "SAE3fcuw2");
+=======
+    define("SITE_URL", "http://localhost/work/seguimiento-inea/Seguimiento%20INEA/sicosote/");
+    define("RUTA_DEFAULT", "inicio");
+    define("DB_HOST", "localhost");
+    define("DB_PORT", "3306");
+    define("DB_BASE", "sicosote");
+    define("DB_USR", "root");
+    define("DB_PASS", "1234");
+>>>>>>> 033360faffc5687299f130c674b7be7f78c4c0eb
 	define("CLAVE_SECRETA","test");
 
 

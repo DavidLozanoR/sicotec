@@ -491,7 +491,7 @@ class ImportacionController {
         
         $this->model->agregaRegistro("bitacora", 
             ["id_usuar", "id_sub", "accion", "detalle", "fecha", "hora"], 
-            [$id_usuario, $id_sub, 'IMPORT', $detalle, date('Y-m-d'), date('H:i:s')]
+            [$id_usuario, $id_sub, 'IMPORTAR', $detalle, date('Y-m-d'), date('H:i:s')]
         );
 
         return ["status" => "success", "msg" => "Sincronización finalizada exitosamente."];

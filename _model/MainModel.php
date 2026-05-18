@@ -89,7 +89,7 @@ class MainModel {
         $id_generado = $this->bd->insertRow($tabla, $camposArray, $params);
         
         if ($id_generado > 0) {
-            $this->registrarBitacora($id_sub, 'INSERT', "$detalle (ID Asignado: $id_generado)");
+            $this->registrarBitacora($id_sub, 'CREAR', "$detalle (ID Asignado: $id_generado)");
             return $id_generado;
         }
         return false;
@@ -105,7 +105,7 @@ class MainModel {
      * @param string $detalle Human-readable log description.
      * @return bool True if update was successful.
      */
-    public function actualizaRegistroConBitacora($tabla, $campos, $condicion, $params, $id_sub, $detalle) {
+    public function actualizaRegistroConBitacora($tabla, $campos, $condicion, $params, $id_sub, $detalle,$br=null) {
         // FIX: Ensure $campos is an array for MariaDBAux->updateRow compatibility
         $camposArray = is_string($campos) ? explode(',', $campos) : $campos;
         $camposArray = array_map('trim', $camposArray);
@@ -113,7 +113,11 @@ class MainModel {
         $exito = $this->bd->updateRow($tabla, $camposArray, $condicion, $params);
         
         if ($exito) {
-            $this->registrarBitacora($id_sub, 'UPDATE', $detalle);
+            if($br == 1){
+                 $this->registrarBitacora($id_sub, 'BAJA', $detalle);
+                 return true;
+            }
+            $this->registrarBitacora($id_sub, 'MODIFICAR', $detalle);
             return true;
         }
         return false;
@@ -131,7 +135,7 @@ class MainModel {
     public function borraRegistroConBitacora($tabla, $condicion, $params, $id_sub, $detalle) {
         $exito = $this->bd->deleteRow($tabla, $condicion, $params);
         if ($exito) {
-            $this->registrarBitacora($id_sub, 'DELETE', $detalle);
+            $this->registrarBitacora($id_sub, 'ELIMINAR', $detalle);
             return true;
         }
         return false;

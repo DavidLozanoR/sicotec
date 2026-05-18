@@ -185,6 +185,13 @@ $usuarios = $usuarios ?? [];
                             </tbody>
                         </table>
                     </div>
+                    <!-- CONTROLES DE PAGINACIÓN AGREGADOS -->
+                    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center border-top pt-3 bg-white p-3 rounded-bottom">
+                        <span class="small text-muted fw-bold mb-2 mb-md-0" id="contador-bitacora"></span>
+                        <nav aria-label="Navegación de bitácora">
+                            <ul class="pagination pagination-sm mb-0 shadow-sm" id="paginacionBitacora"></ul>
+                        </nav>
+                    </div>
                 </div>
             </div>
         </div>

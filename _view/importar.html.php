@@ -1,4 +1,3 @@
-
 <script> const ID_SUB_PERSONAL = '<?php echo $id_sub_personal; ?>'; </script>
 
 <div class="container-fluid py-4">
@@ -20,8 +19,7 @@
                     <i class="fas fa-file-excel fa-5x text-success opacity-25"></i>
                 </div>
                 <h3>Paso 1: Cargar Archivo de Datos</h3>
-                <p class="text-muted">Asegúrese de que el archivo contenga las columnas obligatorias de <b>Nombre</b>, <b>Número de Cobro</b> y <b>Adscripcion</b>.<br>
-                <small>Campos opcionales permitidos: puesto, correo, dir, ext, cta_dom.</small><br>
+                <p class="text-muted">Asegúrese de que el archivo contenga las columnas de <b>Nombre</b> y <b>Número de Cobro</b>.<br>
                 <small>Formatos permitidos: Excel (.xlsx), CSV, XML.</small></p>
                 
                 <div class="col-md-5 mx-auto mt-4">
@@ -56,11 +54,6 @@
                                 <span class="badge bg-warning text-dark ms-2" id="badge-bajas">0</span>
                             </button>
                         </li>
-                        <li class="nav-item">
-                            <button class="nav-link text-primary fw-bold" id="movimientos-tab" data-bs-toggle="tab" data-bs-target="#tab-movimientos" type="button">
-                                <i class="fas fa-exchange-alt me-2"></i> Notificaciones y Movimientos
-                            </button>
-                        </li>
                     </ul>
 
                     <div class="tab-content border p-3 rounded bg-white" id="importTabContent">
@@ -69,6 +62,7 @@
                             <div class="alert alert-info">
                                 <i class="fas fa-info-circle me-2"></i> Los siguientes departamentos en el archivo no coinciden exactamente con la base de datos. Elija una acción.
                             </div>
+                        
                             <div class="table-responsive">
                                 <table class="table table-sm table-hover align-middle">
                                     <thead class="table-light">
@@ -88,6 +82,9 @@
                             <div class="alert alert-warning text-dark">
                                 <i class="fas fa-exclamation-triangle me-2"></i> Estos usuarios activos en el sistema NO están en el archivo de hoy. Seleccione a quiénes dar de baja.
                             </div>
+                            <div class="alert alert-warning text-dark">
+                                <i class="fas fa-info-circle me-2"></i> Si un usuario tiene equipos asignados, se deben liberar sus equipos y dar de baja individualmente.
+                            </div>
                             <div class="table-responsive">
                                 <table class="table table-sm table-hover align-middle">
                                     <thead class="table-light">
@@ -96,27 +93,6 @@
                                             <th>Nombre Completo</th>
                                             <th>Responsivas (Equipos)</th>
                                             <th class="text-center">¿Dar de Baja?</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="tbodyBajasDetectadas">
-                                        </tbody>
-                                </table>
-                            </div>
-                        </div>
-
-                        <div class="tab-pane fade" id="tab-bajas" role="tabpanel">
-                            <div class="alert alert-warning text-dark">
-                                <i class="fas fa-exclamation-triangle me-2"></i> Estos usuarios activos en el sistema NO están en el archivo de hoy.
-                                <br><small>Si un usuario tiene equipos asignados, deberá decidir si darlo de baja (liberando sus equipos automáticamente) o ignorarlo para dejarlo activo.</small>
-                            </div>
-                            <div class="table-responsive">
-                                <table class="table table-sm table-hover align-middle">
-                                    <thead class="table-light">
-                                        <tr>
-                                            <th>Num. Cobro</th>
-                                            <th>Nombre Completo</th>
-                                            <th>Responsivas (Equipos)</th>
-                                            <th class="text-center">Estatus / Acción</th>
                                         </tr>
                                     </thead>
                                     <tbody id="tbodyBajasDetectadas">
@@ -138,58 +114,3 @@
         </div>
     </div>
 </div>
-
-<style>
-/* 1. Tabla ultra-compacta */
-.table-compact-inea td, .table-compact-inea th {
-    padding: 0.4rem 0.6rem !important;
-    font-size: 0.88rem;
-    vertical-align: middle;
-}
-
-/* 2. Control de ancho y envoltura de texto */
-.text-wrap-inea {
-    min-width: 150px;
-    max-width: 250px;
-    white-space: normal !important;
-    line-height: 1.2;
-    word-break: break-word;
-}
-
-/* 3. Dropdown personalizado (estilo similar al módulo de personal) */
-.custom-dropdown-table .btn {
-    text-align: left;
-    background-color: #fff;
-    border: 1px solid #dee2e6;
-    font-size: 0.82rem;
-    min-height: 34px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    width: 100%;
-    box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-}
-
-.custom-dropdown-table .dropdown-menu {
-    width: 100%;
-    max-height: 250px;
-    overflow-y: auto;
-    font-size: 0.82rem;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-}
-
-.custom-dropdown-table .dropdown-item {
-    white-space: normal;
-    padding: 8px 12px;
-    border-bottom: 1px solid #f1f1f1;
-}
-
-.custom-dropdown-table .dropdown-item:hover {
-    background-color: #f8f9fa;
-}
-
-/* 4. Ancho mayor para la tabla en pantallas grandes */
-.table-responsive {
-    min-width: 100%;
-}
-</style>

@@ -107,6 +107,18 @@
                 $ctrl = new DepartamentosController($slug);
             } 
         break;
+		case "dhcp":
+			if ($accion == "") {
+                require_once "_controller/AuditoriaDhcpController.php";
+                $ctrl = new AuditoriaDhcpController($slug);
+            } 
+		break;	
+		case "marcas":
+			if ($accion == "") {
+                require_once "_controller/MarcasModelosController.php";
+                $ctrl = new MarcasModelosController($slug);
+            } 
+		break;	
         default:
 		break;
     }

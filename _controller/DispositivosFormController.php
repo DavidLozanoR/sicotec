@@ -136,6 +136,11 @@ class DispositivosFormController {
         $condicionRed .= " AND LOWER(r.est) != 'inactivo' AND LOWER(r.est) != 'reservado' ORDER BY v.nom_vlan ASC, INET_ATON(r.ip) ASC";
         $redes_disponibles = $model->seleccionaRegistrosJoin($tablaRed, $joinsRed, $camposRed, $condicionRed, $paramsRed);
         
+        $departamentos =  $model->seleccionaRegistros("departamentos", ["id_dep","clave_dep","nom_dep"]);
+        // Traer catálogo de Marcas activas
+        $marcas = $model->seleccionaRegistros("marcas", ["id_marca", "nom_marca"], "estatus = 1 ORDER BY nom_marca ASC");
+        $modelos_marca = [];
+
         $campos_po = ["id_po", "id_dep", "TRIM(CONCAT(nombres, ' ', ape_pa, ' ', COALESCE(ape_ma, ''))) AS nombre_completo"];
         $personal_operativo = $model->seleccionaRegistros("personal_operativo", $campos_po, "1=1 ORDER BY nombres ASC");
 
@@ -148,6 +153,10 @@ class DispositivosFormController {
             
             if (!empty($resultado)) {
                 $dispositivo = $resultado[0];
+                // Si el dispositivo tiene una marca, traemos sus modelos para precargar el select
+                if (!empty($dispositivo['id_marca'])) {
+                    $modelos_marca = $model->seleccionaRegistros("modelos", ["id_modelo", "nom_modelo"], "id_marca = ? AND estatus = 1 ORDER BY nom_modelo ASC", [$dispositivo['id_marca']]);
+                }
                 
                 // Traemos las interfaces exactas que tiene asignadas el equipo actualmente
                 $interfaces_actuales = $model->seleccionaRegistrosJoin(
@@ -173,18 +182,21 @@ class DispositivosFormController {
             }
         }
 
-        $puede_eliminar = $this->verificarPermiso($this->id_submod, 3);
+        $puede_eliminar = $this->verificarPermiso($this->id_submod, PERM_ELIMINAR);
 
         return [
             'redes_disponibles'   => $redes_disponibles ?: [],
             'personal_operativo'  => $personal_operativo ?: [],
             'servicios'           => $servicios ?: [],
+            'departamentos'       => $departamentos ?: [],
             'versiones'           => $versiones ?: [],
             'servicios_asignados' => $servicios_asignados ?: [],
             'dispositivo'         => $dispositivo,
             'id_sub_actual'       => $this->id_submod,
             'id_disp'             => $this->id_disp,
-            'puede_eliminar'      => $puede_eliminar
+            'puede_eliminar'      => $puede_eliminar,
+            'marcas'              => $marcas ?: [],
+            'modelos_marca'       => $modelos_marca ?: []
         ];
     }
 

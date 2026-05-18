@@ -199,7 +199,7 @@ class ResponsivaController {
         );
         
         if ($res !== false) {
-            $model->registrarBitacora($id_sub, 'UPDATE', "Transfirió responsiva y uso del equipo ID: {$id_disp} (PO Origen: {$id_po_origen} -> PO Destino: {$id_po_destino})");
+            $model->registrarBitacora($id_sub, 'MODIFICAR', "Transfirió responsiva y uso del equipo ID: {$id_disp} (PO Origen: {$id_po_origen} -> PO Destino: {$id_po_destino})");
             return ["result" => 1, "msg" => "La responsiva ha sido transferida exitosamente."];
         }
         

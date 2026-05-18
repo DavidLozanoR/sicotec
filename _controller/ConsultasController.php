@@ -85,16 +85,16 @@ class ConsultasController {
      * @param array $filtros Matriz asociativa con los criterios de búsqueda (asig, dep, vlan, serv, soft).
      * @return array Estructura de respuesta con estado y conjunto de datos obtenidos.
      */
-    public function ejecutarConsulta($filtros) {
+   public function ejecutarConsulta($filtros) {
         $model = new MainModel();
         
-        // Base de selección (Proyección de columnas)
+        // Base de selección con GROUP_CONCAT para agrupar redes y evitar duplicados
         $sql = "SELECT 
                     d.id_disp, d.nom_host, d.marca, d.modelo, d.num_ser, d.num_inv,
                     CONCAT(po.nombres, ' ', IFNULL(po.ape_pa,'')) AS responsable,
                     de.nom_dep AS departamento, 
-                    red.ip,
-                    vlan.nom_vlan ";
+                    GROUP_CONCAT(DISTINCT CONCAT(IFNULL(red.tipo_conexion, 'Ethernet'), '::', red.ip) SEPARATOR '||') AS ip_data,
+                    GROUP_CONCAT(DISTINCT vlan.nom_vlan SEPARATOR '||') AS nom_vlan ";
         
         // Origen de datos base (Relaciones estándar del dispositivo)
         $from = " FROM dispositivos d
@@ -146,8 +146,9 @@ class ConsultasController {
             }
         }
 
-        // Ensamblaje final de la sentencia y ejecución segura
-        $queryFinal = $sql . $from . $where;
+        // Ensamblaje final de la sentencia agregando GROUP BY para evitar el producto cartesiano
+        $queryFinal = $sql . $from . $where . " GROUP BY d.id_disp";
+        
         $res = $model->consultarLibre($queryFinal, $parametros);
 
         if (is_array($res)) {
