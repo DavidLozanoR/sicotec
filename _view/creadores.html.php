@@ -30,13 +30,28 @@
                     <h6 class="text-muted fw-bold mb-2 text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px;">Instituto Politécnico Nacional</h6>
                     <p class="text-dark mb-4 flex-grow-1">
                         <strong>UPIICSA</strong><br>
-                        Desarrollo Full Stack, Implementación de Infraestructura y Lógica de Sincronización.
+                        Desarrollo Full Stack, Implementación de Infraestructura, Documentación del sistema y Lógica de Sincronización.
                     </p>
                     
-                    <div class="d-flex justify-content-center gap-2 mb-4">
-                        <span class="badge bg-light text-dark border"><i class="fab fa-php text-primary me-1"></i> PHP</span>
-                        <span class="badge bg-light text-dark border"><i class="fas fa-database text-secondary me-1"></i> MariaDB</span>
-                        <span class="badge bg-light text-dark border"><i class="fab fa-js text-warning me-1"></i> JS</span>
+                    <div class="row row-cols-3 g-2 mb-4 text-center justify-content-center">
+                        <div class="col">
+                            <span class="badge bg-light text-dark border w-100 py-2"><i class="fab fa-php text-primary me-1"></i> PHP</span>
+                        </div>
+                        <div class="col">
+                            <span class="badge bg-light text-dark border w-100 py-2"><i class="fas fa-database text-secondary me-1"></i> MariaDB</span>
+                        </div>
+                        <div class="col">
+                            <span class="badge bg-light text-dark border w-100 py-2"><i class="fab fa-js text-warning me-1"></i> JS</span>
+                        </div>
+                        <div class="col">
+                            <span class="badge bg-light text-dark border w-100 py-2"><i class="fab fa-html5 text-danger me-1"></i> HTML5</span>
+                        </div>
+                        <div class="col">
+                            <span class="badge bg-light text-dark border w-100 py-2"><i class="fab fa-css3-alt text-info me-1"></i> CSS3</span>
+                        </div>
+                        <div class="col">
+                            <span class="badge bg-light text-dark border w-100 py-2"><i class="fab fa-bootstrap text-purple me-1"></i> Bootstrap</span>
+                        </div>
                     </div>
 
                     <div class="mt-auto pt-3 border-top border-light">
@@ -76,17 +91,33 @@
                     <h6 class="text-muted fw-bold mb-2 text-uppercase" style="font-size: 0.8rem; letter-spacing: 1px;">Instituto Politécnico Nacional</h6>
                     <p class="text-dark mb-4 flex-grow-1">
                         <strong>UPIICSA</strong><br>
-                        Documentación del sistema, Diseño UI/UX y Arquitectura de Base de Datos
+                        Desarrollo Full Stack, Implementación de Infraestructura, Documentación del sistema y Arquitectura de Base de Datos
                     </p>
 
-                    <div class="d-flex justify-content-center gap-2 mb-4">
-                        <span class="badge bg-light text-dark border"><i class="fab fa-html5 text-danger me-1"></i> HTML5</span>
-                        <span class="badge bg-light text-dark border"><i class="fab fa-css3-alt text-info me-1"></i> CSS3</span>
-                        <span class="badge bg-light text-dark border"><i class="fab fa-bootstrap text-purple me-1"></i> Bootstrap</span>
+                    <div class="row row-cols-3 g-2 mb-4 text-center justify-content-center">
+                        <div class="col">
+                            <span class="badge bg-light text-dark border w-100 py-2"><i class="fab fa-php text-primary me-1"></i> PHP</span>
+                        </div>
+                        <div class="col">
+                            <span class="badge bg-light text-dark border w-100 py-2"><i class="fas fa-database text-secondary me-1"></i> MariaDB</span>
+                        </div>
+                        <div class="col">
+                            <span class="badge bg-light text-dark border w-100 py-2"><i class="fab fa-js text-warning me-1"></i> JS</span>
+                        </div>
+                        <div class="col">
+                            <span class="badge bg-light text-dark border w-100 py-2"><i class="fab fa-html5 text-danger me-1"></i> HTML5</span>
+                        </div>
+                        <div class="col">
+                            <span class="badge bg-light text-dark border w-100 py-2"><i class="fab fa-css3-alt text-info me-1"></i> CSS3</span>
+                        </div>
+                        <div class="col">
+                            <span class="badge bg-light text-dark border w-100 py-2"><i class="fab fa-bootstrap text-purple me-1"></i> Bootstrap</span>
+                        </div>
                     </div>
 
+
                     <div class="mt-auto pt-3 border-top border-light">
-                        <a href="https://github.com/usuario-rodrigo" target="_blank" class="btn btn-outline-dark btn-sm rounded-circle me-2" title="GitHub">
+                        <a href="https://github.com/gkoal" target="_blank" class="btn btn-outline-dark btn-sm rounded-circle me-2" title="GitHub">
                             <i class="fab fa-github"></i>
                         </a>
                         <a href="https://linkedin.com/in/perfil-rodrigo" target="_blank" class="btn btn-outline-primary btn-sm rounded-circle me-2" title="LinkedIn">
