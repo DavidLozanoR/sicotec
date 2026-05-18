@@ -26,8 +26,8 @@
 	$id_usrop = isset($peticion[3]) ? $peticion[3] : "";
 	$id_disp = isset($peticion[3]) ? $peticion[3] : "";
 	 $id_user = $_SESSION["usuario"]["id_usuar"];
-	 $id_rol=$_SESSION["usuario"]["id_rol"]; //TODO: Verificar logica con requerimientos
-	 $nom_user = $_SESSION["usuario"]["nom_usuar"]; //TODO: verificar logia con requerimientos
+	 $id_rol=$_SESSION["usuario"]["id_rol"]; 
+	 $nom_user = $_SESSION["usuario"]["nom_usuar"]; 
 	//Procesar la peticion cargando el slug adecuado
 	switch ($slug) {
         case "inicio" :
