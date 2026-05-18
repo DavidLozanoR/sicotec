@@ -8,9 +8,44 @@ document.addEventListener('DOMContentLoaded', () => {
     const idSubActual = document.getElementById("id_sub_actual") ? document.getElementById("id_sub_actual").value : 11;
 
     let archivoSeleccionado = null;
+    let resultadosAuditoria = { fantasmas: [], conflictos: [], huerfanas: [] };
+    let tabActiva = 'fantasmas'; 
+    let paginaActual = 1;
+    let registrosPorPagina = 10;
+
+    const inputBuscar = document.getElementById('inputBuscar');
+    const selectorRegistros = document.getElementById('selectorRegistros');
+    const infoPaginacion = document.getElementById('infoPaginacion');
+    const ulPaginacion = document.getElementById('ulPaginacion');
 
     // ==========================================
-    // 1. LÓGICA DE DRAG & DROP
+    // 1. EVENTOS DE PAGINACIÓN Y BÚSQUEDA
+    // ==========================================
+    inputBuscar.addEventListener('input', () => {
+        paginaActual = 1; 
+        renderizarTabActiva();
+    });
+
+    selectorRegistros.addEventListener('change', (e) => {
+        registrosPorPagina = e.target.value === 'todos' ? 'todos' : parseInt(e.target.value);
+        paginaActual = 1;
+        renderizarTabActiva();
+    });
+
+    document.querySelectorAll('button[data-bs-toggle="pill"]').forEach(btn => {
+        btn.addEventListener('shown.bs.tab', (e) => {
+            const targetId = e.target.getAttribute('data-bs-target');
+            if (targetId === '#tab-fantasmas') tabActiva = 'fantasmas';
+            else if (targetId === '#tab-conflictos') tabActiva = 'conflictos';
+            else if (targetId === '#tab-huerfanas') tabActiva = 'huerfanas';
+            
+            paginaActual = 1; 
+            renderizarTabActiva();
+        });
+    });
+
+    // ==========================================
+    // 2. LÓGICA DE DRAG & DROP
     // ==========================================
     dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('dragover'); });
     dropzone.addEventListener('dragleave', () => dropzone.classList.remove('dragover') );
@@ -45,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ==========================================
-    // 2. ENVÍO AL BACKEND VÍA FORMDATA
+    // 3. ENVÍO AL BACKEND VÍA FORMDATA
     // ==========================================
     btnIniciar.addEventListener('click', async () => {
         if (!archivoSeleccionado) return;
@@ -62,13 +97,13 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             const response = await fetch('_controller/AuditoriaDhcpAsync.php', {
                 method: 'POST',
-                body: formData // Fetch gestiona el Content-Type multipart
+                body: formData
             });
 
             const data = await response.json();
 
             if (data.status === 'success') {
-                mostrarResultados(data.data);
+                prepararResultados(data.data);
             } else {
                 Swal.fire({ icon: 'error', title: 'Error', text: data.msg, confirmButtonColor: '#9D2449' });
                 btnIniciar.innerHTML = btnOriginalText;
@@ -83,9 +118,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     // ==========================================
-    // 3. RENDERIZADO DE RESULTADOS
+    // 4. MOTOR DE PAGINACIÓN Y RENDERIZADO
     // ==========================================
-    function mostrarResultados(data) {
+    function prepararResultados(data) {
         seccionCarga.classList.add('d-none');
         seccionResultados.classList.remove('d-none');
 
@@ -94,50 +129,139 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('stat-fantasmas').textContent = data.fantasmas.length;
         document.getElementById('stat-huerfanas').textContent = data.huerfanas.length;
 
-        llenarTabla('tbody-fantasmas', data.fantasmas, row => `
-            <td class="ps-4"><span class="badge ${row.tipo.includes('Fantasma') ? 'bg-dark' : 'bg-secondary'}">${row.tipo}</span></td>
-            <td class="fw-bold">${row.ip_dhcp}</td>
-            <td class="font-monospace">${row.mac}</td>
-            <td>${row.hostname_dhcp || '<span class="text-muted">Desconocido</span>'}</td>
-            <td>${row.usuario_dhcp || '<span class="text-muted">N/A</span>'}</td>
-            <td class="pe-4 text-muted small">${row.detalle}</td>
-        `);
+        resultadosAuditoria.fantasmas = data.fantasmas;
+        resultadosAuditoria.conflictos = data.conflictos;
+        resultadosAuditoria.huerfanas = data.huerfanas;
 
-        llenarTabla('tbody-conflictos', data.conflictos, row => `
-            <td class="ps-4 fw-bold text-danger">${row.ip}</td>
-            <td>
-                <div class="small text-muted">DHCP: <strong class="text-dark">${row.hostname_dhcp}</strong></div>
-                <div class="small text-muted">SICOSOTE: <strong class="text-dark">${row.hostname_sicosote}</strong></div>
-            </td>
-            <td class="font-monospace">
-                <div class="small text-danger">DHCP: ${row.mac_dhcp}</div>
-                <div class="small text-success">SICOSOTE: ${row.mac_sicosote}</div>
-            </td>
-            <td class="pe-4 text-danger small fw-bold"><i class="fas fa-exclamation-circle me-1"></i>${row.detalle}</td>
-        `);
-
-        llenarTabla('tbody-huerfanas', data.huerfanas, row => `
-            <td class="ps-4 fw-bold text-warning">${row.ip}</td>
-            <td>${row.hostname_sicosote}</td>
-            <td class="font-monospace">${row.mac_sicosote}</td>
-            <td><span class="badge bg-light text-dark border">${row.inventario || 'S/N'}</span></td>
-            <td class="pe-4 text-muted small">${row.detalle}</td>
-        `);
+        renderizarTabActiva();
 
         Swal.fire({ icon: 'success', title: 'Auditoría Completada', confirmButtonColor: '#13322B' });
     }
 
+    function quitarAcentos(texto) {
+        if (!texto) return '';
+        return texto.toString().normalize('NFD').replace(/[\u0300-\u036f]/g, "");
+    }
+
+    function renderizarTabActiva() {
+        const queryBusqueda = quitarAcentos(inputBuscar.value.toLowerCase().trim());
+        let datosFiltrados = resultadosAuditoria[tabActiva];
+
+        if (queryBusqueda !== '') {
+            datosFiltrados = datosFiltrados.filter(item => {
+                const textoObjeto = Object.values(item).join(' ').toLowerCase();
+                return quitarAcentos(textoObjeto).includes(queryBusqueda);
+            });
+        }
+
+        const totalItems = datosFiltrados.length;
+        let totalPaginas = (registrosPorPagina === 'todos') ? 1 : Math.ceil(totalItems / registrosPorPagina);
+        
+        if (totalPaginas === 0) totalPaginas = 1;
+        if (paginaActual > totalPaginas) paginaActual = totalPaginas;
+
+        let start = 0;
+        let end = totalItems;
+        if (registrosPorPagina !== 'todos') {
+            start = (paginaActual - 1) * registrosPorPagina;
+            end = start + registrosPorPagina;
+        }
+
+        const datosPaginados = datosFiltrados.slice(start, end);
+
+        const tbodyId = `tbody-${tabActiva}`;
+        if (tabActiva === 'fantasmas') llenarTabla(tbodyId, datosPaginados, rowFantasmas);
+        else if (tabActiva === 'conflictos') llenarTabla(tbodyId, datosPaginados, rowConflictos);
+        else if (tabActiva === 'huerfanas') llenarTabla(tbodyId, datosPaginados, rowHuerfanas);
+
+        dibujarControlesPaginacion(totalItems, start, end, totalPaginas);
+    }
+
+    // ACTUALIZADO: Funciones moldeadoras de filas HTML
+    const rowFantasmas = row => `
+        <td class="ps-4"><span class="badge ${row.tipo.includes('Fantasma') ? 'bg-dark' : 'bg-secondary'}">${row.tipo}</span></td>
+        <td class="fw-bold">${row.ip_dhcp}</td>
+        <td class="font-monospace">${row.mac}</td>
+        <td>${row.hostname_dhcp || '<span class="text-muted">Desconocido</span>'}</td>
+        <td>${row.usuario_dhcp || '<span class="text-muted">N/A</span>'}</td>
+        <td class="pe-4 text-muted small">${row.detalle}</td>
+    `;
+
+    const rowConflictos = row => `
+        <td class="ps-4 fw-bold text-danger">${row.ip}</td>
+        <td>
+            <div class="small text-muted">DHCP: <strong class="text-dark">${row.hostname_dhcp}</strong></div>
+            <div class="small text-muted">SIC: <strong class="text-dark">${row.hostname_sicosote}</strong></div>
+        </td>
+        <td class="font-monospace">
+            <div class="small text-danger">DHCP: ${row.mac_dhcp}</div>
+            <div class="small text-success">SIC: ${row.mac_sicosote}</div>
+        </td>
+        <td><span class="badge bg-light text-dark border">${row.departamento}</span></td>
+        <td><span class="small fw-bold text-secondary">${row.responsable}</span></td>
+        <td class="pe-4 text-danger small fw-bold"><i class="fas fa-exclamation-circle me-1"></i>${row.detalle}</td>
+    `;
+
+    const rowHuerfanas = row => `
+        <td class="ps-4 fw-bold text-warning">${row.ip}</td>
+        <td>${row.hostname_sicosote}</td>
+        <td class="font-monospace">${row.mac_sicosote}</td>
+        <td><span class="badge bg-light text-dark border">${row.inventario || 'S/N'}</span></td>
+        <td><span class="badge bg-light text-dark border">${row.departamento}</span></td>
+        <td><span class="small fw-bold text-secondary">${row.responsable}</span></td>
+        <td class="pe-4 text-muted small">${row.detalle}</td>
+    `;
+
     function llenarTabla(tbodyId, arrayData, rowHtmlFn) {
         const tbody = document.getElementById(tbodyId);
         tbody.innerHTML = '';
+        
         if (arrayData.length === 0) {
-            tbody.innerHTML = `<tr><td colspan="6" class="text-center text-muted py-5"><i class="fas fa-check-circle text-success fa-3x mb-3 d-block opacity-75"></i> Todo en orden.</td></tr>`;
+            tbody.innerHTML = `<tr><td colspan="7" class="text-center text-muted py-5"><i class="fas fa-search text-secondary fa-3x mb-3 d-block opacity-50"></i> No se encontraron registros.</td></tr>`;
             return;
         }
+
         arrayData.forEach(item => {
             const tr = document.createElement('tr');
             tr.innerHTML = rowHtmlFn(item);
             tbody.appendChild(tr);
         });
+    }
+
+    function dibujarControlesPaginacion(totalItems, start, end, totalPaginas) {
+        ulPaginacion.innerHTML = '';
+
+        if (totalItems === 0) {
+            infoPaginacion.textContent = 'Mostrando 0 registros';
+            return;
+        }
+
+        let currentEnd = end > totalItems ? totalItems : end;
+        infoPaginacion.textContent = `Mostrando ${start + 1} a ${currentEnd} de ${totalItems} registros`;
+
+        if (registrosPorPagina === 'todos' || totalPaginas <= 1) return;
+
+        const liPrev = document.createElement('li');
+        liPrev.className = `page-item ${paginaActual === 1 ? 'disabled' : ''}`;
+        liPrev.innerHTML = `<a class="page-link text-guinda cursor-pointer" href="#">Anterior</a>`;
+        liPrev.addEventListener('click', (e) => { e.preventDefault(); if (paginaActual > 1) { paginaActual--; renderizarTabActiva(); } });
+        ulPaginacion.appendChild(liPrev);
+
+        let inicioPag = Math.max(1, paginaActual - 2);
+        let finPag = Math.min(totalPaginas, paginaActual + 2);
+
+        for (let i = inicioPag; i <= finPag; i++) {
+            const li = document.createElement('li');
+            li.className = `page-item ${i === paginaActual ? 'active' : ''}`;
+            li.innerHTML = `<a class="page-link ${i === paginaActual ? 'bg-guinda border-guinda text-white' : 'text-guinda cursor-pointer'}" href="#">${i}</a>`;
+            li.addEventListener('click', (e) => { e.preventDefault(); paginaActual = i; renderizarTabActiva(); });
+            ulPaginacion.appendChild(li);
+        }
+
+        const liNext = document.createElement('li');
+        liNext.className = `page-item ${paginaActual === totalPaginas ? 'disabled' : ''}`;
+        liNext.innerHTML = `<a class="page-link text-guinda cursor-pointer" href="#">Siguiente</a>`;
+        liNext.addEventListener('click', (e) => { e.preventDefault(); if (paginaActual < totalPaginas) { paginaActual++; renderizarTabActiva(); } });
+        ulPaginacion.appendChild(liNext);
     }
 });

@@ -16,6 +16,7 @@
     }
     .nav-pills .nav-link.active { background-color: #9D2449 !important; }
     .nav-link { color: #6c757d; font-weight: bold; }
+    .cursor-pointer { cursor: pointer !important; }
 </style>
 
 <div class="container-fluid px-4 py-4">
@@ -87,6 +88,25 @@
             </div>
         </div>
 
+        <div class="row align-items-center mb-3">
+            <div class="col-md-6">
+                <div class="input-group shadow-sm">
+                    <span class="input-group-text bg-white border-end-0 text-guinda"><i class="fas fa-search"></i></span>
+                    <input type="text" id="inputBuscar" class="form-control border-start-0 focus-guinda" placeholder="Buscar IP, MAC, Hostname, Ubicación o Usuario..." autocomplete="off">
+                </div>
+            </div>
+            <div class="col-md-6 text-md-end mt-3 mt-md-0">
+                <label class="small text-muted fw-bold me-2">Mostrar:</label>
+                <select id="selectorRegistros" class="form-select form-select-sm d-inline-block w-auto border-secondary-subtle focus-guinda shadow-sm">
+                    <option value="10">10 registros</option>
+                    <option value="25">25 registros</option>
+                    <option value="50">50 registros</option>
+                    <option value="100">100 registros</option>
+                    <option value="todos">Todos</option>
+                </select>
+            </div>
+        </div>
+
         <div class="card shadow-sm border-0 rounded-4">
             <div class="card-header bg-white py-3">
                 <ul class="nav nav-pills card-header-pills justify-content-center" id="pills-tab" role="tablist">
@@ -109,36 +129,48 @@
             </div>
             <div class="card-body p-0">
                 <div class="tab-content" id="pills-tabContent">
+                    
                     <div class="tab-pane fade show active" id="tab-fantasmas" role="tabpanel">
                         <div class="table-responsive">
                             <table class="table table-hover align-middle mb-0">
                                 <thead class="table-light">
-                                    <tr>
-                                        <th class="ps-4">Tipo</th><th>IP (DHCP)</th><th>Dirección MAC</th><th>Hostname DHCP</th><th>Usuario Detectado</th><th class="pe-4">Observación</th>
-                                    </tr>
+                                    <tr><th class="ps-4">Tipo</th><th>IP (DHCP)</th><th>Dirección MAC</th><th>Hostname DHCP</th><th>Usuario Detectado</th><th class="pe-4">Observación</th></tr>
                                 </thead>
                                 <tbody id="tbody-fantasmas"></tbody>
                             </table>
                         </div>
                     </div>
+                    
                     <div class="tab-pane fade" id="tab-conflictos" role="tabpanel">
                         <div class="table-responsive">
                             <table class="table table-hover align-middle mb-0">
                                 <thead class="table-light text-danger">
                                     <tr>
-                                        <th class="ps-4">IP en Conflicto</th><th>Hostname (DHCP vs SIC)</th><th>MAC (DHCP vs SIC)</th><th class="pe-4">Acción Recomendada</th>
+                                        <th class="ps-4">IP en Conflicto</th>
+                                        <th>Hostname (DHCP vs SIC)</th>
+                                        <th>MAC (DHCP vs SIC)</th>
+                                        <th>Ubicación</th>
+                                        <th>Responsable</th>
+                                        <th class="pe-4">Acción Recomendada</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tbody-conflictos"></tbody>
                             </table>
                         </div>
                     </div>
+                    
                     <div class="tab-pane fade" id="tab-huerfanas" role="tabpanel">
                         <div class="table-responsive">
                             <table class="table table-hover align-middle mb-0">
                                 <thead class="table-light">
                                     <tr>
-                                        <th class="ps-4">IP SICOSOTE</th><th>Hostname Inventario</th><th>MAC Registrada</th><th># Inventario</th><th class="pe-4">Estado</th>
+                                        <th class="ps-4">IP SICOSOTE</th>
+                                        <th>Hostname Inventario</th>
+                                        <th>MAC Registrada</th>
+                                        <th># Inventario</th>
+                                        <th>Ubicación</th>
+                                        <th>Responsable</th>
+                                        <th class="pe-4">Estado</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tbody-huerfanas"></tbody>
@@ -146,6 +178,10 @@
                         </div>
                     </div>
                 </div>
+            </div>
+            <div class="card-footer bg-white border-top d-flex flex-column flex-md-row justify-content-between align-items-center p-3">
+                <span id="infoPaginacion" class="text-muted small fw-bold mb-2 mb-md-0"></span>
+                <ul id="ulPaginacion" class="pagination pagination-sm mb-0"></ul>
             </div>
             <div class="card-footer bg-light text-end py-3">
                 <button class="btn btn-sm btn-secondary me-2" onclick="location.reload()"><i class="fas fa-undo me-1"></i> Nueva Auditoría</button>
