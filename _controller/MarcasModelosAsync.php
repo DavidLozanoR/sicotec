@@ -27,14 +27,13 @@ $id_sub = $input['id_sub'] ?? 1;
 $controller = new MarcasModelosController();
 $model = new MainModel();
 
-// Validar permiso de edición para acciones de escritura
+// Validar permiso de edición para acciones de escritura (Editar, Reactivar)
 $tiene_permiso_editar = $controller->verificarPermiso($id_sub, PERM_EDITAR);
 
 switch ($peticion) {
     
     case 'GUARDAR_MARCA':
         if (!$tiene_permiso_editar) { echo json_encode(["status" => "error", "msg" => "Permiso denegado."]); exit; }
-        // Pasamos el id_edicion si existe
         echo json_encode($controller->guardarMarca($id_sub, $input['nom_marca'], $input['id_edicion'] ?? null));
         break;
 
@@ -44,13 +43,18 @@ switch ($peticion) {
 
     case 'GUARDAR_MODELO':
         if (!$tiene_permiso_editar) { echo json_encode(["status" => "error", "msg" => "Permiso denegado."]); exit; }
-        // Pasamos el id_edicion si existe
         echo json_encode($controller->guardarModelo($id_sub, $input['id_marca'], $input['nom_modelo'], $input['id_edicion'] ?? null));
         break;
 
     case 'ELIMINAR_REGISTRO':
         if (!$controller->verificarPermiso($id_sub, PERM_ELIMINAR)) { echo json_encode(["status" => "error", "msg" => "Permiso denegado para eliminar."]); exit; }
         echo json_encode($controller->eliminarRegistro($id_sub, $input['tabla'], $input['columna_id'], $input['id']));
+        break;
+
+    // Reactivación
+    case 'REACTIVAR_REGISTRO':
+        if (!$tiene_permiso_editar) { echo json_encode(["status" => "error", "msg" => "Permiso denegado para reactivar."]); exit; }
+        echo json_encode($controller->reactivarRegistro($id_sub, $input['tabla'], $input['columna_id'], $input['id']));
         break;
 
     default:

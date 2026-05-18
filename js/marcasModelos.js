@@ -27,9 +27,9 @@ inputNombre.addEventListener('input', function() {
     if (valTrimmed === '') {
         mostrarError("El campo es obligatorio.");
     } else if (valTrimmed.length < 2) {
-        mostrarError("Debe tener al menos 2 caracteres Y máximo 25.");
-    } else if (valTrimmed.length > 25) {
-        mostrarError("Debe tener al Máximo 25 caracteres.");
+        mostrarError("Debe tener al menos 2 caracteres Y máximo 50.");
+    } else if (valTrimmed.length > 50) {
+        mostrarError("Debe tener al Máximo 50 caracteres.");
     } else if (/^\d+$/.test(valTrimmed)) {
         mostrarError("No puede contener únicamente números.");
     } else {
@@ -55,19 +55,25 @@ function limpiarError() {
 async function seleccionarMarca(id_marca, nom_marca) {
     marcaSeleccionadaId = id_marca;
     
-    // UI: Limpiar botones
+    // UI: Limpiar todos los botones (QUITAMOS LA CLASE 'active' PARA QUE NO CHOQUE BOOTSTRAP)
     document.querySelectorAll('#listaMarcas .list-group-item').forEach(el => {
         el.classList.remove('bg-guinda', 'text-white', 'active');
         let label = el.querySelector('.text-marca-label');
-        if(label) { label.classList.remove('text-white'); label.classList.add('text-secondary'); }
+        if(label) { 
+            label.classList.remove('text-white'); 
+            label.classList.add('text-secondary'); 
+        }
     });
 
-    // UI: Resaltar seleccionado con Guinda
+    // UI: Buscar el botón específico por ID e iluminarlo SOLO con tu clase Guinda
     const botonActivo = document.getElementById('btn-marca-' + id_marca);
     if(botonActivo) {
         botonActivo.classList.add('bg-guinda', 'text-white');
         let labelActivo = botonActivo.querySelector('.text-marca-label');
-        if(labelActivo) { labelActivo.classList.remove('text-secondary'); labelActivo.classList.add('text-white'); }
+        if(labelActivo) { 
+            labelActivo.classList.remove('text-secondary'); 
+            labelActivo.classList.add('text-white'); 
+        }
     }
 
     document.getElementById("lblMarcaSeleccionada").textContent = nom_marca;
@@ -75,6 +81,7 @@ async function seleccionarMarca(id_marca, nom_marca) {
     const btnNuevo = document.getElementById("btnNuevoModelo");
     if(btnNuevo) btnNuevo.disabled = false;
 
+    // Fetch Modelos
     try {
         const response = await fetch(ASYNC_URL, {
             method: 'POST',
@@ -115,12 +122,12 @@ async function seleccionarMarca(id_marca, nom_marca) {
 // ==========================================
 function abrirModalMarca(id = null, nombre = '') {
     document.getElementById("tipoOperacion").value = "MARCA";
-    document.getElementById("idRegistroEdicion").value = id || ""; // Si hay ID es Edición, si es null es Nuevo
+    document.getElementById("idRegistroEdicion").value = id || ""; 
     document.getElementById("modalCatalogoTitle").textContent = id ? "Editar Marca" : "Nueva Marca";
     
     inputNombre.value = nombre;
     limpiarError();
-    if(!nombre) btnGuardar.disabled = true; // Deshabilitar si es nuevo hasta que escriba validamente
+    if(!nombre) btnGuardar.disabled = true; 
     
     modalCat.show();
 }
@@ -144,10 +151,9 @@ function abrirModalModelo(id = null, nombre = '') {
 async function guardarCatalogo() {
     const tipo = document.getElementById("tipoOperacion").value;
     const id_edicion = document.getElementById("idRegistroEdicion").value;
-    const nombre = inputNombre.value.trim().replace(/\s{2,}/g, ' '); // Formateo final
+    const nombre = inputNombre.value.trim().replace(/\s{2,}/g, ' '); 
 
-    // Validación de seguridad previa al envío
-    if (!nombre || nombre.length < 2 ||nombre.length > 30 || /^\d+$/.test(nombre)) {
+    if (!nombre || nombre.length < 2 || /^\d+$/.test(nombre)) {
         mostrarError("Verifique el formato del nombre antes de guardar.");
         return;
     }
@@ -155,7 +161,7 @@ async function guardarCatalogo() {
     const payload = {
         peticion: tipo === "MARCA" ? 'GUARDAR_MARCA' : 'GUARDAR_MODELO',
         id_sub: idSubActual,
-        id_edicion: id_edicion // Enviamos el ID al backend (Vacio = Insert, Numérico = Update)
+        id_edicion: id_edicion 
     };
 
     if (tipo === "MARCA") {
@@ -179,7 +185,26 @@ async function guardarCatalogo() {
                 if(tipo === "MARCA") location.reload();
                 else seleccionarMarca(marcaSeleccionadaId, document.getElementById("lblMarcaSeleccionada").textContent); 
             });
-        } else {
+        } 
+        // LÓGICA DE REACTIVACIÓN DETECTADA
+        else if (data.status === "exists_inactive") {
+            modalCat.hide();
+            Swal.fire({
+                title: 'Registro Inactivo',
+                text: data.msg,
+                icon: 'warning',
+                showCancelButton: true,
+                confirmButtonColor: '#9D2449',
+                cancelButtonColor: '#6c757d',
+                confirmButtonText: 'Sí, reactivar',
+                cancelButtonText: 'Cancelar'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    reactivarRegistro(data.tabla, data.col_id, data.id_reactivar);
+                }
+            });
+        } 
+        else {
             Swal.fire({ icon: 'error', title: 'Error', text: data.msg });
         }
     } catch (error) {
@@ -223,4 +248,29 @@ function eliminarRegistro(tabla, columna_id, id) {
             }
         }
     });
+}
+
+// ==========================================
+// 6. REACTIVAR REGISTRO
+// ==========================================
+async function reactivarRegistro(tabla, columna_id, id) {
+    try {
+        const response = await fetch(ASYNC_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ peticion: 'REACTIVAR_REGISTRO', tabla: tabla, columna_id: columna_id, id: id, id_sub: idSubActual })
+        });
+        const data = await response.json();
+
+        if (data.status === "success") {
+            Swal.fire({ icon: 'success', title: 'Reactivado', text: data.msg, timer: 1500, showConfirmButton: false }).then(() => {
+                if(tabla === "marcas") location.reload();
+                else seleccionarMarca(marcaSeleccionadaId, document.getElementById("lblMarcaSeleccionada").textContent);
+            });
+        } else {
+            Swal.fire({ icon: 'error', title: 'Error', text: data.msg });
+        }
+    } catch (error) {
+        Swal.fire({ icon: 'error', title: 'Error de red', text: 'No se pudo completar la operación.' });
+    }
 }
