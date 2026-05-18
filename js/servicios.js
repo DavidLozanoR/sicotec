@@ -366,7 +366,7 @@ $(document).ready(function() {
             url: urlAsync, type: 'POST', data: formData, processData: false, contentType: false, dataType: 'json',
             success: function(r) {
                 if (r.result === 1) {
-                    Swal.fire({icon: 'success', title: 'Éxito', text: r.msg, confirmButtonColor: '#9D2449'}).then(() => location.reload(true));
+                    Swal.fire({icon: 'success', timer:1000, title: 'Éxito', text: r.msg, confirmButtonColor: '#9D2449'}).then(() => location.reload(true));
                 } else {
                     Swal.fire({icon: 'error', title: 'Error', text: r.msg, confirmButtonColor: '#9D2449'});
                 }
@@ -384,7 +384,7 @@ $(document).ready(function() {
         }).then((result) => {
             if (result.isConfirmed) {
                 $.post(urlAsync, {peticion: 'DELETE_SERV', id_serv: id_serv, id_sub: idSub}, function(r) {
-                    if (r.result === 1) Swal.fire({icon: 'success', title: 'Eliminado', text: r.msg, confirmButtonColor: '#9D2449'}).then(() => location.reload(true));
+                    if (r.result === 1) Swal.fire({icon: 'success',timer:1000, title: 'Eliminado', text: r.msg, confirmButtonColor: '#9D2449'}).then(() => location.reload(true));
                     else Swal.fire({icon: 'error', title: 'Atención', text: r.msg, confirmButtonColor: '#9D2449'});
                 }, 'json');
             }

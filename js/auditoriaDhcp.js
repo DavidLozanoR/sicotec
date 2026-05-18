@@ -135,8 +135,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
         renderizarTabActiva();
 
-        Swal.fire({ icon: 'success', title: 'Auditoría Completada', confirmButtonColor: '#13322B' });
-    }
+        Swal.fire({ 
+            icon: 'success', 
+            title: 'Auditoría Completada', 
+            confirmButtonColor: '#13322B',
+            timer: 1500,
+            timerProgressBar: true // Opcional: muestra una línea de progreso visual del tiempo restante
+        });    }
 
     function quitarAcentos(texto) {
         if (!texto) return '';
