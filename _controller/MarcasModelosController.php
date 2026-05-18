@@ -54,31 +54,35 @@ class MarcasModelosController {
     }
 
     // ==========================================
-    // METODOS ASÍNCRONOS (Llamados desde Async)
+    // METODOS ASÍNCRONOS
     // ==========================================
 
     public function guardarMarca($id_sub, $nom_marca, $id_marca = null) {
         $model = new MainModel();
-        // Limpieza estricta backend
         $nom_marca = trim(preg_replace('/\s+/', ' ', strtoupper($nom_marca)));
 
-        // Validaciones de seguridad
         if(empty($nom_marca) || preg_match('/^\d+$/', $nom_marca)) {
             return ["status" => "error", "msg" => "El nombre no es válido. No puede estar vacío ni contener solo números."];
         }
-        if(strlen($nom_marca) > 25) return ["status" => "error", "msg" => "El nombre supera el límite permitido de 25 caracteres."];
+        if(strlen($nom_marca) > 50) return ["status" => "error", "msg" => "El nombre supera el límite permitido de 50 caracteres."];
 
         if (!empty($id_marca)) {
             // Lógica de EDICIÓN (UPDATE)
-            $existe = $model->seleccionaRegistros("marcas", ["id_marca"], "nom_marca = ? AND id_marca != ? AND estatus = 1", [$nom_marca, $id_marca]);
-            if (!empty($existe)) return ["status" => "error", "msg" => "Ya existe otra marca con ese nombre."];
+            $existe = $model->seleccionaRegistros("marcas", ["id_marca", "estatus"], "nom_marca = ? AND id_marca != ?", [$nom_marca, $id_marca]);
+            if (!empty($existe)) {
+                if ($existe[0]['estatus'] == 1) return ["status" => "error", "msg" => "Ya existe otra marca con ese nombre."];
+                else return ["status" => "exists_inactive", "id_reactivar" => $existe[0]['id_marca'], "tabla" => "marcas", "col_id" => "id_marca", "msg" => "Ya existe una marca con ese nombre pero fue eliminada (inactiva). ¿Desea reactivarla?"];
+            }
 
             $exito = $model->actualizaRegistroConBitacora("marcas", ["nom_marca"], "id_marca = ?", [$nom_marca, $id_marca], $id_sub, "Edición de marca a: $nom_marca");
             return $exito ? ["status" => "success", "msg" => "Marca actualizada correctamente."] : ["status" => "error", "msg" => "Error al actualizar la marca."];
         } else {
             // Lógica de NUEVO (INSERT)
-            $existe = $model->seleccionaRegistros("marcas", ["id_marca"], "nom_marca = ? AND estatus = 1", [$nom_marca]);
-            if (!empty($existe)) return ["status" => "error", "msg" => "La marca ya existe en el catálogo."];
+            $existe = $model->seleccionaRegistros("marcas", ["id_marca", "estatus"], "nom_marca = ?", [$nom_marca]);
+            if (!empty($existe)) {
+                if ($existe[0]['estatus'] == 1) return ["status" => "error", "msg" => "La marca ya existe en el catálogo."];
+                else return ["status" => "exists_inactive", "id_reactivar" => $existe[0]['id_marca'], "tabla" => "marcas", "col_id" => "id_marca", "msg" => "La marca ya fue registrada previamente pero fue eliminada. ¿Desea reactivarla?"];
+            }
 
             $id = $model->agregaRegistroConBitacora("marcas", ["nom_marca", "estatus"], [$nom_marca, 1], $id_sub, "Alta de nueva marca: $nom_marca");
             return $id ? ["status" => "success", "msg" => "Marca registrada correctamente."] : ["status" => "error", "msg" => "Error al registrar la marca."];
@@ -93,26 +97,30 @@ class MarcasModelosController {
 
     public function guardarModelo($id_sub, $id_marca, $nom_modelo, $id_modelo = null) {
         $model = new MainModel();
-        // Limpieza estricta backend
         $nom_modelo = trim(preg_replace('/\s+/', ' ', strtoupper($nom_modelo)));
 
-        // Validaciones de seguridad
         if(empty($nom_modelo) || preg_match('/^\d+$/', $nom_modelo)) {
             return ["status" => "error", "msg" => "El nombre no es válido. No puede estar vacío ni contener solo números."];
         }
-        if(strlen($nom_modelo) > 25) return ["status" => "error", "msg" => "El nombre supera el límite permitido de 25 caracteres."];
+        if(strlen($nom_modelo) > 50) return ["status" => "error", "msg" => "El nombre supera el límite permitido de 50 caracteres."];
 
         if (!empty($id_modelo)) {
             // Lógica de EDICIÓN (UPDATE)
-            $existe = $model->seleccionaRegistros("modelos", ["id_modelo"], "id_marca = ? AND nom_modelo = ? AND id_modelo != ? AND estatus = 1", [$id_marca, $nom_modelo, $id_modelo]);
-            if (!empty($existe)) return ["status" => "error", "msg" => "Este modelo ya existe para la marca seleccionada."];
+            $existe = $model->seleccionaRegistros("modelos", ["id_modelo", "estatus"], "id_marca = ? AND nom_modelo = ? AND id_modelo != ?", [$id_marca, $nom_modelo, $id_modelo]);
+            if (!empty($existe)) {
+                if ($existe[0]['estatus'] == 1) return ["status" => "error", "msg" => "Este modelo ya existe para la marca seleccionada."];
+                else return ["status" => "exists_inactive", "id_reactivar" => $existe[0]['id_modelo'], "tabla" => "modelos", "col_id" => "id_modelo", "msg" => "Este modelo ya existe para esta marca pero fue eliminado. ¿Desea reactivarlo?"];
+            }
 
             $exito = $model->actualizaRegistroConBitacora("modelos", ["nom_modelo"], "id_modelo = ?", [$nom_modelo, $id_modelo], $id_sub, "Edición de modelo a: $nom_modelo");
             return $exito ? ["status" => "success", "msg" => "Modelo actualizado correctamente."] : ["status" => "error", "msg" => "Error al actualizar el modelo."];
         } else {
             // Lógica de NUEVO (INSERT)
-            $existe = $model->seleccionaRegistros("modelos", ["id_modelo"], "id_marca = ? AND nom_modelo = ? AND estatus = 1", [$id_marca, $nom_modelo]);
-            if (!empty($existe)) return ["status" => "error", "msg" => "Este modelo ya existe para la marca seleccionada."];
+            $existe = $model->seleccionaRegistros("modelos", ["id_modelo", "estatus"], "id_marca = ? AND nom_modelo = ?", [$id_marca, $nom_modelo]);
+            if (!empty($existe)) {
+                if ($existe[0]['estatus'] == 1) return ["status" => "error", "msg" => "Este modelo ya existe para la marca seleccionada."];
+                else return ["status" => "exists_inactive", "id_reactivar" => $existe[0]['id_modelo'], "tabla" => "modelos", "col_id" => "id_modelo", "msg" => "Este modelo ya fue registrado previamente para esta marca pero fue eliminado. ¿Desea reactivarlo?"];
+            }
 
             $id = $model->agregaRegistroConBitacora("modelos", ["id_marca", "nom_modelo", "estatus"], [$id_marca, $nom_modelo, 1], $id_sub, "Alta de nuevo modelo: $nom_modelo");
             return $id ? ["status" => "success", "msg" => "Modelo registrado correctamente."] : ["status" => "error", "msg" => "Error al registrar el modelo."];
@@ -121,9 +129,15 @@ class MarcasModelosController {
 
     public function eliminarRegistro($id_sub, $tabla, $columna_id, $id_registro) {
         $model = new MainModel();
-        // Baja lógica
         $exito = $model->actualizaRegistroConBitacora($tabla, ["estatus"], "$columna_id = ?", [0, $id_registro], $id_sub, "Baja lógica en $tabla. ID: $id_registro");
         return $exito ? ["status" => "success", "msg" => "Registro eliminado correctamente."] : ["status" => "error", "msg" => "Error al intentar eliminar el registro."];
+    }
+
+    // NUEVA FUNCIÓN: Reactivar registros inactivos
+    public function reactivarRegistro($id_sub, $tabla, $columna_id, $id_registro) {
+        $model = new MainModel();
+        $exito = $model->actualizaRegistroConBitacora($tabla, ["estatus"], "$columna_id = ?", [1, $id_registro], $id_sub, "Reactivación de registro en $tabla. ID: $id_registro");
+        return $exito ? ["status" => "success", "msg" => "Registro reactivado correctamente."] : ["status" => "error", "msg" => "Error al intentar reactivar el registro."];
     }
 }
 ?>
