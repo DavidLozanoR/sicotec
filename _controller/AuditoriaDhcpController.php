@@ -6,7 +6,7 @@
  */
 
 require_once __DIR__ . "/../vendor/autoload.php"; 
-require_once "MainModel.php"; 
+require_once __DIR__ . "/../_model/MainModel.php"; 
 
 use OpenSpout\Reader\XLSX\Reader as XLSXReader;
 
@@ -56,7 +56,6 @@ class AuditoriaDhcpController {
         try {
             $extension = strtolower(pathinfo($nombre_archivo_original, PATHINFO_EXTENSION));
             
-            // 1. Extraer datos crudos (Ahora soporta XLSX, CSV y XML de forma robusta)
             $filas_crudas = $this->extraerDatosNativos($ruta_temporal, $extension);
             
             if (isset($filas_crudas['status'])) {
@@ -68,10 +67,8 @@ class AuditoriaDhcpController {
             $cHost = -1; $cIp = -1; $cMac = -1; $cUser = -1;
 
             foreach ($filas_crudas as $row) {
-                // Forzar que la fila sea indexada (0, 1, 2...)
                 if (!isset($row[0])) { $row = array_values($row); }
 
-                // Identificación dinámica de columnas
                 if (!$headerEncontrado) {
                     foreach ($row as $index => $columna) {
                         $val = strtoupper(trim((string)$columna));
@@ -112,8 +109,19 @@ class AuditoriaDhcpController {
             // 2. Extraer datos de la Base de Datos (SICOSOTE)
             // ==========================================
             $model = new MainModel();
-            $joins = ["JOIN dispositivos d ON r.id_disp = d.id_disp"];
-            $campos = ["r.ip", "d.id_disp", "d.nom_host", "d.mac_ethernet", "d.mac_wifi", "d.num_inv"];
+            
+            // ACTUALIZACIÓN: Se agregan JOINs para Departamento y Responsable
+            $joins = [
+                "JOIN dispositivos d ON r.id_disp = d.id_disp",
+                "LEFT JOIN departamentos dep ON d.id_dep = dep.id_dep",
+                "LEFT JOIN personal_operativo po ON po.id_po = d.resp_po_id" // Da prioridad a  resp
+            ];
+            
+            $campos = [
+                "r.ip", "d.id_disp", "d.nom_host", "d.mac_ethernet", "d.mac_wifi", "d.num_inv",
+                "dep.nom_dep",
+                "TRIM(CONCAT(po.nombres, ' ', po.ape_pa, ' ', COALESCE(po.ape_ma, ''))) AS responsable"
+            ];
             
             $db_records_raw = $model->seleccionaRegistrosJoin("infraestructura_red r", $joins, $campos, "r.id_disp IS NOT NULL AND LOWER(r.est) != 'inactivo'");
 
@@ -132,7 +140,9 @@ class AuditoriaDhcpController {
                         'nom_host_raw' => $row['nom_host'],
                         'mac_eth'      => $mac_eth,
                         'mac_wifi'     => $mac_wifi,
-                        'num_inv'      => $row['num_inv']
+                        'num_inv'      => $row['num_inv'],
+                        'departamento' => !empty($row['nom_dep']) ? trim($row['nom_dep']) : 'Sin Asignar',
+                        'responsable'  => !empty($row['responsable']) ? trim($row['responsable']) : 'Almacén'
                     ];
 
                     if ($mac_eth) $mac_to_ip_db[$mac_eth] = $ip;
@@ -169,12 +179,15 @@ class AuditoriaDhcpController {
                 } else {
                     $db = $db_records[$ip];
                     if ($dhcp['mac'] !== $db['mac_eth'] && $dhcp['mac'] !== $db['mac_wifi']) {
+                        // ACTUALIZACIÓN: Mandamos el responsable y departamento al frontend
                         $conflictos[] = [
                             'ip'                => $ip,
                             'mac_dhcp'          => $dhcp['mac'],
                             'hostname_dhcp'     => $dhcp['hostname_raw'],
                             'mac_sicosote'      => $db['mac_eth'] . ($db['mac_wifi'] ? ' / ' . $db['mac_wifi'] : ''),
                             'hostname_sicosote' => $db['nom_host_raw'],
+                            'departamento'      => $db['departamento'],
+                            'responsable'       => $db['responsable'],
                             'detalle'           => "Conflicto de Hardware. Posible suplantación de IP o equipo reemplazado sin notificar."
                         ];
                     }
@@ -183,11 +196,14 @@ class AuditoriaDhcpController {
 
             foreach ($db_records as $ip => $db) {
                 if (!isset($dhcp_records[$ip])) {
+                    // ACTUALIZACIÓN: Mandamos el responsable y departamento al frontend
                     $huerfanas[] = [
                         'ip'                => $ip,
                         'hostname_sicosote' => $db['nom_host_raw'],
                         'mac_sicosote'      => $db['mac_eth'] . ($db['mac_wifi'] ? ' / ' . $db['mac_wifi'] : ''),
                         'inventario'        => $db['num_inv'],
+                        'departamento'      => $db['departamento'],
+                        'responsable'       => $db['responsable'],
                         'detalle'           => "Equipo en inventario pero el servidor DHCP no lo detecta en la red activa."
                     ];
                 }
@@ -216,7 +232,6 @@ class AuditoriaDhcpController {
     // ==========================================
     private function extraerDatosNativos($ruta, $extension) {
         try {
-            // 1. EXCEL (XLSX)
             if ($extension === 'xlsx') {
                 $reader = new XLSXReader(); 
                 $reader->open($ruta);
@@ -225,19 +240,16 @@ class AuditoriaDhcpController {
                     foreach ($sheet->getRowIterator() as $row) {
                         $datos[] = $row->toArray();
                     }
-                    break; // Solo la primera hoja
+                    break; 
                 }
                 $reader->close();
                 return $datos;
             } 
             
-            // 2. CSV (Nativo y a prueba de codificaciones Windows)
             elseif ($extension === 'csv') {
                 $datos = [];
                 if (($handle = fopen($ruta, "r")) !== FALSE) {
-                    // Usamos fgetcsv nativo que ignora los problemas de codificación estructural
                     while (($data = fgetcsv($handle, 4000, ",")) !== FALSE) {
-                        // Limpieza de caracteres problemáticos de Windows-1252 a UTF-8
                         $datos[] = array_map(function($val) {
                             $val_utf8 = mb_convert_encoding((string)$val, 'UTF-8', 'Windows-1252');
                             return trim($val_utf8);
@@ -248,12 +260,10 @@ class AuditoriaDhcpController {
                 return $datos;
             } 
             
-            // 3. XML (Genérico y Microsoft Spreadsheet)
             elseif ($extension === 'xml') {
                 $xmlString = file_get_contents($ruta);
                 if (empty($xmlString)) return ["status" => "error", "msg" => "El archivo XML está vacío."];
 
-                // A) Detección del formato Spreadsheet XML de Windows Server
                 if (strpos($xmlString, 'urn:schemas-microsoft-com:office:spreadsheet') !== false) {
                     $xml = simplexml_load_string($xmlString);
                     if ($xml !== false) {
@@ -276,8 +286,6 @@ class AuditoriaDhcpController {
                     }
                 }
 
-                // B) Extracción XML Genérica (Algoritmo Recursivo Inteligente)
-                // Limpiar namespaces que rompen simplexml
                 $xmlString = preg_replace('/xmlns[^=]*="[^"]*"/i', '', $xmlString);
                 $xml = simplexml_load_string($xmlString);
                 if ($xml === false) return ["status" => "error", "msg" => "Formato XML corrupto o no estructurado."]; 
@@ -301,7 +309,6 @@ class AuditoriaDhcpController {
                             $filaLimpia[$k] = $v;
                         }
                     }
-                    // Aplanar el arreglo asociativo para que coincida con el estilo de CSV/XLSX
                     $filasLimpias[] = array_values($filaLimpia); 
                 }
                 return $filasLimpias;
@@ -313,34 +320,21 @@ class AuditoriaDhcpController {
         }
     }
 
-    // ==========================================
-    // BUSCADOR RECURSIVO DE MATRICES (XML)
-    // ==========================================
     private function encontrarMatrizXML($array) {
         if (!is_array($array)) return [];
-
-        // 1. ¿Es una lista estándar de múltiples nodos hermanos?
-        if (isset($array[0]) && is_array($array[0])) {
-            return $array;
-        }
-
-        // 2. Buscar más profundo ignorando etiquetas envoltorio
+        if (isset($array[0]) && is_array($array[0])) { return $array; }
         foreach ($array as $key => $value) {
             if (is_array($value)) {
                 $resultado = $this->encontrarMatrizXML($value);
                 if (!empty($resultado)) return $resultado;
             }
         }
-
-        // 3. Fallback: ¿Es un archivo de un solo registro?
         $esFilaUnica = true;
         $claves = array_keys($array);
         if (in_array('@attributes', $claves)) {
             $claves = array_merge($claves, array_keys($array['@attributes']));
         }
         $claves_str = strtoupper(implode('_', $claves));
-
-        // Filtro heúristico: Debe contener palabras clave de redes
         if (strpos($claves_str, 'IP') !== false || strpos($claves_str, 'MAC') !== false || strpos($claves_str, 'HOST') !== false) {
             foreach ($array as $k => $v) {
                 if (is_array($v) && $k !== '@attributes') {
@@ -348,9 +342,7 @@ class AuditoriaDhcpController {
                     break;
                 }
             }
-            if ($esFilaUnica && !empty($array)) {
-                return [$array]; 
-            }
+            if ($esFilaUnica && !empty($array)) { return [$array]; }
         }
         return [];
     }
