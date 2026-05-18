@@ -45,10 +45,6 @@ class ResponsivaController {
 
     /**
      * Prepara y renderiza el contenido central del módulo de Responsivas.
-     * Realiza validaciones de seguridad mediante RBAC antes de extraer
-     * la lista de personal y empaquetarla para la vista.
-     *
-     * @return void Renderiza HTML directamente o muestra alerta de acceso denegado.
      */
     public function renderContent() {
         $model = new MainModel();
@@ -57,7 +53,7 @@ class ResponsivaController {
         if (!$id_sub) $id_sub = 4; 
 
         // Primera verificación de permisos (Protección base de vista)
-        if (!$this->verificarPermiso($id_sub,PERM_CONSULTAR )) {
+        if (!$this->verificarPermiso($id_sub, PERM_CONSULTAR)) {
             echo '<div class="container mt-5">
                     <div class="alert alert-danger shadow-sm border-0 border-start border-5 border-danger">
                         <h4 class="alert-heading fw-bold"><i class="fas fa-lock me-2"></i>Acceso Denegado</h4>
@@ -88,24 +84,12 @@ class ResponsivaController {
         include self::VISTA;
     }
 
-    /**
-     * Inyecta el archivo JavaScript asociado a la vista en el DOM.
-     *
-     * @return void
-     */
     public function renderJS() {
         if (file_exists(self::JS)) {
             include self::JS;
         }
     }
 
-    /**
-     * Comprueba si el rol del usuario posee un permiso en específico.
-     *
-     * @param int $id_sub ID del submódulo en el que se intenta la acción.
-     * @param int $id_permiso ID numérico del permiso requerido.
-     * @return bool True si el permiso es concedido, false de lo contrario.
-     */
     public function verificarPermiso($id_sub, $id_permiso) {
         $model = new MainModel();
         $id_rol = $_SESSION['usuario']['id_rol'];
@@ -122,16 +106,7 @@ class ResponsivaController {
     // CARGA INICIAL (LISTA DE PERSONAL)
     // ==========================================
     
-    /**
-     * Extrae el catálogo optimizado de personal operativo y su conteo de equipos.
-     * Utiliza una vista SQL para mitigar problemas de rendimiento (N+1 queries).
-     *
-     * @param MainModel $model Instancia activa del modelo.
-     * @return array Matriz asociativa con la lista del personal.
-     */
     private function traerContenido($model) {
-        
-        // Consumo directo de la vista optimizada. Eliminamos el foreach y las consultas anidadas.
         $lista_personal = $model->seleccionaRegistros(
             "v_responsivas_personal", 
             ["id_po", "nombre_completo", "num_cobro", "total_equipos"], 
@@ -151,11 +126,6 @@ class ResponsivaController {
     
     /**
      * Obtiene el listado de dispositivos bajo la responsiva de un empleado específico.
-     * Diseñado para ser consumido vía peticiones AJAX.
-     *
-     * @param int $id_sub Contexto de seguridad del submódulo.
-     * @param int $id_po Identificador del Personal Operativo.
-     * @return array Respuesta estructurada con resultado y colección de equipos.
      */
     public function obtenerEquipos($id_sub, $id_po) {
         $model = new MainModel();
@@ -164,13 +134,29 @@ class ResponsivaController {
             return ["result" => 0, "msg" => "Permiso denegado."];
         }
 
-        $campos = ["id_disp", "nom_host", "marca", "modelo", "num_ser", "num_inv"];
+        // CORRECCIÓN: Usamos JOIN para cruzar con las tablas Marcas y Modelos
+        $tabla = "dispositivos d";
+        $joins = [
+            "LEFT JOIN marcas m ON d.id_marca = m.id_marca",
+            "LEFT JOIN modelos modl ON d.id_modelo = modl.id_modelo"
+        ];
+        $campos = [
+            "d.id_disp", 
+            "d.nom_host", 
+            "m.nom_marca AS marca", 
+            "modl.nom_modelo AS modelo", 
+            "d.num_ser", 
+            "d.num_inv"
+        ];
         
-        // CERO JOINS: Evita el Crash 500 que causaba el "Error de Red"
-        $equipos = $model->seleccionaRegistros("dispositivos", $campos, "resp_po_id = ?", [$id_po]);
+        $equipos = $model->seleccionaRegistrosJoin($tabla, $joins, $campos, "d.resp_po_id = ?", [$id_po]);
         
         return ["result" => 1, "data" => $equipos ? $equipos : []];
     }
+
+    /**
+     * Procesa la transferencia de la carta responsiva de un empleado a otro.
+     */
     public function transferirEquipo($id_sub, $id_disp, $id_po_origen, $id_po_destino) {
         $model = new MainModel();
         
