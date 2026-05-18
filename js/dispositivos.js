@@ -232,7 +232,7 @@ $(document).ready(function() {
             .then(response => response.json())
             .then(data => {
                 if (data.status === 'success') {
-                    Swal.fire({ icon: 'success', title: 'Baja Exitosa', text: data.msg, confirmButtonColor: '#285C4D' })
+                    Swal.fire({ icon: 'success', title: 'Baja Exitosa', text: data.msg, confirmButtonColor: '#285C4D', timer:1500})
                     .then(() => location.reload());
                 } else {
                     Swal.fire({ icon: 'error', title: 'Error', text: data.msg, confirmButtonColor: '#9D2449' });

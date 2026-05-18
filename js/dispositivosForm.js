@@ -924,7 +924,7 @@ document.addEventListener('DOMContentLoaded', () => {
             .then(response => response.json())
             .then(data => {
                 if (data.result === 1 || data.status === 'success') {
-                    Swal.fire({ icon: 'success', title: '¡Guardado!', text: 'El dispositivo se guardó correctamente.', confirmButtonColor: '#9D2449' })
+                    Swal.fire({ icon: 'success', timer:1500, title: '¡Guardado!', text: 'El dispositivo se guardó correctamente.', confirmButtonColor: '#9D2449' })
                     .then(() => window.location.href = 'dispositivos/');
                 } else {
                     Swal.fire({ icon: 'error', title: 'Error de Permisos o Guardado', text: data.msg || 'Ocurrió un problema.', confirmButtonColor: '#9D2449' });

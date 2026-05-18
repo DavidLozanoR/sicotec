@@ -374,7 +374,7 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(data => {
             if (data.result === 1) {
                 modalTransferir.hide();
-                Swal.fire({ icon: 'success', title: '¡Transferencia Exitosa!', text: data.msg, confirmButtonColor: '#9D2449' });
+                Swal.fire({ icon: 'success',timer:1000, title: '¡Transferencia Exitosa!', text: data.msg, confirmButtonColor: '#9D2449' });
                 
                 // Actualizar contadores del DOM
                 const itemOrigen = document.querySelector(`.po-item[data-id="${poActivoId}"]`);

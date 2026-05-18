@@ -310,6 +310,7 @@ $(document).ready(function() {
                     Swal.fire({
                         icon: 'success',
                         title: '¡Operación Exitosa!',
+                        timer:1000,
                         text: response.msg,
                         confirmButtonColor: '#285C4D'
                     }).then(() => location.reload());
@@ -348,7 +349,7 @@ $(document).ready(function() {
             if (result.isConfirmed) {
                 $.post(urlAsync, { peticion: 'DELETE_SEG', id_seg: id_seg, id_sub: idSub }, function(response) {
                     if (response.result === 1) {
-                        Swal.fire({icon: 'success', title: 'Eliminado', text: response.msg, confirmButtonColor: '#285C4D'})
+                        Swal.fire({icon: 'success',timer:1000, title: 'Eliminado', text: response.msg, confirmButtonColor: '#285C4D'})
                         .then(() => location.reload());
                     } else {
                         Swal.fire({icon: 'error', title: 'Bloqueo', text: response.msg, confirmButtonColor: '#9D2449'});
@@ -630,7 +631,7 @@ $(document).ready(function() {
             dataType: 'json',
             success: function(response) {
                 if (response.result === 1) {
-                    Swal.fire({icon: 'success', title: 'Exitoso', text: response.msg, confirmButtonColor: '#285C4D'})
+                    Swal.fire({icon: 'success', timer:1000, title: 'Exitoso', text: response.msg, confirmButtonColor: '#285C4D'})
                     .then(() => location.reload());
                 } else {
                     Swal.fire({icon: 'warning', title: 'Alerta', text: response.msg, confirmButtonColor: '#9D2449'});
@@ -664,7 +665,7 @@ $(document).ready(function() {
             if (result.isConfirmed) {
                 $.post(urlAsync, { peticion: 'DELETE_VLAN', id_vlan: id_vlan, id_sub: idSub }, function(response) {
                     if (response.result === 1) {
-                        Swal.fire({icon: 'success', title: 'Eliminado', text: response.msg, confirmButtonColor: '#285C4D'})
+                        Swal.fire({icon: 'success', timer:10000,showConfirmButton: false, title: 'Eliminado', text: response.msg, confirmButtonColor: '#285C4D'})
                         .then(() => location.reload());
                     } else {
                         Swal.fire({icon: 'error', title: 'Operación denegada', text: response.msg, confirmButtonColor: '#9D2449'});

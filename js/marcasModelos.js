@@ -175,7 +175,7 @@ async function guardarCatalogo() {
 
         if (data.status === "success") {
             modalCat.hide();
-            Swal.fire({ icon: 'success', title: 'Éxito', text: data.msg, timer: 1500, showConfirmButton: false }).then(() => {
+            Swal.fire({ icon: 'success', timer:1000, title: 'Éxito', text: data.msg, timer: 1500, showConfirmButton: false }).then(() => {
                 if(tipo === "MARCA") location.reload();
                 else seleccionarMarca(marcaSeleccionadaId, document.getElementById("lblMarcaSeleccionada").textContent); 
             });
@@ -211,7 +211,7 @@ function eliminarRegistro(tabla, columna_id, id) {
                 const data = await response.json();
 
                 if (data.status === "success") {
-                    Swal.fire({ icon: 'success', title: 'Eliminado', text: data.msg, timer: 1500, showConfirmButton: false }).then(() => {
+                    Swal.fire({ icon: 'success', timer:1000, title: 'Eliminado', text: data.msg, timer: 1500, showConfirmButton: false }).then(() => {
                         if(tabla === "marcas") location.reload();
                         else seleccionarMarca(marcaSeleccionadaId, document.getElementById("lblMarcaSeleccionada").textContent);
                     });

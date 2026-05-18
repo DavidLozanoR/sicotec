@@ -245,6 +245,7 @@ $(document).ready(function() {
                             Swal.fire({
                                 icon: 'success',
                                 title: 'Baja Exitosa',
+                                timer:1000,
                                 text: response.msg,
                                 confirmButtonColor: '#285C4D'
                             }).then(() => {

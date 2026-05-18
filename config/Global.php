@@ -22,7 +22,7 @@
     define("RUTA_DEFAULT", "inicio");
     define("DB_HOST", "192.168.250.24");
     define("DB_PORT", "5075");
-    define("DB_BASE", "sicosote");
+    define("DB_BASE", "sicosote2");
     define("DB_USR", "bd_seguimiento");
     define("DB_PASS", "QEWoyA56xEse");
 	define("CLAVE_SECRETA","test");
