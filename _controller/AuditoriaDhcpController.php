@@ -110,15 +110,15 @@ class AuditoriaDhcpController {
             // ==========================================
             $model = new MainModel();
             
-            // ACTUALIZACIÓN: Se agregan JOINs para Departamento y Responsable
             $joins = [
                 "JOIN dispositivos d ON r.id_disp = d.id_disp",
                 "LEFT JOIN departamentos dep ON d.id_dep = dep.id_dep",
-                "LEFT JOIN personal_operativo po ON po.id_po = d.resp_po_id" // Da prioridad a  resp
+                "LEFT JOIN personal_operativo po ON po.id_po = d.resp_po_id" 
             ];
             
+            // ACTUALIZACIÓN: Se agregó "d.dom" a la consulta
             $campos = [
-                "r.ip", "d.id_disp", "d.nom_host", "d.mac_ethernet", "d.mac_wifi", "d.num_inv",
+                "r.ip", "d.id_disp", "d.nom_host", "d.dom", "d.mac_ethernet", "d.mac_wifi", "d.num_inv",
                 "dep.nom_dep",
                 "TRIM(CONCAT(po.nombres, ' ', po.ape_pa, ' ', COALESCE(po.ape_ma, ''))) AS responsable"
             ];
@@ -134,10 +134,15 @@ class AuditoriaDhcpController {
                     $mac_eth = !empty($row['mac_ethernet']) ? strtoupper(str_replace('-', ':', trim($row['mac_ethernet']))) : null;
                     $mac_wifi = !empty($row['mac_wifi']) ? strtoupper(str_replace('-', ':', trim($row['mac_wifi']))) : null;
 
+                    // ACTUALIZACIÓN: Concatenamos el dominio traído dinámicamente de la BD
+                    $nom_host_db = trim($row['nom_host']);
+                    $dominio_db = !empty(trim($row['dom'])) ? '.' . trim($row['dom']) : '';
+                    $nom_host_visual = !empty($nom_host_db) ? $nom_host_db . $dominio_db : 'Sin Hostname';
+
                     $db_records[$ip] = [
                         'id_disp'      => $row['id_disp'],
-                        'hostname'     => strtolower(trim($row['nom_host'])),
-                        'nom_host_raw' => $row['nom_host'],
+                        'hostname'     => strtolower($nom_host_db),
+                        'nom_host_raw' => $nom_host_visual, // <-- Se envía a la vista con el dominio dinámico
                         'mac_eth'      => $mac_eth,
                         'mac_wifi'     => $mac_wifi,
                         'num_inv'      => $row['num_inv'],
@@ -179,7 +184,6 @@ class AuditoriaDhcpController {
                 } else {
                     $db = $db_records[$ip];
                     if ($dhcp['mac'] !== $db['mac_eth'] && $dhcp['mac'] !== $db['mac_wifi']) {
-                        // ACTUALIZACIÓN: Mandamos el responsable y departamento al frontend
                         $conflictos[] = [
                             'ip'                => $ip,
                             'mac_dhcp'          => $dhcp['mac'],
@@ -188,7 +192,7 @@ class AuditoriaDhcpController {
                             'hostname_sicosote' => $db['nom_host_raw'],
                             'departamento'      => $db['departamento'],
                             'responsable'       => $db['responsable'],
-                            'detalle'           => "Conflicto de Hardware. Posible suplantación de IP o equipo reemplazado sin notificar."
+                            'detalle'           => "Verifique si fue reemplazado, si usa un adaptador de red diferente o si es un dispositivo no autorizado."
                         ];
                     }
                 }
@@ -196,7 +200,6 @@ class AuditoriaDhcpController {
 
             foreach ($db_records as $ip => $db) {
                 if (!isset($dhcp_records[$ip])) {
-                    // ACTUALIZACIÓN: Mandamos el responsable y departamento al frontend
                     $huerfanas[] = [
                         'ip'                => $ip,
                         'hostname_sicosote' => $db['nom_host_raw'],

@@ -1,4 +1,12 @@
 document.addEventListener('DOMContentLoaded', () => {
+
+    // ==========================================
+    // INICIALIZADOR DE POPOVERS (AYUDA)
+    // ==========================================
+    const popoverTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="popover"]'));
+    popoverTriggerList.map(function (popoverTriggerEl) {
+        return new bootstrap.Popover(popoverTriggerEl);
+    });
     
     const dropzone = document.getElementById('dropzone');
     const fileInput = document.getElementById('input-archivo-dhcp');
@@ -140,8 +148,9 @@ document.addEventListener('DOMContentLoaded', () => {
             title: 'Auditoría Completada', 
             confirmButtonColor: '#13322B',
             timer: 1500,
-            timerProgressBar: true // Opcional: muestra una línea de progreso visual del tiempo restante
-        });    }
+            timerProgressBar: true
+        });    
+    }
 
     function quitarAcentos(texto) {
         if (!texto) return '';
@@ -182,7 +191,6 @@ document.addEventListener('DOMContentLoaded', () => {
         dibujarControlesPaginacion(totalItems, start, end, totalPaginas);
     }
 
-    // ACTUALIZADO: Funciones moldeadoras de filas HTML
     const rowFantasmas = row => `
         <td class="ps-4"><span class="badge ${row.tipo.includes('Fantasma') ? 'bg-dark' : 'bg-secondary'}">${row.tipo}</span></td>
         <td class="fw-bold">${row.ip_dhcp}</td>

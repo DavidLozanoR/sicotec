@@ -17,6 +17,10 @@
     .nav-pills .nav-link.active { background-color: #9D2449 !important; }
     .nav-link { color: #6c757d; font-weight: bold; }
     .cursor-pointer { cursor: pointer !important; }
+    
+    /* Corrección visual para los íconos de ayuda dentro del botón activo */
+    .nav-link.active .fa-question-circle { color: rgba(255, 255, 255, 0.7) !important; }
+    .nav-link:not(.active) .fa-question-circle { color: #adb5bd !important; }
 </style>
 
 <div class="container-fluid px-4 py-4">
@@ -111,18 +115,21 @@
             <div class="card-header bg-white py-3">
                 <ul class="nav nav-pills card-header-pills justify-content-center" id="pills-tab" role="tablist">
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link active fw-bold" id="tab-fantasmas-tab" data-bs-toggle="pill" data-bs-target="#tab-fantasmas" type="button" role="tab">
-                            <i class="fas fa-ghost me-2"></i>Fantasmas / Desactualizados
+                        <button class="nav-link active fw-bold d-flex align-items-center" id="tab-fantasmas-tab" data-bs-toggle="pill" data-bs-target="#tab-fantasmas" type="button" role="tab">
+                            <i class="fas fa-ghost me-2"></i>Fantasmas / Desact.
+                            <i class="fas fa-question-circle ms-2" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="top" data-bs-container="body" title="Equipos Fantasmas" data-bs-content="Equipos que están navegando activamente en la red, pero que NO existen en el inventario de SICOSOTE o tienen registrada otra IP. Suelen ser dispositivos personales no autorizados (celulares, laptops externas) o equipos nuevos que olvidaron registrar."></i>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link fw-bold" id="tab-conflictos-tab" data-bs-toggle="pill" data-bs-target="#tab-conflictos" type="button" role="tab">
+                        <button class="nav-link fw-bold d-flex align-items-center" id="tab-conflictos-tab" data-bs-toggle="pill" data-bs-target="#tab-conflictos" type="button" role="tab">
                             <i class="fas fa-exclamation-triangle me-2"></i>Conflictos de MAC
+                            <i class="fas fa-question-circle ms-2" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="top" data-bs-container="body" title="Conflictos de Red (MAC)" data-bs-content="La tarjeta de red (MAC) conectada físicamente no coincide con la registrada en SICOSOTE para esa IP. Ocurre si a un equipo se le cambió la tarjeta interna, usa un adaptador WiFi externo por USB, fue reemplazado físicamente, o en casos de suplantación de identidad."></i>
                         </button>
                     </li>
                     <li class="nav-item" role="presentation">
-                        <button class="nav-link fw-bold" id="tab-huerfanas-tab" data-bs-toggle="pill" data-bs-target="#tab-huerfanas" type="button" role="tab">
+                        <button class="nav-link fw-bold d-flex align-items-center" id="tab-huerfanas-tab" data-bs-toggle="pill" data-bs-target="#tab-huerfanas" type="button" role="tab">
                             <i class="fas fa-plug me-2"></i>IPs Huérfanas
+                            <i class="fas fa-question-circle ms-2" data-bs-toggle="popover" data-bs-trigger="hover focus" data-bs-placement="top" data-bs-container="body" title="IPs Huérfanas" data-bs-content="Equipos que SICOSOTE marca como activos y con una IP asignada, pero que el servidor DHCP ya NO detecta en la red. Suelen ser dispositivos que llevan meses apagados, guardados en almacén o desechados sin haber sido dados de baja, desperdiciando direcciones IP."></i>
                         </button>
                     </li>
                 </ul>
@@ -170,7 +177,7 @@
                                         <th># Inventario</th>
                                         <th>Ubicación</th>
                                         <th>Responsable</th>
-                                        <th class="pe-4">Estado</th>
+                                        <th class="pe-4">Detalles</th>
                                     </tr>
                                 </thead>
                                 <tbody id="tbody-huerfanas"></tbody>
