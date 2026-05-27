@@ -10,61 +10,220 @@ document.addEventListener('DOMContentLoaded', () => {
     const modalCatalogoElement = document.getElementById('modalCatalogoServicios');
     const tbodyCatalogo = document.getElementById('tbody-catalogo-servicios');
 
-    // ==========================================
+// ==========================================
     // 0. VALIDACIONES VISUALES Y WIZARD (PESTAÑAS)
     // ==========================================
-    const INEA_REGEX = /^INEA-I-\d{9}-\d{5}-\d{2}$/;
+    
+    // Referencias del Número de Inventario Dinámico
+    const invTipo = document.getElementById('inv_tipo');
+    const invPrefixManual = document.getElementById('inv_prefix_manual');
+    const invPart1 = document.getElementById('inv_part1');
+    const invPart2 = document.getElementById('inv_part2');
+    const invPart3 = document.getElementById('inv_part3');
+    const invFinal = document.getElementById('num_inv_final');
+    const invHelp = document.getElementById('inv_help');
 
+   // Función principal de validación (Soporta prefijo manual + bloques y sincronización Fuzzy)
     function validarCampoUI(campo) {
+        if (!campo) return true;
         const valor = campo.value.trim();
         const esInventario = campo.name === 'num_inv';
 
-        if (!campo.required && valor === '') {
-            campo.classList.remove('is-valid', 'is-invalid');
+        // Corrección de precedencia lógica (Paréntesis añadidos)
+        if (!campo.required && (valor === '' || valor === '--')) {
+            if (esInventario && invTipo) {
+                [invPrefixManual, invPart1, invPart2, invPart3].forEach(el => el.classList.remove('is-valid', 'is-invalid'));
+                if(invHelp) invHelp.classList.add('d-none');
+            } else {
+                campo.classList.remove('is-valid', 'is-invalid');
+                
+                // Si es opcional y está vacío, limpiar también el buscador Fuzzy si existe
+                if (campo.nextElementSibling && campo.nextElementSibling.classList.contains('fuzzy-container')) {
+                    const fuzzyInput = campo.nextElementSibling.querySelector('input');
+                    if (fuzzyInput) {
+                        fuzzyInput.classList.remove('is-valid', 'is-invalid');
+                        fuzzyInput.setCustomValidity(''); 
+                    }
+                }
+            }
             return true; 
         }
 
         let isValid = valor !== '';
-        if (isValid && esInventario) {
-            isValid = INEA_REGEX.test(valor);
+        
+        // Reglas estrictas de Inventario
+        if (esInventario) {
+            const partsValid = invPart1.value.length === 3 && 
+                               invPart2.value.length === 5 && 
+                               invPart3.value.length === 2;
+
+            if (invTipo.value === 'OTRO') {
+                const prefixValid = invPrefixManual.value.trim().length >= 6 && invPrefixManual.value.trim().length <= 15;
+                isValid = prefixValid && partsValid;
+                
+                if(!isValid && invHelp) {
+                    if (!prefixValid) {
+                        invHelp.textContent = "* El prefijo manual debe tener entre 6 y 15 NÚMEROS.";
+                    } else {
+                        invHelp.textContent = "* Complete los bloques: 3 dígitos - 5 dígitos - 2 dígitos.";
+                    }
+                    invHelp.classList.remove('d-none');
+                }
+            } else {
+                isValid = partsValid;
+                if(!isValid && invHelp) {
+                    invHelp.textContent = "* Complete los bloques: 3 dígitos - 5 dígitos - 2 dígitos.";
+                    invHelp.classList.remove('d-none');
+                }
+            }
+            if (isValid && invHelp) invHelp.classList.add('d-none');
         }
 
-        campo.classList.toggle('is-valid', isValid);
-        campo.classList.toggle('is-invalid', !isValid);
+        // Colorear en rojo o verde las cajas correspondientes
+        if (esInventario) {
+            const elementsToValidate = invTipo.value === 'OTRO' ? [invPrefixManual, invPart1, invPart2, invPart3] : [invPart1, invPart2, invPart3];
+            
+            if (invTipo.value !== 'OTRO') {
+                invPrefixManual.classList.remove('is-valid', 'is-invalid');
+            }
+
+            elementsToValidate.forEach(el => {
+                el.classList.toggle('is-valid', isValid);
+                el.classList.toggle('is-invalid', !isValid);
+            });
+        } else {
+            // Campos normales
+            campo.classList.toggle('is-valid', isValid);
+            campo.classList.toggle('is-invalid', !isValid);
+
+            // FIX: Sincronizar el estado de validación con el Input del Buscador Fuzzy
+            if (campo.nextElementSibling && campo.nextElementSibling.classList.contains('fuzzy-container')) {
+                const fuzzyInput = campo.nextElementSibling.querySelector('input');
+                if (fuzzyInput) {
+                    if (!isValid) {
+                        // Fuerza al input dinámico a volverse INVÁLIDO nativamente para Bootstrap
+                        fuzzyInput.setCustomValidity('Inválido');
+                    } else {
+                        // Lo marca como válido
+                        fuzzyInput.setCustomValidity('');
+                    }
+                    fuzzyInput.classList.toggle('is-valid', isValid);
+                    fuzzyInput.classList.toggle('is-invalid', !isValid);
+                }
+            }
+        }
 
         return isValid;
     }
 
-    const inputInv = document.querySelector('input[name="num_inv"]');
-    if (inputInv) {
-        inputInv.addEventListener('input', function() {
-            let nums = this.value.replace(/\D/g, '').slice(0, 16);
-
-            if (!nums) {
-                this.value = '';
-            } else {
-                let fmt = 'INEA-I-' + nums.slice(0, 9);
-                if (nums.length > 9)  fmt += '-' + nums.slice(9, 14);
-                if (nums.length > 14) fmt += '-' + nums.slice(14, 16);
-                this.value = fmt;
-            }
-            validarCampoUI(this);
-        });
-
-        inputInv.addEventListener('blur', function() {
-            if (this.value !== '' && !INEA_REGEX.test(this.value)) {
-                Swal.fire({
-                    icon: 'warning',
-                    title: 'Formato Incorrecto',
-                    text: 'El número de inventario debe estar completo: INEA-I-000000000-00000-00',
-                    confirmButtonColor: '#9D2449'
-                });
-            }
-        });
+    // Lógica para alternar las vistas del Número de Inventario
+    function toggleInvUI() {
+        if (!invTipo || !invPrefixManual) return;
+        
+        if (invTipo.value === 'OTRO') {
+            // Se encoge el select al ancho de la flecha de Bootstrap para que no afecte visualmente
+            invTipo.style.width = '42px'; 
+            
+            invPrefixManual.classList.remove('d-none');
+            invPrefixManual.disabled = false;
+            setTimeout(() => invPrefixManual.focus(), 100); 
+        } else {
+            // El select recupera su tamaño original para mostrar los números predefinidos
+            invTipo.style.width = '110px'; 
+            
+            invPrefixManual.classList.add('d-none');
+            invPrefixManual.disabled = true;
+        }
+        
+        if (invHelp) invHelp.classList.add('d-none');
+        buildInvFinal();
     }
 
+    function buildInvFinal() {
+        if (!invTipo) return;
+        
+        const prefix = invTipo.value === 'OTRO' ? invPrefixManual.value.trim() : invTipo.value;
+        
+        if (prefix || invPart1.value || invPart2.value || invPart3.value) {
+            invFinal.value = `${prefix}${invPart1.value}-${invPart2.value}-${invPart3.value}`;
+        } else {
+            invFinal.value = '';
+        }
+        
+        if (invFinal.value !== '' && invFinal.value !== '--') {
+            validarCampoUI(invFinal);
+        } else if (!invFinal.required) {
+            [invPrefixManual, invPart1, invPart2, invPart3].forEach(el => el.classList.remove('is-valid', 'is-invalid'));
+            if(invHelp) invHelp.classList.add('d-none');
+        }
+    }
+
+    // Inicialización y Listeners del Inventario
+    if (invTipo) {
+        invTipo.addEventListener('change', toggleInvUI);
+        
+        // MODIFICACIÓN REACTIVA: Solo permite el ingreso de números (\D significa "Todo lo que no sea número")
+        invPrefixManual.addEventListener('input', function() {
+            this.value = this.value.replace(/\D/g, ''); 
+            buildInvFinal();
+        });
+        
+        invPart1.addEventListener('input', function() { 
+            this.value = this.value.replace(/\D/g, ''); 
+            buildInvFinal();
+            if(this.value.length === 3) invPart2.focus(); // Salto automático
+        });
+        invPart2.addEventListener('input', function() { 
+            this.value = this.value.replace(/\D/g, ''); 
+            buildInvFinal();
+            if(this.value.length === 5) invPart3.focus(); // Salto automático
+        });
+        invPart3.addEventListener('input', function() { 
+            this.value = this.value.replace(/\D/g, ''); 
+            buildInvFinal();
+        });
+
+        [invPrefixManual, invPart1, invPart2, invPart3].forEach(el => {
+            if(el) el.addEventListener('blur', () => { if(invFinal.value !== '' && invFinal.value !== '--') validarCampoUI(invFinal); });
+        });
+
+        // Pre-carga si se está editando un equipo
+        if (invFinal.value) {
+            const val = invFinal.value;
+            const regex18 = /^180000(\d{3})-(\d{5})-(\d{2})$/;
+            const regex51 = /^51501000(\d{3})-(\d{5})-(\d{2})$/;
+            
+            // MODIFICACIÓN DE CARGA: Regex actualizada para aceptar de 6 a 15 dígitos únicamente numéricos
+            const regexOtro = /^(\d{6,15})(\d{3})-(\d{5})-(\d{2})$/;
+            
+            const match18 = val.match(regex18);
+            const match51 = val.match(regex51);
+            const matchOtro = val.match(regexOtro);
+
+            if (match18) {
+                invTipo.value = '180000';
+                invPart1.value = match18[1];
+                invPart2.value = match18[2];
+                invPart3.value = match18[3];
+            } else if (match51) {
+                invTipo.value = '51501000';
+                invPart1.value = match51[1];
+                invPart2.value = match51[2];
+                invPart3.value = match51[3];
+            } else if (matchOtro) {
+                invTipo.value = 'OTRO';
+                invPrefixManual.value = matchOtro[1];
+                invPart1.value = matchOtro[2];
+                invPart2.value = matchOtro[3];
+                invPart3.value = matchOtro[4];
+            }
+        }
+        toggleInvUI();
+    }
+
+    // Listener para avanzar entre pestañas WIZARD
     if (formDispositivo) {
-        const inputsToValidate = formDispositivo.querySelectorAll('input[required], select[required], textarea[required], input[name="num_inv"]');
+        const inputsToValidate = formDispositivo.querySelectorAll('input[required], select[required], textarea[required]');
         
         ['blur', 'change', 'input'].forEach(evento => {
             inputsToValidate.forEach(input => input.addEventListener(evento, () => validarCampoUI(input)));
@@ -73,9 +232,16 @@ document.addEventListener('DOMContentLoaded', () => {
         document.querySelectorAll('.btn-siguiente').forEach(btn => {
             btn.addEventListener('click', function() {
                 const pestanaActual = this.closest('.tab-pane');
-                const inputsActuales = pestanaActual.querySelectorAll('input[required], select[required], textarea[required], input[name="num_inv"]');
+                const inputsActuales = pestanaActual.querySelectorAll('input[required], select[required], textarea[required]');
                 
-                const todoValido = Array.from(inputsActuales).every(input => validarCampoUI(input));
+                let todoValido = Array.from(inputsActuales).every(input => validarCampoUI(input));
+                
+                if (pestanaActual.querySelector('#num_inv_final')) {
+                    if (invFinal.value !== '' && invFinal.value !== '--' && !validarCampoUI(invFinal)) {
+                        todoValido = false;
+                        Swal.fire('Formato Incorrecto', 'Revise que el número de inventario esté completo (Los recuadros en rojo).', 'warning');
+                    }
+                }
 
                 if (todoValido) {
                     const tabTarget = document.getElementById(this.dataset.next);
@@ -91,7 +257,6 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
-
     // ==========================================
     // 6. BUSCADOR FUZZY (MOVIDO ARRIBA PARA REACTIVIDAD)
     // ==========================================

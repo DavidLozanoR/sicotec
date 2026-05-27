@@ -4,6 +4,12 @@
 .custom-pills-inea .nav-link.active .icon-box { background-color: rgba(255,255,255,0.2) !important; color: #fff !important; }
 .btn-outline-guinda { color: #9D2449; border-color: #9D2449; }
 .btn-outline-guinda:hover { color: #fff; background-color: #9D2449; }
+/* Desactivar iconos de validación de Bootstrap para que no oculten los números */
+    .no-icon-validation.is-valid,
+    .no-icon-validation.is-invalid {
+        background-image: none !important;
+        padding-right: 0.25rem !important; /* Restaura el padding original (px-1) para mantener el centrado */
+    }
 
 /* ==========================================
     MOBILE RESPONSIVENESS (PHONES & TABLETS)

@@ -1,4 +1,12 @@
 <link rel="stylesheet" href="css/dispositivosForm.css">
+<style>
+    /* Desactivar iconos de validación de Bootstrap para que no oculten los números */
+    .no-icon-validation.is-valid,
+    .no-icon-validation.is-invalid {
+        background-image: none !important;
+        padding-right: 0.25rem !important; /* Restaura el padding original (px-1) para mantener el centrado */
+    }
+</style>
 <?php
 $id_disp = $id_disp ?? null;
 $dispositivo = $dispositivo ?? null;
@@ -134,7 +142,31 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label fw-bold small text-dark mb-1">Número de Inventario</label>
-                                        <input type="text" class="form-control focus-guinda border-secondary-subtle font-monospace" name="num_inv" value="<?php echo htmlspecialchars($dispositivo['num_inv'] ?? ''); ?>" maxlength="25" placeholder="INEA-I-000000000-00000-00" pattern="^INEA-I-\d{9}-\d{5}-\d{2}$">
+                                        <div class="input-group shadow-sm">
+                                            <select class="form-select focus-guinda font-monospace px-1" id="inv_tipo" style="width: 110px; flex: none; font-size: 0.9rem;">
+                                                <option value="180000">180000</option>
+                                                <option value="51501000">51501000</option>
+                                                <option value="OTRO" class="fw-bold">Otro prefijo...</option>
+                                            </select>
+                                            
+                                            <input type="text" class="form-control focus-guinda font-monospace text-center d-none no-icon-validation" id="inv_prefix_manual" placeholder="Prefijo (6-15)" minlength="6" maxlength="15" style="width: 110px; flex: none;">
+                                            
+                                            <input type="text" class="form-control focus-guinda font-monospace text-center inv-part px-1 no-icon-validation" id="inv_part1" placeholder="XXX" maxlength="3">
+                                            <span class="input-group-text bg-white inv-part px-1 border-start-0 border-end-0">-</span>
+                                            <input type="text" class="form-control focus-guinda font-monospace text-center inv-part px-1 no-icon-validation" id="inv_part2" placeholder="XXXXX" maxlength="5" style="flex: 0 0 85px;">
+                                            <span class="input-group-text bg-white inv-part px-1 border-start-0 border-end-0">-</span>
+                                            <input type="text" class="form-control focus-guinda font-monospace text-center inv-part px-1 no-icon-validation" id="inv_part3" placeholder="XX" maxlength="2" style="flex: 0 0 50px;">
+                                        </div>
+                                        
+                                        <div class="d-flex text-secondary mt-1 px-1 fw-bold" style="font-size: 0.65rem;">
+                                            <div class="text-center" style="flex-grow: 1;">Clave del Bien (CABMS)</div>
+                                            <div class="text-center" style="flex: 0 0 100px;">Equipo / Lote</div>
+                                            <div class="text-center" style="flex: 0 0 50px;">Año</div>
+                                        </div>
+                                        
+                                        <small id="inv_help" class="text-danger fw-bold d-none mt-1 d-block" style="font-size: 0.75rem;"></small>
+                                        
+                                        <input type="hidden" name="num_inv" id="num_inv_final" value="<?php echo htmlspecialchars($dispositivo['num_inv'] ?? ''); ?>">
                                     </div>
                                     <div class="col-md-6">
                                         <div class="d-flex justify-content-between align-items-end mb-1">
