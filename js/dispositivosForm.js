@@ -23,6 +23,27 @@ document.addEventListener('DOMContentLoaded', () => {
     const invFinal = document.getElementById('num_inv_final');
     const invHelp = document.getElementById('inv_help');
 
+    const inputHostname = document.querySelector('input[name="nom_host"]');
+    if (inputHostname) {
+        inputHostname.addEventListener('input', function() {
+            // 1. Convierte a mayúsculas y quita espacios dinámicamente
+            let valorLimpio = this.value.toUpperCase().replace(/\s+/g, '');
+            
+            // 2. Restricción estricta de longitud por estándar de red (Max 20)
+            if (valorLimpio.length > 20) {
+                valorLimpio = valorLimpio.substring(0, 20);
+            }
+            
+            // 3. Devolvemos el valor limpio al input
+            this.value = valorLimpio;
+            
+            // 4. Activamos la validación visual de Bootstrap (Verde/Rojo)
+            if (typeof validarCampoUI === 'function') {
+                validarCampoUI(this);
+            }
+        });
+    }
+
    // Función principal de validación (Soporta prefijo manual + bloques y sincronización Fuzzy)
     function validarCampoUI(campo) {
         if (!campo) return true;

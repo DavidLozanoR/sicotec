@@ -75,7 +75,7 @@ class DispositivosController {
             "LEFT JOIN infraestructura_red r ON d.id_disp = r.id_disp",
             "LEFT JOIN segmentos seg ON r.id_seg = seg.id_seg",
             "LEFT JOIN vlans v ON seg.id_vlan = v.id_vlan",
-            "LEFT JOIN personal_operativo po ON d.asig_po_id = po.id_po",
+            "LEFT JOIN personal_operativo po ON d.resp_po_id = po.id_po",
             "LEFT JOIN marcas m ON d.id_marca = m.id_marca",
             "LEFT JOIN modelos modl ON d.id_modelo = modl.id_modelo"
         ];
