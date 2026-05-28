@@ -119,6 +119,12 @@
                 $ctrl = new MarcasModelosController($slug);
             } 
 		break;	
+		case "dominios":
+			if ($accion == "") {
+                require_once "_controller/DominiosController.php";
+                $ctrl = new DominiosController($slug);
+            } 
+		break;	
         default:
 		break;
     }

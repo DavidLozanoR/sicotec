@@ -11,7 +11,7 @@
 $id_disp = $id_disp ?? null;
 $dispositivo = $dispositivo ?? null;
 $redes_disponibles = $redes_disponibles ?? [];
-$vlans_disponibles = $vlans_disponibles ?? []; // Nueva variable que enviaremos desde el controlador
+$vlans_disponibles = $vlans_disponibles ?? []; 
 $personal_operativo = $personal_operativo ?? [];
 $servicios = $servicios ?? [];
 $versiones = $versiones ?? [];
@@ -19,6 +19,29 @@ $servicios_asignados = $servicios_asignados ?? [];
 $id_sub_actual = $id_sub_actual ?? 1;
 
 $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
+
+// 1. Matriz de configuración de dependencias (Aquí defines qué requiere el formulario)
+$catalogos_requeridos = [
+    ['datos' => $marcas ?? [],        'nombre' => 'Marcas y Modelos',         'url' => 'marcas/'],
+    ['datos' => $departamentos ?? [], 'nombre' => 'Departamentos',            'url' => 'departamentos/'],
+    ['datos' => $dominios ?? [],      'nombre' => 'Dominios Institucionales', 'url' => 'dominios/']
+    // Si en el futuro agregas otro catálogo, SOLO hay que agregar una línea a esta lista.
+];
+
+$faltantes = [];
+
+// 2. Evaluador dinámico (Recorre la matriz y arma la alerta automáticamente)
+foreach ($catalogos_requeridos as $catalogo) {
+    if (empty($catalogo['datos'])) {
+        $faltantes[] = [
+            'nombre' => $catalogo['nombre'],
+            'url'    => $catalogo['url']
+        ];
+    }
+}
+
+// Si hay al menos un faltante en la lista, se bloquea la vista
+$bloquear_formulario = !empty($faltantes);
 ?>
 
 <script>
@@ -45,355 +68,392 @@ $modo = $dispositivo ? 'Editar Dispositivo' : 'Añadir Dispositivo';
         </div>
     </div>
 
-    <form id="formDispositivo" novalidate>
-        
-        <input type="hidden" name="id_disp" id="id_disp" value="<?php echo $id_disp; ?>">
-        <input type="hidden" name="id_sub" id="id_sub" value="<?php echo $id_sub_actual; ?>">
-        <input type="hidden" name="peticion" value="<?php echo $dispositivo ? 'UPDATE' : 'INSERT'; ?>">
-        
-        <div class="row">
+
+    <?php if ($bloquear_formulario): ?>
+        <div class="alert alert-danger shadow-sm border-0 border-start border-5 border-danger mb-4">
+            <h5 class="fw-bold text-danger"><i class="fas fa-exclamation-triangle me-2"></i>¡Atención! Faltan Catálogos Obligatorios</h5>
+            <p class="mb-3 text-dark">Para poder registrar o editar un dispositivo, el sistema requiere que primero exista información en los siguientes catálogos:</p>
             
-            <div class="col-md-3 mb-4">
-                <div class="card shadow-sm border-0 rounded-3 sticky-top" style="top: 80px; z-index:1;">
-                    <div class="card-body p-2">
-                        <div class="nav flex-column nav-pills custom-pills-inea" id="v-pills-tab" role="tablist" aria-orientation="vertical">
-                            
-                            <button class="nav-link active text-start px-3 py-3 fw-bold mb-1 rounded-3 d-flex align-items-center" id="v-pills-hw-tab" data-bs-toggle="pill" data-bs-target="#v-pills-hw" type="button" role="tab" aria-selected="true">
-                                <div class="bg-light rounded-circle d-flex justify-content-center align-items-center me-3 icon-box" style="width: 35px; height: 35px;">
-                                    <i class="fas fa-microchip"></i>
-                                </div>
-                                Hardware
-                            </button>
-                            
-                            <button class="nav-link text-start px-3 py-3 fw-bold mb-1 rounded-3 d-flex align-items-center" id="v-pills-net-tab" data-bs-toggle="pill" data-bs-target="#v-pills-net" type="button" role="tab" aria-selected="false">
-                                <div class="bg-light rounded-circle d-flex justify-content-center align-items-center me-3 icon-box" style="width: 35px; height: 35px;">
-                                    <i class="fas fa-network-wired"></i>
-                                </div>
-                                Red y Conexión
-                            </button>
-                            
-                            <button class="nav-link text-start px-3 py-3 fw-bold mb-1 rounded-3 d-flex align-items-center" id="v-pills-asig-tab" data-bs-toggle="pill" data-bs-target="#v-pills-asig" type="button" role="tab" aria-selected="false">
-                                <div class="bg-light rounded-circle d-flex justify-content-center align-items-center me-3 icon-box" style="width: 35px; height: 35px;">
-                                    <i class="fas fa-user-tie"></i>
-                                </div>
-                                Asignación de Personal
-                            </button>
+            <ul class="list-unstyled mb-0 ms-2">
+                <?php foreach ($faltantes as $faltante): ?>
+                    <li class="mb-2 d-flex align-items-center bg-white p-2 rounded-3 shadow-sm border border-danger-subtle" style="max-width: 500px;">
+                        <i class="fas fa-times-circle text-danger mx-2 fs-5"></i>
+                        <span class="fw-bold text-danger me-auto"><?php echo $faltante['nombre']; ?></span>
+                        <a href="<?php echo $faltante['url']; ?>" class="btn btn-sm btn-danger fw-bold rounded-pill px-3 shadow-sm" target="_blank">
+                            Ir al catálogo <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
 
-                            <button class="nav-link text-start px-3 py-3 fw-bold rounded-3 d-flex align-items-center" id="v-pills-serv-tab" data-bs-toggle="pill" data-bs-target="#v-pills-serv" type="button" role="tab" aria-selected="false">
-                                <div class="bg-light rounded-circle d-flex justify-content-center align-items-center me-3 icon-box" style="width: 35px; height: 35px;">
-                                    <i class="fas fa-cogs"></i>
-                                </div>
-                                Servicios Instalados
-                            </button>
-
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-md-9">
-                <div class="card shadow-sm border-0 rounded-3 mb-4" style="min-height: 400px;">
-                    <div class="card-body p-4 p-md-5">
-                        <div class="tab-content" id="v-pills-tabContent">
-                            
-                            <div class="tab-pane fade show active" id="v-pills-hw" role="tabpanel" aria-labelledby="v-pills-hw-tab">
-                                <h5 class="fw-bold text-guinda mb-4 border-bottom border-secondary-subtle pb-3">Características Físicas del Equipo</h5>
-                                <div class="row g-4">
-                                    <div class="col-md-6">
-                                        <div class="d-flex justify-content-between align-items-end mb-1">
-                                            <label class="form-label fw-bold small text-dark mb-0">Marca *</label>
-                                            <a href="marcas/" class="badge bg-secondary text-decoration-none bg-opacity-75"><i class="fas fa-external-link-alt"></i> Ir al Catálogo</a>
-                                        </div>
-                                        <?php if(empty($marcas)): ?>
-                                            <select class="form-select border-danger text-dark bg-light" name="id_marca" id="selectMarca" required disabled>
-                                                <option value="">No hay marcas registradas</option>
-                                            </select>
-                                            <small class="fw-bold mt-1 d-block" style="color: #dc3545 !important;">
-                                                <i class="fas fa-exclamation-triangle"></i> Debe ir al catálogo para añadir marcas.
-                                            </small>
-                                        <?php else: ?>
-                                            <select class="form-select focus-guinda border-secondary-subtle" name="id_marca" id="selectMarca" required>
-                                                <option value="">-- Seleccionar Marca --</option>
-                                                <?php foreach($marcas as $m): ?>
-                                                    <option value="<?php echo $m['id_marca']; ?>" <?php echo (isset($dispositivo['id_marca']) && $dispositivo['id_marca'] == $m['id_marca']) ? 'selected' : ''; ?>>
-                                                        <?php echo htmlspecialchars($m['nom_marca']); ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        <?php endif; ?>
-                                    </div>
+    <div class="card shadow-sm border-0 rounded-4">
+        <fieldset <?php echo $bloquear_formulario ? 'disabled' : ''; ?>>
+            <form id="formDispositivo" novalidate>
+                
+                <input type="hidden" name="id_disp" id="id_disp" value="<?php echo $id_disp; ?>">
+                <input type="hidden" name="id_sub" id="id_sub" value="<?php echo $id_sub_actual; ?>">
+                <input type="hidden" name="peticion" value="<?php echo $dispositivo ? 'UPDATE' : 'INSERT'; ?>">
+                
+                <div class="row">
+                    
+                    <div class="col-md-3 mb-4">
+                        <div class="card shadow-sm border-0 rounded-3 sticky-top" style="top: 80px; z-index:1;">
+                            <div class="card-body p-2">
+                                <div class="nav flex-column nav-pills custom-pills-inea" id="v-pills-tab" role="tablist" aria-orientation="vertical">
                                     
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold small text-dark mb-1">Modelo *</label>
-                                        <select class="form-select focus-guinda border-secondary-subtle" name="id_modelo" id="selectModelo" required <?php echo empty($marcas) ? 'disabled' : ''; ?>>
-                                            <option value="">-- Seleccione una marca primero --</option>
-                                            <?php if(!empty($modelos_marca)): ?>
-                                                <?php foreach($modelos_marca as $mod): ?>
-                                                    <option value="<?php echo $mod['id_modelo']; ?>" <?php echo (isset($dispositivo['id_modelo']) && $dispositivo['id_modelo'] == $mod['id_modelo']) ? 'selected' : ''; ?>>
-                                                        <?php echo htmlspecialchars($mod['nom_modelo']); ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            <?php endif; ?>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold small text-dark mb-1">Número de Serie</label>
-                                        <input type="text" class="form-control focus-guinda border-secondary-subtle font-monospace" name="num_ser" value="<?php echo htmlspecialchars($dispositivo['num_ser'] ?? ''); ?>" maxlength="100">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold small text-dark mb-1">Número de Inventario</label>
-                                        <div class="input-group shadow-sm">
-                                            <select class="form-select focus-guinda font-monospace px-1" id="inv_tipo" style="width: 110px; flex: none; font-size: 0.9rem;">
-                                                <option value="180000">180000</option>
-                                                <option value="51501000">51501000</option>
-                                                <option value="OTRO" class="fw-bold">Otro prefijo...</option>
-                                            </select>
-                                            
-                                            <input type="text" class="form-control focus-guinda font-monospace text-center d-none no-icon-validation" id="inv_prefix_manual" placeholder="Prefijo (6-15)" minlength="6" maxlength="15" style="width: 110px; flex: none;">
-                                            
-                                            <input type="text" class="form-control focus-guinda font-monospace text-center inv-part px-1 no-icon-validation" id="inv_part1" placeholder="XXX" maxlength="3">
-                                            <span class="input-group-text bg-white inv-part px-1 border-start-0 border-end-0">-</span>
-                                            <input type="text" class="form-control focus-guinda font-monospace text-center inv-part px-1 no-icon-validation" id="inv_part2" placeholder="XXXXX" maxlength="5" style="flex: 0 0 85px;">
-                                            <span class="input-group-text bg-white inv-part px-1 border-start-0 border-end-0">-</span>
-                                            <input type="text" class="form-control focus-guinda font-monospace text-center inv-part px-1 no-icon-validation" id="inv_part3" placeholder="XX" maxlength="2" style="flex: 0 0 50px;">
+                                    <button class="nav-link active text-start px-3 py-3 fw-bold mb-1 rounded-3 d-flex align-items-center" id="v-pills-hw-tab" data-bs-toggle="pill" data-bs-target="#v-pills-hw" type="button" role="tab" aria-selected="true">
+                                        <div class="bg-light rounded-circle d-flex justify-content-center align-items-center me-3 icon-box" style="width: 35px; height: 35px;">
+                                            <i class="fas fa-microchip"></i>
                                         </div>
-                                        
-                                        <div class="d-flex text-secondary mt-1 px-1 fw-bold" style="font-size: 0.65rem;">
-                                            <div class="text-center" style="flex-grow: 1;">Clave del Bien (CABMS)</div>
-                                            <div class="text-center" style="flex: 0 0 100px;">Equipo / Lote</div>
-                                            <div class="text-center" style="flex: 0 0 50px;">Año</div>
+                                        Hardware
+                                    </button>
+                                    
+                                    <button class="nav-link text-start px-3 py-3 fw-bold mb-1 rounded-3 d-flex align-items-center" id="v-pills-net-tab" data-bs-toggle="pill" data-bs-target="#v-pills-net" type="button" role="tab" aria-selected="false">
+                                        <div class="bg-light rounded-circle d-flex justify-content-center align-items-center me-3 icon-box" style="width: 35px; height: 35px;">
+                                            <i class="fas fa-network-wired"></i>
                                         </div>
-                                        
-                                        <small id="inv_help" class="text-danger fw-bold d-none mt-1 d-block" style="font-size: 0.75rem;"></small>
-                                        
-                                        <input type="hidden" name="num_inv" id="num_inv_final" value="<?php echo htmlspecialchars($dispositivo['num_inv'] ?? ''); ?>">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <div class="d-flex justify-content-between align-items-end mb-1">
-                                            <label class="form-label fw-bold small text-dark mb-0">Departamento</label>
-                                            <a href="departamentos/" class="badge bg-secondary text-decoration-none bg-opacity-75"><i class="fas fa-external-link-alt"></i> Ir al Catálogo</a>
+                                        Red y Conexión
+                                    </button>
+                                    
+                                    <button class="nav-link text-start px-3 py-3 fw-bold mb-1 rounded-3 d-flex align-items-center" id="v-pills-asig-tab" data-bs-toggle="pill" data-bs-target="#v-pills-asig" type="button" role="tab" aria-selected="false">
+                                        <div class="bg-light rounded-circle d-flex justify-content-center align-items-center me-3 icon-box" style="width: 35px; height: 35px;">
+                                            <i class="fas fa-user-tie"></i>
                                         </div>
-                                        <?php if(empty($departamentos)): ?>
-                                            <select class="form-select border-danger text-danger bg-light" name="id_dep" disabled>
-                                                <option value="">No hay departamentos registrados</option>
-                                            </select>
-                                            <small class="text-danger fw-bold"><i class="fas fa-exclamation-triangle"></i> Debe ir al catálogo para añadir departamentos.</small>
-                                        <?php else: ?>
-                                            <select class="form-select focus-guinda border-secondary-subtle" name="id_dep">
-                                                <option value="">-- Sin asignar --</option>
-                                                <?php foreach($departamentos as $dep): ?>
-                                                    <option value="<?php echo $dep['id_dep']; ?>" <?php echo ((isset($dispositivo['id_dep']) ? $dispositivo['id_dep'] : null) == $dep['id_dep']) ? 'selected' : ''; ?>>
-                                                        <?php echo htmlspecialchars($dep['nom_dep']); ?>
-                                                    </option>
-                                                <?php endforeach; ?>
-                                            </select>
-                                        <?php endif; ?>
-                                    </div>
-                                    <div class="col-12">
-                                        <label class="form-label fw-bold small text-dark mb-1">Especificaciones de Hardware</label>
-                                        <textarea class="form-control focus-guinda border-secondary-subtle" name="especs_hw" rows="4"><?php echo htmlspecialchars($dispositivo['especs_hw'] ?? ''); ?></textarea>
-                                    </div>
-                                </div>
-                                <div class="col-12 mt-4 text-end border-top border-secondary-subtle pt-4">
-                                        <button type="button" class="btn btn-outline-secondary fw-bold px-4 btn-siguiente" data-next="v-pills-net-tab">
-                                            Siguiente: Red y Conexión <i class="fas fa-arrow-right ms-2"></i>
-                                        </button>
+                                        Asignación de Personal
+                                    </button>
+
+                                    <button class="nav-link text-start px-3 py-3 fw-bold rounded-3 d-flex align-items-center" id="v-pills-serv-tab" data-bs-toggle="pill" data-bs-target="#v-pills-serv" type="button" role="tab" aria-selected="false">
+                                        <div class="bg-light rounded-circle d-flex justify-content-center align-items-center me-3 icon-box" style="width: 35px; height: 35px;">
+                                            <i class="fas fa-cogs"></i>
+                                        </div>
+                                        Servicios Instalados
+                                    </button>
+
                                 </div>
                             </div>
+                        </div>
+                    </div>
 
-                            <div class="tab-pane fade" id="v-pills-net" role="tabpanel" aria-labelledby="v-pills-net-tab">
-                                <h5 class="fw-bold text-guinda mb-4 border-bottom border-secondary-subtle pb-3">Configuración Lógica y de Red</h5>
-                                <div class="row g-4 mb-4">
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold small text-dark mb-1">Hostname *</label>
-                                        <input type="text" class="form-control focus-guinda border-secondary-subtle font-monospace" name="nom_host" value="<?php echo htmlspecialchars($dispositivo['nom_host'] ?? ''); ?>" maxlength="100" required>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold small text-dark mb-1">Dominio</label>
-                                        <input type="text" class="form-control focus-guinda border-secondary-subtle" name="dom" value="<?php echo htmlspecialchars($dispositivo['dom'] ?? ''); ?>" maxlength="100">
-                                    </div>
-                                </div>
-
-                                <div class="col-12 mt-4">
-                                    <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-secondary-subtle pb-2">
-                                        <h6 class="fw-bold text-dark mb-0"><i class="fas fa-network-wired me-2"></i>Interfaces de Red</h6>
-                                        <button type="button" class="btn btn-sm btn-outline-guinda fw-bold" id="btn-add-interfaz">
-                                            <i class="fas fa-plus me-1"></i> Añadir Interfaz
-                                        </button>
-                                    </div>
+                    <div class="col-md-9">
+                        <div class="card shadow-sm border-0 rounded-3 mb-4" style="min-height: 400px;">
+                            <div class="card-body p-4 p-md-5">
+                                <div class="tab-content" id="v-pills-tabContent">
                                     
-                                    <div class="alert alert-light border border-info border-start border-5 shadow-sm d-flex align-items-center py-2 mb-3">
-                                        <i class="fas fa-info-circle text-info fa-lg me-3"></i>
-                                        <small class="text-muted">Puede registrar hasta dos interfaces (una <strong>Ethernet</strong> y una <strong>WiFi</strong>). Para poder seleccionar una dirección IP, es obligatorio escribir primero la dirección MAC.</small>
-                                    </div>
-
-                                    <div id="contenedor-interfaces" class="d-flex flex-column gap-3">
+                                    <div class="tab-pane fade show active" id="v-pills-hw" role="tabpanel" aria-labelledby="v-pills-hw-tab">
+                                        <h5 class="fw-bold text-guinda mb-4 border-bottom border-secondary-subtle pb-3">Características Físicas del Equipo</h5>
+                                        <div class="row g-4">
+                                            <div class="col-md-6">
+                                                <div class="d-flex justify-content-between align-items-end mb-1">
+                                                    <label class="form-label fw-bold small text-dark mb-0">Marca *</label>
+                                                    <a href="marcas/" class="badge bg-secondary text-decoration-none bg-opacity-75" target="_blank"><i class="fas fa-external-link-alt"></i> Ir al Catálogo</a>
+                                                </div>
+                                                <?php if(empty($marcas)): ?>
+                                                    <select class="form-select border-danger text-dark bg-light" name="id_marca" id="selectMarca" required disabled>
+                                                        <option value="">No hay marcas registradas</option>
+                                                    </select>
+                                                    <small class="fw-bold mt-1 d-block" style="color: #dc3545 !important;">
+                                                        <i class="fas fa-exclamation-triangle"></i> Debe ir al catálogo para añadir marcas.
+                                                    </small>
+                                                <?php else: ?>
+                                                    <select class="form-select focus-guinda border-secondary-subtle" name="id_marca" id="selectMarca" required>
+                                                        <option value="">-- Seleccionar Marca --</option>
+                                                        <?php foreach($marcas as $m): ?>
+                                                            <option value="<?php echo $m['id_marca']; ?>" <?php echo (isset($dispositivo['id_marca']) && $dispositivo['id_marca'] == $m['id_marca']) ? 'selected' : ''; ?>>
+                                                                <?php echo htmlspecialchars($m['nom_marca']); ?>
+                                                            </option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                <?php endif; ?>
+                                            </div>
+                                            
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold small text-dark mb-1">Modelo *</label>
+                                                <select class="form-select focus-guinda border-secondary-subtle" name="id_modelo" id="selectModelo" required <?php echo empty($marcas) ? 'disabled' : ''; ?>>
+                                                    <option value="">-- Seleccione una marca primero --</option>
+                                                    <?php if(!empty($modelos_marca)): ?>
+                                                        <?php foreach($modelos_marca as $mod): ?>
+                                                            <option value="<?php echo $mod['id_modelo']; ?>" <?php echo (isset($dispositivo['id_modelo']) && $dispositivo['id_modelo'] == $mod['id_modelo']) ? 'selected' : ''; ?>>
+                                                                <?php echo htmlspecialchars($mod['nom_modelo']); ?>
+                                                            </option>
+                                                        <?php endforeach; ?>
+                                                    <?php endif; ?>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold small text-dark mb-1">Número de Serie</label>
+                                                <input type="text" class="form-control focus-guinda border-secondary-subtle font-monospace" name="num_ser" value="<?php echo htmlspecialchars($dispositivo['num_ser'] ?? ''); ?>" maxlength="100">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold small text-dark mb-1">Número de Inventario</label>
+                                                <div class="input-group shadow-sm">
+                                                    <select class="form-select focus-guinda font-monospace px-1" id="inv_tipo" style="width: 110px; flex: none; font-size: 0.9rem;">
+                                                        <option value="180000">180000</option>
+                                                        <option value="51501000">51501000</option>
+                                                        <option value="OTRO" class="fw-bold">Otro prefijo...</option>
+                                                    </select>
+                                                    
+                                                    <input type="text" class="form-control focus-guinda font-monospace text-center d-none no-icon-validation" id="inv_prefix_manual" placeholder="Prefijo (6-15)" minlength="6" maxlength="15" style="width: 110px; flex: none;">
+                                                    
+                                                    <input type="text" class="form-control focus-guinda font-monospace text-center inv-part px-1 no-icon-validation" id="inv_part1" placeholder="XXX" maxlength="3">
+                                                    <span class="input-group-text bg-white inv-part px-1 border-start-0 border-end-0">-</span>
+                                                    <input type="text" class="form-control focus-guinda font-monospace text-center inv-part px-1 no-icon-validation" id="inv_part2" placeholder="XXXXX" maxlength="5" style="flex: 0 0 85px;">
+                                                    <span class="input-group-text bg-white inv-part px-1 border-start-0 border-end-0">-</span>
+                                                    <input type="text" class="form-control focus-guinda font-monospace text-center inv-part px-1 no-icon-validation" id="inv_part3" placeholder="XX" maxlength="2" style="flex: 0 0 50px;">
+                                                </div>
+                                                
+                                                <div class="d-flex text-secondary mt-1 px-1 fw-bold" style="font-size: 0.65rem;">
+                                                    <div class="text-center" style="flex-grow: 1;">Clave del Bien (CABMS)</div>
+                                                    <div class="text-center" style="flex: 0 0 100px;">Equipo / Lote</div>
+                                                    <div class="text-center" style="flex: 0 0 50px;">Año</div>
+                                                </div>
+                                                
+                                                <small id="inv_help" class="text-danger fw-bold d-none mt-1 d-block" style="font-size: 0.75rem;"></small>
+                                                
+                                                <input type="hidden" name="num_inv" id="num_inv_final" value="<?php echo htmlspecialchars($dispositivo['num_inv'] ?? ''); ?>">
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="d-flex justify-content-between align-items-end mb-1">
+                                                    <label class="form-label fw-bold small text-dark mb-0">Departamento</label>
+                                                    <a href="departamentos/" class="badge bg-secondary text-decoration-none bg-opacity-75" target="_blank"><i class="fas fa-external-link-alt"></i> Ir al Catálogo</a>
+                                                </div>
+                                                <?php if(empty($departamentos)): ?>
+                                                    <select class="form-select border-danger text-danger bg-light" name="id_dep" disabled>
+                                                        <option value="">No hay departamentos registrados</option>
+                                                    </select>
+                                                    <small class="text-danger fw-bold"><i class="fas fa-exclamation-triangle"></i> Debe ir al catálogo para añadir departamentos.</small>
+                                                <?php else: ?>
+                                                    <select class="form-select focus-guinda border-secondary-subtle" name="id_dep">
+                                                        <option value="">-- Sin asignar --</option>
+                                                        <?php foreach($departamentos as $dep): ?>
+                                                            <option value="<?php echo $dep['id_dep']; ?>" <?php echo ((isset($dispositivo['id_dep']) ? $dispositivo['id_dep'] : null) == $dep['id_dep']) ? 'selected' : ''; ?>>
+                                                                <?php echo htmlspecialchars($dep['nom_dep']); ?>
+                                                            </option>
+                                                        <?php endforeach; ?>
+                                                    </select>
+                                                <?php endif; ?>
+                                            </div>
+                                            <div class="col-12">
+                                                <label class="form-label fw-bold small text-dark mb-1">Especificaciones de Hardware</label>
+                                                <textarea class="form-control focus-guinda border-secondary-subtle" name="especs_hw" rows="4"><?php echo htmlspecialchars($dispositivo['especs_hw'] ?? ''); ?></textarea>
+                                            </div>
                                         </div>
-                                    
-                                    <template id="template-interfaz">
-                                        <div class="card border border-secondary-subtle shadow-sm interfaz-item">
-                                            <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
-                                                <span class="fw-bold text-secondary small titulo-interfaz"><i class="fas fa-ethernet me-1"></i> Configuración de Interfaz</span>
-                                                <button type="button" class="btn btn-sm btn-outline-danger border-0 btn-eliminar-interfaz" title="Quitar Interfaz">
-                                                    <i class="fas fa-times"></i>
+                                        <div class="col-12 mt-4 text-end border-top border-secondary-subtle pt-4">
+                                                <button type="button" class="btn btn-outline-secondary fw-bold px-4 btn-siguiente" data-next="v-pills-net-tab">
+                                                    Siguiente: Red y Conexión <i class="fas fa-arrow-right ms-2"></i>
+                                                </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="tab-pane fade" id="v-pills-net" role="tabpanel" aria-labelledby="v-pills-net-tab">
+                                        <h5 class="fw-bold text-guinda mb-4 border-bottom border-secondary-subtle pb-3">Configuración Lógica y de Red</h5>
+                                        <div class="row g-4 mb-4">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold small text-dark mb-1">Hostname *</label>
+                                                <input type="text" class="form-control focus-guinda border-secondary-subtle font-monospace" name="nom_host" value="<?php echo htmlspecialchars($dispositivo['nom_host'] ?? ''); ?>" maxlength="100" required>
+                                            </div>
+                                        <div class="col-md-6 mb-3">
+                                            <div class="d-flex justify-content-between align-items-end mb-1">
+                                                <label for="id_dom" class="form-label fw-bold small text-dark mb-0">Dominio Institucional <span class="text-danger">*</span></label>
+                                                <a href="dominios/" class="small text-guinda text-decoration-none fw-bold" target="_blank">
+                                                    <i class="fas fa-plus"></i> Ir al catálogo
+                                                </a>
+                                            </div>
+                                            <select class="form-select focus-guinda" id="id_dom" name="id_dom" required>
+                                                <option value="">-- Seleccione un dominio --</option>
+                                                <?php foreach ($dominios as $dom): ?>
+                                                    <option value="<?php echo $dom['id_dom']; ?>" 
+                                                        <?php echo (isset($dispositivo['id_dom']) && $dispositivo['id_dom'] == $dom['id_dom']) ? 'selected' : ''; ?>>
+                                                        <?php echo htmlspecialchars($dom['nom_dom']); ?>
+                                                    </option>
+                                                <?php endforeach; ?>
+                                            </select>
+                                         </div>
+                                       
+
+                                        <div class="col-12 mt-4">
+                                            <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-secondary-subtle pb-2">
+                                                <h6 class="fw-bold text-dark mb-0"><i class="fas fa-network-wired me-2"></i>Interfaces de Red</h6>
+                                                <button type="button" class="btn btn-sm btn-outline-guinda fw-bold" id="btn-add-interfaz">
+                                                    <i class="fas fa-plus me-1"></i> Añadir Interfaz
                                                 </button>
                                             </div>
-                                            <div class="card-body p-3">
-                                                <div class="row g-3">
-                                                    <div class="col-12 col-md-4 overflow-hidden">
-                                                        <label class="form-label fw-bold small text-dark mb-1">Tipo de Conexión *</label>
-                                                        <select 
-                                                            class="form-select form-select-sm focus-guinda select-tipo-conexion" 
-                                                            required
-                                                            style="width: 100%; max-width: 70%;  text-overflow: ellipsis; overflow: hidden; white-space: nowrap;"
-                                                        >
-                                                            <option value="" selected disabled>-- Seleccionar --</option>
-                                                            <option value="Ethernet">Ethernet (Cable)</option>
-                                                            <option value="WiFi">WiFi (Inalámbrico)</option>
-                                                        </select>
+                                            
+                                            <div class="alert alert-light border border-info border-start border-5 shadow-sm d-flex align-items-center py-2 mb-3">
+                                                <i class="fas fa-info-circle text-info fa-lg me-3"></i>
+                                                <small class="text-muted">Puede registrar hasta dos interfaces (una <strong>Ethernet</strong> y una <strong>WiFi</strong>). Para poder seleccionar una dirección IP, es obligatorio escribir primero la dirección MAC.</small>
+                                            </div>
+
+                                            <div id="contenedor-interfaces" class="d-flex flex-column gap-3">
+                                                </div>
+                                            
+                                            <template id="template-interfaz">
+                                                <div class="card border border-secondary-subtle shadow-sm interfaz-item">
+                                                    <div class="card-header bg-light py-2 d-flex justify-content-between align-items-center">
+                                                        <span class="fw-bold text-secondary small titulo-interfaz"><i class="fas fa-ethernet me-1"></i> Configuración de Interfaz</span>
+                                                        <button type="button" class="btn btn-sm btn-outline-danger border-0 btn-eliminar-interfaz" title="Quitar Interfaz">
+                                                            <i class="fas fa-times"></i>
+                                                        </button>
                                                     </div>
-                                                   
-                                                    <div class="col-md-8">
-                                                        <label class="form-label fw-bold small text-dark mb-1">Dirección MAC *</label>
-                                                        <input type="text" class="form-control form-control-sm focus-guinda font-monospace input-mac" name="mac[]" maxlength="17" placeholder="Ej: 00:1A:2B:3C:4D:5E" required>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-bold small text-dark mb-1"><i class="fas fa-tags text-guinda me-1"></i> Red / VLAN</label>
-                                                        <select class="form-select form-select-sm focus-guinda select-vlan" disabled>
-                                                            <option value="resguardo" selected>En resguardo (Sin red)</option>
-                                                            </select>
-                                                    </div>
-                                                    <div class="col-md-6">
-                                                        <label class="form-label fw-bold small text-dark mb-1"><i class="fas fa-laptop-house text-guinda me-1"></i> Asignación de IP</label>
-                                                        <select class="form-select form-select-sm focus-guinda font-monospace bg-light select-ip" name="id_red[]" disabled>
-                                                            <option value="">-- Sin IP --</option>
-                                                        </select>
+                                                    <div class="card-body p-3">
+                                                        <div class="row g-3">
+                                                            <div class="col-12 col-md-4 overflow-hidden">
+                                                                <label class="form-label fw-bold small text-dark mb-1">Tipo de Conexión *</label>
+                                                                <select 
+                                                                    class="form-select form-select-sm focus-guinda select-tipo-conexion" 
+                                                                    required
+                                                                    style="width: 100%; max-width: 70%;  text-overflow: ellipsis; overflow: hidden; white-space: nowrap;"
+                                                                >
+                                                                    <option value="" selected disabled>-- Seleccionar --</option>
+                                                                    <option value="Ethernet">Ethernet (Cable)</option>
+                                                                    <option value="WiFi">WiFi (Inalámbrico)</option>
+                                                                </select>
+                                                            </div>
+                                                        
+                                                            <div class="col-md-8">
+                                                                <label class="form-label fw-bold small text-dark mb-1">Dirección MAC *</label>
+                                                                <input type="text" class="form-control form-control-sm focus-guinda font-monospace input-mac" name="mac[]" maxlength="17" placeholder="Ej: 00:1A:2B:3C:4D:5E" required>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label class="form-label fw-bold small text-dark mb-1"><i class="fas fa-tags text-guinda me-1"></i> Red / VLAN</label>
+                                                                <select class="form-select form-select-sm focus-guinda select-vlan" disabled>
+                                                                    <option value="resguardo" selected>En resguardo (Sin red)</option>
+                                                                    </select>
+                                                            </div>
+                                                            <div class="col-md-6">
+                                                                <label class="form-label fw-bold small text-dark mb-1"><i class="fas fa-laptop-house text-guinda me-1"></i> Asignación de IP</label>
+                                                                <select class="form-select form-select-sm focus-guinda font-monospace bg-light select-ip" name="id_red[]" disabled>
+                                                                    <option value="">-- Sin IP --</option>
+                                                                </select>
+                                                            </div>
+                                                        </div>
                                                     </div>
                                                 </div>
+                                            </template>
+                                        </div></div>
+                                        
+                                        <div class="col-12 mt-4 text-end border-top border-secondary-subtle pt-4">
+                                                <button type="button" class="btn btn-outline-secondary fw-bold px-4 btn-siguiente" data-next="v-pills-asig-tab">
+                                                    Siguiente: Asignación de Personal <i class="fas fa-arrow-right ms-2"></i>
+                                                </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="tab-pane fade" id="v-pills-asig" role="tabpanel" aria-labelledby="v-pills-asig-tab">
+                                        <h5 class="fw-bold text-guinda mb-4 border-bottom border-secondary-subtle pb-3">Asignación de Personal Operativo</h5>
+                                        <div class="row g-4">
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold small text-dark mb-1">Personal Asignado (Uso Diario)</label>
+                                                <select class="form-select focus-guinda border-secondary-subtle" name="asig_po_id">
+                                                    <option value="">-- Sin asignar --</option>
+                                                    <?php foreach($personal_operativo as $po): ?>
+                                                        <option value="<?php echo $po['id_po']; ?>" <?php echo (isset($dispositivo) && $dispositivo['asig_po_id'] == $po['id_po']) ? 'selected' : ''; ?>>
+                                                            <?php echo htmlspecialchars($po['nombre_completo']); ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <label class="form-label fw-bold small text-dark mb-1">Personal Responsable (Resguardo Legal)</label>
+                                                <select class="form-select focus-guinda border-secondary-subtle" name="resp_po_id">
+                                                    <option value="">-- Sin asignar --</option>
+                                                    <?php foreach($personal_operativo as $po): ?>
+                                                        <option value="<?php echo $po['id_po']; ?>" <?php echo (isset($dispositivo) && $dispositivo['resp_po_id'] == $po['id_po']) ? 'selected' : ''; ?>>
+                                                            <?php echo htmlspecialchars($po['nombre_completo']); ?>
+                                                        </option>
+                                                    <?php endforeach; ?>
+                                                </select>
                                             </div>
                                         </div>
-                                    </template>
-                                </div>
-                                
-                                <div class="col-12 mt-4 text-end border-top border-secondary-subtle pt-4">
-                                        <button type="button" class="btn btn-outline-secondary fw-bold px-4 btn-siguiente" data-next="v-pills-asig-tab">
-                                            Siguiente: Asignación de Personal <i class="fas fa-arrow-right ms-2"></i>
-                                        </button>
-                                </div>
-                            </div>
-
-                            <div class="tab-pane fade" id="v-pills-asig" role="tabpanel" aria-labelledby="v-pills-asig-tab">
-                                <h5 class="fw-bold text-guinda mb-4 border-bottom border-secondary-subtle pb-3">Asignación de Personal Operativo</h5>
-                                <div class="row g-4">
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold small text-dark mb-1">Personal Asignado (Uso Diario)</label>
-                                        <select class="form-select focus-guinda border-secondary-subtle" name="asig_po_id">
-                                            <option value="">-- Sin asignar --</option>
-                                            <?php foreach($personal_operativo as $po): ?>
-                                                <option value="<?php echo $po['id_po']; ?>" <?php echo (isset($dispositivo) && $dispositivo['asig_po_id'] == $po['id_po']) ? 'selected' : ''; ?>>
-                                                    <?php echo htmlspecialchars($po['nombre_completo']); ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label fw-bold small text-dark mb-1">Personal Responsable (Resguardo Legal)</label>
-                                        <select class="form-select focus-guinda border-secondary-subtle" name="resp_po_id">
-                                            <option value="">-- Sin asignar --</option>
-                                            <?php foreach($personal_operativo as $po): ?>
-                                                <option value="<?php echo $po['id_po']; ?>" <?php echo (isset($dispositivo) && $dispositivo['resp_po_id'] == $po['id_po']) ? 'selected' : ''; ?>>
-                                                    <?php echo htmlspecialchars($po['nombre_completo']); ?>
-                                                </option>
-                                            <?php endforeach; ?>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="col-12 mt-4 text-end border-top border-secondary-subtle pt-4">
-                                        <button type="button" class="btn btn-outline-secondary fw-bold px-4 btn-siguiente" data-next="v-pills-serv-tab">
-                                            Siguiente: Servicios Instalados <i class="fas fa-arrow-right ms-2"></i>
-                                        </button>
-                                </div>
-                            </div>
-
-                            <div class="tab-pane fade" id="v-pills-serv" role="tabpanel" aria-labelledby="v-pills-serv-tab">
-                                <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-secondary-subtle pb-2">
-                                    <h5 class="fw-bold text-guinda mb-0"><i class="fas fa-cogs me-2"></i>Servicios Instalados</h5>
-                                    <div>
-                                        <button type="button" class="btn btn-sm btn-outline-secondary fw-bold me-2" id="btn-gestionar-catalogo">
-                                            <i class="fas fa-list me-1"></i> Catálogo
-                                        </button>
-                                        <button type="button" class="btn btn-sm btn-outline-guinda fw-bold" id="btn-add-servicio">
-                                            <i class="fas fa-plus me-1"></i> Añadir Servicio
-                                        </button>
-                                    </div>
-                                </div>
-
-                                <div class="alert alert-light border border-info border-start border-5 shadow-sm d-flex align-items-center py-2 mb-4">
-                                    <i class="fas fa-info-circle text-info fa-lg me-3"></i>
-                                    <small class="text-muted">Marque los servicios instalados en el equipo. Si un servicio aparece resaltado en <strong class="text-danger">rojo</strong>, indica que la versión instalada está obsoleta respecto al catálogo oficial.</small>
-                                </div>
-
-                                <div id="contenedor-servicios" class="list-group shadow-sm border-secondary-subtle mb-3">
-                                    <?php if (!empty($servicios_asignados)): ?>
-                                        <?php foreach ($servicios_asignados as $sa): 
-                                            $es_obsoleto = ($sa['es_obsoleta'] == 1);
-                                            
-                                            $clase_bg = $es_obsoleto ? 'bg-danger bg-opacity-10 border-danger border-opacity-50' : 'bg-white';
-                                            $clase_texto = $es_obsoleto ? 'text-danger' : 'text-dark';
-                                        ?>
-                                            <label class="list-group-item d-flex justify-content-between align-items-center py-3 list-group-item-action <?php echo $clase_bg; ?>">
-                                                <div class="d-flex align-items-start gap-3">
-                                                    <input type="hidden" name="servicios_instalados[]" value="<?php echo $sa['id_serv']; ?>">
-                                                    <input type="hidden" name="versiones_instaladas[<?php echo $sa['id_serv']; ?>]" value="<?php echo $sa['id_ver_instalada']; ?>">
-                                                    <div>
-                                                        <h6 class="mb-0 fw-bold <?php echo $clase_texto; ?>">
-                                                            <?php if($es_obsoleto): ?><i class="fas fa-exclamation-triangle me-1"></i><?php endif; ?>
-                                                            <?php echo htmlspecialchars($sa['nombre_servicio']); ?>
-                                                        </h6>
-                                                        <small class="<?php echo $es_obsoleto ? 'text-danger' : 'text-muted'; ?> d-block mt-1">
-                                                            Instalado: <strong><?php echo htmlspecialchars($sa['version_instalada']); ?></strong>
-                                                        </small>
-                                                    </div>
-                                                </div>
-                                                <div class="text-end d-flex align-items-center gap-2">
-                                                    <?php if ($es_obsoleto): ?>
-                                                        <span class="badge bg-danger text-white rounded-pill px-3 py-1 shadow-sm me-2">Obsoleto</span>
-                                                        <button type="button" class="btn btn-sm btn-outline-danger btn-actualizar-serv" data-id-serv="<?php echo $sa['id_serv']; ?>" title="Actualizar a versión oficial">
-                                                            <i class="fas fa-sync-alt me-1"></i> Actualizar
-                                                        </button>
-                                                    <?php else: ?>
-                                                        <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-3 py-2 shadow-sm me-2">
-                                                            <i class="fas fa-check-circle me-1"></i> Al día
-                                                        </span>
-                                                    <?php endif; ?>
-                                                    <button type="button" class="btn btn-sm btn-outline-secondary btn-quitar-serv" data-id-serv="<?php echo $sa['id_serv']; ?>" title="Desinstalar servicio">
-                                                        <i class="fas fa-trash-alt"></i>
-                                                    </button>
-                                                </div>
-                                            </label>
-                                        <?php endforeach; ?>
-                                    <?php else: ?>
-                                        <div class="p-4 text-center text-muted" id="mensaje-sin-servicios">
-                                            No hay servicios registrados en este equipo.
+                                        <div class="col-12 mt-4 text-end border-top border-secondary-subtle pt-4">
+                                                <button type="button" class="btn btn-outline-secondary fw-bold px-4 btn-siguiente" data-next="v-pills-serv-tab">
+                                                    Siguiente: Servicios Instalados <i class="fas fa-arrow-right ms-2"></i>
+                                                </button>
                                         </div>
-                                    <?php endif; ?>
+                                    </div>
+
+                                    <div class="tab-pane fade" id="v-pills-serv" role="tabpanel" aria-labelledby="v-pills-serv-tab">
+                                        <div class="d-flex justify-content-between align-items-center mb-3 border-bottom border-secondary-subtle pb-2">
+                                            <h5 class="fw-bold text-guinda mb-0"><i class="fas fa-cogs me-2"></i>Servicios Instalados</h5>
+                                            <div>
+                                                <button type="button" class="btn btn-sm btn-outline-secondary fw-bold me-2" id="btn-gestionar-catalogo">
+                                                    <i class="fas fa-list me-1"></i> Catálogo
+                                                </button>
+                                                <button type="button" class="btn btn-sm btn-outline-guinda fw-bold" id="btn-add-servicio">
+                                                    <i class="fas fa-plus me-1"></i> Añadir Servicio
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        <div class="alert alert-light border border-info border-start border-5 shadow-sm d-flex align-items-center py-2 mb-4">
+                                            <i class="fas fa-info-circle text-info fa-lg me-3"></i>
+                                            <small class="text-muted">Marque los servicios instalados en el equipo. Si un servicio aparece resaltado en <strong class="text-danger">rojo</strong>, indica que la versión instalada está obsoleta respecto al catálogo oficial.</small>
+                                        </div>
+
+                                        <div id="contenedor-servicios" class="list-group shadow-sm border-secondary-subtle mb-3">
+                                            <?php if (!empty($servicios_asignados)): ?>
+                                                <?php foreach ($servicios_asignados as $sa): 
+                                                    $es_obsoleto = ($sa['es_obsoleta'] == 1);
+                                                    
+                                                    $clase_bg = $es_obsoleto ? 'bg-danger bg-opacity-10 border-danger border-opacity-50' : 'bg-white';
+                                                    $clase_texto = $es_obsoleto ? 'text-danger' : 'text-dark';
+                                                ?>
+                                                    <label class="list-group-item d-flex justify-content-between align-items-center py-3 list-group-item-action <?php echo $clase_bg; ?>">
+                                                        <div class="d-flex align-items-start gap-3">
+                                                            <input type="hidden" name="servicios_instalados[]" value="<?php echo $sa['id_serv']; ?>">
+                                                            <input type="hidden" name="versiones_instaladas[<?php echo $sa['id_serv']; ?>]" value="<?php echo $sa['id_ver_instalada']; ?>">
+                                                            <div>
+                                                                <h6 class="mb-0 fw-bold <?php echo $clase_texto; ?>">
+                                                                    <?php if($es_obsoleto): ?><i class="fas fa-exclamation-triangle me-1"></i><?php endif; ?>
+                                                                    <?php echo htmlspecialchars($sa['nombre_servicio']); ?>
+                                                                </h6>
+                                                                <small class="<?php echo $es_obsoleto ? 'text-danger' : 'text-muted'; ?> d-block mt-1">
+                                                                    Instalado: <strong><?php echo htmlspecialchars($sa['version_instalada']); ?></strong>
+                                                                </small>
+                                                            </div>
+                                                        </div>
+                                                        <div class="text-end d-flex align-items-center gap-2">
+                                                            <?php if ($es_obsoleto): ?>
+                                                                <span class="badge bg-danger text-white rounded-pill px-3 py-1 shadow-sm me-2">Obsoleto</span>
+                                                                <button type="button" class="btn btn-sm btn-outline-danger btn-actualizar-serv" data-id-serv="<?php echo $sa['id_serv']; ?>" title="Actualizar a versión oficial">
+                                                                    <i class="fas fa-sync-alt me-1"></i> Actualizar
+                                                                </button>
+                                                            <?php else: ?>
+                                                                <span class="badge bg-success bg-opacity-10 text-success border border-success-subtle rounded-pill px-3 py-2 shadow-sm me-2">
+                                                                    <i class="fas fa-check-circle me-1"></i> Al día
+                                                                </span>
+                                                            <?php endif; ?>
+                                                            <button type="button" class="btn btn-sm btn-outline-secondary btn-quitar-serv" data-id-serv="<?php echo $sa['id_serv']; ?>" title="Desinstalar servicio">
+                                                                <i class="fas fa-trash-alt"></i>
+                                                            </button>
+                                                        </div>
+                                                    </label>
+                                                <?php endforeach; ?>
+                                            <?php else: ?>
+                                                <div class="p-4 text-center text-muted" id="mensaje-sin-servicios">
+                                                    No hay servicios registrados en este equipo.
+                                                </div>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+
                                 </div>
                             </div>
-
                         </div>
+
+                        <div class="d-flex justify-content-end gap-3 mt-2 mb-5">
+                            <a href="dispositivos/" class="btn btn-outline-secondary px-4 fw-bold shadow-sm">Cancelar</a>
+                            <button type="submit" class="btn btn-guinda px-4 fw-bold shadow-sm" id="btnGuardarDispositivo">
+                                <i class="fas fa-save me-2"></i> Guardar Dispositivo
+                            </button>
+                        </div>
+
                     </div>
                 </div>
-
-                <div class="d-flex justify-content-end gap-3 mt-2 mb-5">
-                    <a href="dispositivos/" class="btn btn-outline-secondary px-4 fw-bold shadow-sm">Cancelar</a>
-                    <button type="submit" class="btn btn-guinda px-4 fw-bold shadow-sm" id="btnGuardarDispositivo">
-                        <i class="fas fa-save me-2"></i> Guardar Dispositivo
-                    </button>
-                </div>
-
-            </div>
-        </div>
-    </form>
+            </form>
+      </fieldset>
+    </div>
 </div>
 
 <div class="modal fade" id="modalCatalogoServicios" tabindex="-1" aria-labelledby="modalCatalogoLabel" aria-hidden="true">

@@ -135,6 +135,11 @@ switch ($peticion) {
         }
         echo json_encode($controller->actualizarVersionDispositivo($id_sub, $id_disp, $id_serv, $id_ver_nueva));
         break;
+    
+    case 'RECARGAR_CATALOGOS':
+        // No validamos permisos estrictos aquí porque solo es lectura para llenar selects
+        echo json_encode($controller->obtenerCatalogosActualizados());
+        break;
 
     default:
         // Manejo de peticiones corruptas

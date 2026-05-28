@@ -67,7 +67,7 @@ class DispositivosController {
         $id_sub_actual = (!empty($consultaSub)) ? $consultaSub[0]['id_sub'] : 1;
 
         $vlans = $model->seleccionaRegistros("vlans", ["id_vlan", "nom_vlan"], "1=1 ORDER BY nom_vlan ASC");
-        
+
         $tablaPrincipal = "dispositivos d";
         
         // ACTUALIZACIÓN: Hacemos JOIN con marcas y modelos para extraer los nombres en texto real
@@ -134,13 +134,13 @@ class DispositivosController {
     public function insertarDispositivo($id_sub, $datos, $interfaces, $asignaciones_software) {
         $model = new MainModel();
 
-        // ACTUALIZACIÓN: Recibimos id_marca e id_modelo en lugar de los textos
+        // Recibimos id_marca e id_modelo en lugar de los textos
         $nom_host = !empty(trim($datos['nom_host'] ?? '')) ? trim($datos['nom_host']) : null;
         $id_marca = !empty(trim($datos['id_marca'] ?? '')) ? trim($datos['id_marca']) : null;
         $id_modelo = !empty(trim($datos['id_modelo'] ?? '')) ? trim($datos['id_modelo']) : null;
         $num_ser = !empty(trim($datos['num_ser'] ?? '')) ? trim($datos['num_ser']) : null;
         $num_inv = !empty(trim($datos['num_inv'] ?? '')) ? trim($datos['num_inv']) : null;
-        $dom = !empty(trim($datos['dom'] ?? '')) ? trim($datos['dom']) : null;
+        $id_dom = !empty($datos['id_dom']) ? (int)$datos['id_dom'] : null;
         $especs_hw = !empty(trim($datos['especs_hw'] ?? '')) ? trim($datos['especs_hw']) : null;
         $id_dep= !empty(trim($datos['id_dep'] ?? '')) ? trim($datos['id_dep']) : null;
 
@@ -161,9 +161,9 @@ class DispositivosController {
             if ($intf['tipo_conexion'] === 'WiFi') $mac_wifi = trim($intf['mac']);
         }
 
-        // ACTUALIZACIÓN: Mapeo exacto hacia las columnas de la Base de Datos
-        $camposDispositivo = ["nom_host", "id_marca", "id_modelo", "num_ser", "num_inv", "mac_ethernet", "mac_wifi", "dom", "especs_hw", "resp_po_id","id_dep", "asig_po_id", "id_u_int", "fec_u_int"];
-        $paramsDispositivo = [$nom_host, $id_marca, $id_modelo, $num_ser, $num_inv, $mac_ethernet, $mac_wifi, $dom, $especs_hw, $resp_po_id,$id_dep,$asig_po_id, $id_u_int, $fec_u_int];
+        // Mapeo exacto hacia las columnas de la Base de Datos
+        $camposDispositivo = ["nom_host", "id_marca", "id_modelo", "num_ser", "num_inv", "mac_ethernet", "mac_wifi", "id_dom", "especs_hw", "resp_po_id","id_dep", "asig_po_id", "id_u_int", "fec_u_int"];
+        $paramsDispositivo = [$nom_host, $id_marca, $id_modelo, $num_ser, $num_inv, $mac_ethernet, $mac_wifi, $id_dom, $especs_hw, $resp_po_id,$id_dep,$asig_po_id, $id_u_int, $fec_u_int];
 
         $detalle = "Registro de nuevo dispositivo. Host: " . ($nom_host ?: 'N/A');
         $id_disp = $model->agregaRegistroConBitacora("dispositivos", $camposDispositivo, $paramsDispositivo, $id_sub, $detalle);
@@ -182,7 +182,7 @@ class DispositivosController {
         $id_modelo = !empty(trim($datos['id_modelo'] ?? '')) ? trim($datos['id_modelo']) : null;
         $num_ser = !empty(trim($datos['num_ser'] ?? '')) ? trim($datos['num_ser']) : null;
         $num_inv = !empty(trim($datos['num_inv'] ?? '')) ? trim($datos['num_inv']) : null;
-        $dom = !empty(trim($datos['dom'] ?? '')) ? trim($datos['dom']) : null;
+        $id_dom = !empty($datos['id_dom']) ? (int)$datos['id_dom'] : null;
         $especs_hw = !empty(trim($datos['especs_hw'] ?? '')) ? trim($datos['especs_hw']) : null;
         $id_dep= !empty(trim($datos['id_dep'] ?? '')) ? trim($datos['id_dep']) : null;
 
@@ -209,8 +209,8 @@ class DispositivosController {
             return $resultadoProceso;
         }
 
-        $camposDispositivo = ["nom_host", "id_marca", "id_modelo", "num_ser", "num_inv", "mac_ethernet", "mac_wifi", "dom", "especs_hw", "resp_po_id","id_dep", "asig_po_id", "id_u_int", "fec_u_int"];
-        $paramsUpdate = [$nom_host, $id_marca, $id_modelo, $num_ser, $num_inv, $mac_ethernet, $mac_wifi, $dom, $especs_hw, $resp_po_id,$id_dep, $asig_po_id, $id_u_int, $fec_u_int, $id_disp];
+        $camposDispositivo = ["nom_host", "id_marca", "id_modelo", "num_ser", "num_inv", "mac_ethernet", "mac_wifi", "id_dom", "especs_hw", "resp_po_id","id_dep", "asig_po_id", "id_u_int", "fec_u_int"];
+        $paramsUpdate = [$nom_host, $id_marca, $id_modelo, $num_ser, $num_inv, $mac_ethernet, $mac_wifi, $id_dom, $especs_hw, $resp_po_id,$id_dep, $asig_po_id, $id_u_int, $fec_u_int, $id_disp];
 
         $detalle = "Actualización de dispositivo. Host: " . ($nom_host ?: 'N/A');
         $model->actualizaRegistroConBitacora("dispositivos", $camposDispositivo, "id_disp = ?", $paramsUpdate, $id_sub, $detalle);
@@ -356,6 +356,22 @@ class DispositivosController {
         } catch (Exception $e) {
             return ["status" => "error", "msg" => "Error interno: " . $e->getMessage()];
         }
+    }
+    public function obtenerCatalogosActualizados() {
+        $model = new MainModel();
+        
+        $marcas = $model->seleccionaRegistros("marcas", ["id_marca", "nom_marca"], "estatus = 1 ORDER BY nom_marca ASC");
+        $departamentos = $model->seleccionaRegistros("departamentos", ["id_dep", "clave_dep", "nom_dep"], "1=1 ORDER BY nom_dep ASC");
+        $dominios = $model->seleccionaRegistros("dominios", ["id_dom", "nom_dom"], "estatus = 1 ORDER BY nom_dom ASC");
+        
+        return [
+            "status" => "success",
+            "data" => [
+                "marcas" => $marcas ?: [],
+                "departamentos" => $departamentos ?: [],
+                "dominios" => $dominios ?: []
+            ]
+        ];
     }
 }
 ?>

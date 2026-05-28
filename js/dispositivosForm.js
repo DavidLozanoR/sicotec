@@ -668,7 +668,7 @@ document.addEventListener('DOMContentLoaded', () => {
     aplicarFuzzySearch('select[name="resp_po_id"]');
     aplicarFuzzySearch('select[name="asig_po_id"]');
     aplicarFuzzySearch('select[name="id_dep"]');
-
+    aplicarFuzzySearch('select[name="id_dom"]');
 // ==========================================
     // 2.5 CASCADA MARCAS Y MODELOS
     // ==========================================
@@ -1105,5 +1105,73 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     }
+    // ==========================================
+    // 8. AUTO-RECARGA SILENCIOSA DE CATÁLOGOS (AL VOLVER A LA PESTAÑA)
+    // ==========================================
+    document.addEventListener('visibilitychange', async () => {
+        // Cuando el usuario regresa a esta pestaña después de ir al catálogo en otra...
+        if (document.visibilityState === 'visible') {
+            try {
+                const res = await fetch('_controller/DispositivosAsync.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ peticion: 'RECARGAR_CATALOGOS' })
+                });
+                const response = await res.json();
+                
+                if (response.status === 'success') {
+                    const data = response.data;
+                    
+                    // ESCENARIO A: El formulario estaba TOTALMENTE bloqueado
+                    const fieldset = document.querySelector('fieldset');
+                    if (fieldset && fieldset.disabled) {
+                        // Si ya se llenaron los 3 catálogos requeridos, recargamos la página para quitar el letrero rojo
+                        if (data.marcas.length > 0 && data.departamentos.length > 0 && data.dominios.length > 0) {
+                            location.reload(); 
+                            return; 
+                        }
+                    }
+
+                    // ESCENARIO B: El usuario ya estaba llenando datos y le faltaba una marca/dominio
+                    // Función auxiliar para reconstruir los selects sin que el usuario lo note
+                    const actualizarSelect = (selector, arrayDatos, valProp, textFn, defaultText) => {
+                        const select = document.querySelector(selector);
+                        if (!select) return;
+                        
+                        const valorAnterior = select.value;
+                        select.innerHTML = `<option value="">${defaultText}</option>`;
+                        
+                        arrayDatos.forEach(item => {
+                            const opt = document.createElement('option');
+                            opt.value = item[valProp];
+                            opt.textContent = textFn(item);
+                            select.appendChild(opt);
+                        });
+                        
+                        // Si el usuario ya tenía algo seleccionado, se lo respetamos para que no pierda su progreso
+                        if (arrayDatos.some(item => String(item[valProp]) === String(valorAnterior))) {
+                            select.value = valorAnterior;
+                        }
+                        
+                        // Reconstruimos la barra de búsqueda Fuzzy que hicimos anteriormente
+                        if (typeof aplicarFuzzySearch === 'function') {
+                            aplicarFuzzySearch(select);
+                        }
+                    };
+
+                    // 1. Actualizamos Dominios
+                    actualizarSelect('#id_dom', data.dominios, 'id_dom', item => item.nom_dom, '-- Seleccione un dominio --');
+                    
+                    // 2. Actualizamos Marcas
+                    actualizarSelect('#selectMarca', data.marcas, 'id_marca', item => item.nom_marca, '-- Seleccionar Marca --');
+                    
+                    // 3. Actualizamos Departamentos (Soporta concatenar la clave y el nombre)
+                    actualizarSelect('select[name="id_dep"]', data.departamentos, 'id_dep', item => item.clave_dep ? `${item.clave_dep} - ${item.nom_dep}` : item.nom_dep, '-- Seleccionar Departamento --');
+                }
+            } catch (error) {
+                console.error("Error en auto-recarga de catálogos:", error);
+            }
+        }
+    });
 
 });
