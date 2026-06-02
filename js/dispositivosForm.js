@@ -1143,15 +1143,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (response.status === 'success') {
                     const data = response.data;
                     
-                    // ESCENARIO A: El formulario estaba TOTALMENTE bloqueado
-                    const fieldset = document.querySelector('fieldset');
-                    if (fieldset && fieldset.disabled) {
-                        // Si ya se llenaron los 3 catálogos requeridos, recargamos la página para quitar el letrero rojo
-                        if (data.marcas.length > 0 && data.departamentos.length > 0 && data.dominios.length > 0) {
-                            location.reload(); 
-                            return; 
-                        }
+                // ESCENARIO A: El formulario tenía alertas de catálogos faltantes
+                const alertaFaltantes = document.querySelector('.alert-danger');
+
+                if (alertaFaltantes) {
+                    // Verificamos si los catálogos que faltaban ya tienen datos
+                    const todoLleno = data.marcas.length > 0 && data.departamentos.length > 0 && data.dominios.length > 0;
+
+                    if (todoLleno) {
+                        // 1. Eliminamos visualmente la alerta
+                        alertaFaltantes.remove();
+                        
+                        // 2. Habilitamos el fieldset para que el usuario pueda interactuar
+                        const fieldset = document.querySelector('fieldset');
+                        if (fieldset) fieldset.disabled = false;
+                        
+                        // 3. Quitamos la clase 'disabled' de las pestañas (solución anterior)
+                        document.querySelectorAll('.nav-link').forEach(btn => btn.classList.remove('disabled', 'opacity-50'));
+                        
+                        Toast.fire({ icon: 'success', title: 'Catálogos actualizados. Ya puede registrar.' });
                     }
+                }
 
                     // ESCENARIO B: El usuario ya estaba llenando datos y le faltaba una marca/dominio
                     // Función auxiliar para reconstruir los selects sin que el usuario lo note
