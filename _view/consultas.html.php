@@ -61,7 +61,7 @@ $usuarios = $usuarios ?? [];
                                             <option value="<?= $d['id_dep'] ?>"><?= htmlspecialchars($d['nom_dep']) ?></option>
                                         <?php endforeach; ?>
                                     </select>
-                                    <small class="text-muted" style="font-size: 0.7rem;" id="help-departamento">Filtra por el área del responsable.</small>
+                                    <small class="text-muted" style="font-size: 0.7rem;" id="help-departamento">Filtra por el área asignada al equipo.</small>
                                 </div>
                                 <div class="mb-3">
                                     <label class="form-label small fw-bold">Ubicación Física / Red</label>

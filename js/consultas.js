@@ -206,13 +206,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (filtroEstadoAsig) {
         filtroEstadoAsig.addEventListener('change', function() {
+            // los equipos en almacén  tienen departamento nativo
+            filtroDepartamento.disabled = false;
+            
             if (this.value === 'almacen') {
-                filtroDepartamento.value = "";
-                filtroDepartamento.disabled = true;
-                if(helpDepartamento) helpDepartamento.innerHTML = '<span class="text-danger"><i class="fas fa-info-circle"></i> En almacén no aplican los departamentos.</span>';
+                if(helpDepartamento) helpDepartamento.innerHTML = '<span class="text-info"><i class="fas fa-info-circle"></i> Filtra por el departamento donde se resguarda físicamente.</span>';
             } else {
-                filtroDepartamento.disabled = false;
-                if(helpDepartamento) helpDepartamento.innerHTML = 'Filtra por el área del responsable.';
+                if(helpDepartamento) helpDepartamento.innerHTML = 'Filtra por el área asignada al equipo.';
             }
         });
     }

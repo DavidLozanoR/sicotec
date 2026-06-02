@@ -279,7 +279,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     // ==========================================
-    // 6. BUSCADOR FUZZY (MOVIDO ARRIBA PARA REACTIVIDAD)
+    // 0.1. BUSCADOR FUZZY (MOVIDO ARRIBA PARA REACTIVIDAD)
     // ==========================================
     function aplicarFuzzySearch(selector) {
         const selectOriginal = typeof selector === 'string' ? document.querySelector(selector) : selector;
@@ -323,8 +323,10 @@ document.addEventListener('DOMContentLoaded', () => {
         iconClear.style.cssText = 'right: 12px; top: 50%; transform: translateY(-50%); cursor: pointer; display: none; font-size: 1.2rem; z-index: 4;';
 
         const listaDesplegable = document.createElement('ul');
-        listaDesplegable.className = 'list-group position-absolute w-100 shadow-lg z-3 d-none overflow-x-hidden';
-        listaDesplegable.style.cssText = 'max-height: 200px; overflow-y: auto; top: 100%; left: 0; margin-top: 2px;';
+        // CAMBIO 1: Se eliminó la clase 'z-3' de Bootstrap que limitaba la altura de la capa
+        listaDesplegable.className = 'list-group position-absolute w-100 shadow-lg d-none overflow-x-hidden';
+        // CAMBIO 2: Se agregó z-index: 9999; directo al estilo para que sobreescriba cualquier cosa
+        listaDesplegable.style.cssText = 'max-height: 200px; overflow-y: auto; top: 100%; left: 0; margin-top: 2px; z-index: 9999;';
 
         Array.from(selectOriginal.options).forEach(opt => {
             if (opt.value === '') return;
@@ -390,6 +392,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         inputBuscador.addEventListener('focus', () => {
             if (!inputBuscador.disabled) {
+                // CAMBIO 3: Elevar todo el contenedor padre por encima del resto del formulario al darle foco
+                container.style.zIndex = '9999'; 
                 listaDesplegable.classList.remove('d-none');
                 filtrarResultados(inputBuscador.value);
             }
@@ -407,6 +411,8 @@ document.addEventListener('DOMContentLoaded', () => {
             if (!li) return;
 
             inputBuscador.value = li.textContent;
+            // CAMBIO 4: Devolver el contenedor a su capa normal al seleccionar algo
+            container.style.zIndex = ''; 
             listaDesplegable.classList.add('d-none');
             iconClear.style.display = 'block';
             selectOriginal.value = li.dataset.value;
@@ -424,6 +430,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         document.addEventListener('click', (e) => {
             if (!container.contains(e.target)) {
+                // CAMBIO 5: Devolver el contenedor a su capa normal si el usuario da clic afuera
+                container.style.zIndex = ''; 
                 listaDesplegable.classList.add('d-none');
                 if (selectOriginal.value === '') {
                     inputBuscador.value = '';

@@ -90,7 +90,7 @@ class ConsultasController {
         
         // Base de selección con GROUP_CONCAT para agrupar redes y evitar duplicados
         $sql = "SELECT 
-                    d.id_disp, d.nom_host, d.marca, d.modelo, d.num_ser, d.num_inv,
+                    d.id_disp, d.nom_host, m.nom_marca AS marca, modl.nom_modelo AS modelo, d.num_ser, d.num_inv,
                     CONCAT(po.nombres, ' ', IFNULL(po.ape_pa,'')) AS responsable,
                     de.nom_dep AS departamento, 
                     GROUP_CONCAT(DISTINCT CONCAT(IFNULL(red.tipo_conexion, 'Ethernet'), '::', red.ip) SEPARATOR '||') AS ip_data,
@@ -98,8 +98,10 @@ class ConsultasController {
         
         // Origen de datos base (Relaciones estándar del dispositivo)
         $from = " FROM dispositivos d
+                  LEFT JOIN marcas m ON d.id_marca = m.id_marca
+                  LEFT JOIN modelos modl ON d.id_modelo = modl.id_modelo
                   LEFT JOIN personal_operativo po ON d.resp_po_id = po.id_po
-                  LEFT JOIN departamentos de ON po.id_dep = de.id_dep
+                  LEFT JOIN departamentos de ON d.id_dep = de.id_dep
                   LEFT JOIN infraestructura_red red ON d.id_disp = red.id_disp
                   LEFT JOIN segmentos seg ON red.id_seg = seg.id_seg
                   LEFT JOIN vlans vlan ON seg.id_vlan = vlan.id_vlan ";
@@ -116,7 +118,7 @@ class ConsultasController {
 
         // Filtro por departamento
         if (!empty($filtros['id_dep'])) {
-            $where .= " AND po.id_dep = ? ";
+            $where .= " AND d.id_dep = ? ";
             $parametros[] = $filtros['id_dep'];
         }
 

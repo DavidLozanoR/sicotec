@@ -116,7 +116,7 @@ class AuditoriaDhcpController {
                 "LEFT JOIN personal_operativo po ON po.id_po = d.resp_po_id" 
             ];
             
-            // ACTUALIZACIÓN: Se agregó "d.dom" a la consulta
+            // Se agregó "d.dom" a la consulta
             $campos = [
                 "r.ip", "d.id_disp", "d.nom_host", "d.dom", "d.mac_ethernet", "d.mac_wifi", "d.num_inv",
                 "dep.nom_dep",
@@ -134,7 +134,7 @@ class AuditoriaDhcpController {
                     $mac_eth = !empty($row['mac_ethernet']) ? strtoupper(str_replace('-', ':', trim($row['mac_ethernet']))) : null;
                     $mac_wifi = !empty($row['mac_wifi']) ? strtoupper(str_replace('-', ':', trim($row['mac_wifi']))) : null;
 
-                    // ACTUALIZACIÓN: Concatenamos el dominio traído dinámicamente de la BD
+                    //  Concatenamos el dominio traído dinámicamente de la BD
                     $nom_host_db = trim($row['nom_host']);
                     $dominio_db = !empty(trim($row['dom'])) ? '.' . trim($row['dom']) : '';
                     $nom_host_visual = !empty($nom_host_db) ? $nom_host_db . $dominio_db : 'Sin Hostname';
