@@ -38,4 +38,6 @@
 
     define("PERM_CONSULTAR", 4); 
 
+    define("SYS_VERSION","1.0.1");
+
 ?>

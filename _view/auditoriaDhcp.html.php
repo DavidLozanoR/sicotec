@@ -192,7 +192,7 @@
             </div>
             <div class="card-footer bg-light text-end py-3">
                 <button class="btn btn-sm btn-secondary me-2" onclick="location.reload()"><i class="fas fa-undo me-1"></i> Nueva Auditoría</button>
-                <button class="btn btn-sm bg-guinda text-white fw-bold" id="btn-exportar-auditoria"><i class="fas fa-file-download me-1"></i> Descargar Reporte</button>
+                
             </div>
         </div>
     </div>

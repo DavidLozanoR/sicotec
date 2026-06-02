@@ -38,6 +38,7 @@
                         <p class="text-secondary" style="font-size: 0.9rem;">
                             Sistema de Gestión de Personal Operativo y Activos Tecnológicos - INEA
                         </p>
+                        
                     </div>
 
                     <form id="login-form">
@@ -55,7 +56,9 @@
                             <button type="submit" class="btn btn-guinda">
                                 Iniciar Sesión
                             </button>
+                            <span class="badge bg-light text-secondary ">v<?php echo SYS_VERSION; ?></span>
                         </div>
+                        
                     </form>
 
                 </div>
