@@ -113,12 +113,15 @@ class AuditoriaDhcpController {
             $joins = [
                 "JOIN dispositivos d ON r.id_disp = d.id_disp",
                 "LEFT JOIN departamentos dep ON d.id_dep = dep.id_dep",
-                "LEFT JOIN personal_operativo po ON po.id_po = d.resp_po_id" 
+                "LEFT JOIN personal_operativo po ON po.id_po = d.resp_po_id",
+                "LEFT JOIN dominios dm ON d.id_dom = dm.id_dom" // <--  JOIN A LA TABLA DOMINIOS
             ];
             
-            // Se agregó "d.dom" a la consulta
+            // Se agregó "d.id_dom" a la consulta
             $campos = [
-                "r.ip", "d.id_disp", "d.nom_host", "d.dom", "d.mac_ethernet", "d.mac_wifi", "d.num_inv",
+                "r.ip", "d.id_disp", "d.nom_host", 
+                "dm.nom_dom AS dom", 
+                "d.mac_ethernet", "d.mac_wifi", "d.num_inv",
                 "dep.nom_dep",
                 "TRIM(CONCAT(po.nombres, ' ', po.ape_pa, ' ', COALESCE(po.ape_ma, ''))) AS responsable"
             ];
@@ -128,26 +131,27 @@ class AuditoriaDhcpController {
             $db_records = [];
             $mac_to_ip_db = []; 
 
-            if ($db_records_raw) {
+            if (is_array($db_records_raw)) {
                 foreach ($db_records_raw as $row) {
-                    $ip = trim($row['ip']);
-                    $mac_eth = !empty($row['mac_ethernet']) ? strtoupper(str_replace('-', ':', trim($row['mac_ethernet']))) : null;
-                    $mac_wifi = !empty($row['mac_wifi']) ? strtoupper(str_replace('-', ':', trim($row['mac_wifi']))) : null;
+                    // 3. Blindaje de variables (casteo a string) para evitar que trim(null) colapse PHP 8
+                    $ip = trim((string)$row['ip']);
+                    $mac_eth = !empty($row['mac_ethernet']) ? strtoupper(str_replace('-', ':', trim((string)$row['mac_ethernet']))) : null;
+                    $mac_wifi = !empty($row['mac_wifi']) ? strtoupper(str_replace('-', ':', trim((string)$row['mac_wifi']))) : null;
 
-                    //  Concatenamos el dominio traído dinámicamente de la BD
-                    $nom_host_db = trim($row['nom_host']);
-                    $dominio_db = !empty(trim($row['dom'])) ? '.' . trim($row['dom']) : '';
+                    //  Concatenamos el dominio traído dinámicamente de la BD (ahora sí funciona $row['dom'])
+                    $nom_host_db = trim((string)$row['nom_host']);
+                    $dominio_db = !empty(trim((string)$row['dom'])) ? '.' . trim((string)$row['dom']) : '';
                     $nom_host_visual = !empty($nom_host_db) ? $nom_host_db . $dominio_db : 'Sin Hostname';
 
                     $db_records[$ip] = [
                         'id_disp'      => $row['id_disp'],
                         'hostname'     => strtolower($nom_host_db),
-                        'nom_host_raw' => $nom_host_visual, // <-- Se envía a la vista con el dominio dinámico
+                        'nom_host_raw' => $nom_host_visual, 
                         'mac_eth'      => $mac_eth,
                         'mac_wifi'     => $mac_wifi,
                         'num_inv'      => $row['num_inv'],
-                        'departamento' => !empty($row['nom_dep']) ? trim($row['nom_dep']) : 'Sin Asignar',
-                        'responsable'  => !empty($row['responsable']) ? trim($row['responsable']) : 'Almacén'
+                        'departamento' => !empty($row['nom_dep']) ? trim((string)$row['nom_dep']) : 'Sin Asignar',
+                        'responsable'  => !empty($row['responsable']) ? trim((string)$row['responsable']) : 'Almacén'
                     ];
 
                     if ($mac_eth) $mac_to_ip_db[$mac_eth] = $ip;
