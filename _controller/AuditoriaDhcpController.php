@@ -267,28 +267,55 @@ class AuditoriaDhcpController {
                 $xmlString = file_get_contents($ruta);
                 if (empty($xmlString)) return ["status" => "error", "msg" => "El archivo XML está vacío."];
 
+                // ==========================================
+                // ESCENARIO 1: XML SPREADSHEET (Exportado de Excel)
+                // ==========================================
                 if (strpos($xmlString, 'urn:schemas-microsoft-com:office:spreadsheet') !== false) {
                     $xml = simplexml_load_string($xmlString);
                     if ($xml !== false) {
                         $datosExcel = [];
-                        $xml->registerXPathNamespace('ss', 'urn:schemas-microsoft-com:office:spreadsheet');
+                        $ns_ss = 'urn:schemas-microsoft-com:office:spreadsheet';
+                        $xml->registerXPathNamespace('ss', $ns_ss);
                         $rows = $xml->xpath('//ss:Row') ?: $xml->xpath('//Row'); 
                         
                         if ($rows) {
                             foreach ($rows as $row) {
                                 $filaPlana = [];
                                 $cells = $row->xpath('ss:Cell') ?: $row->xpath('Cell');
+                                $colIndex = 0; // Puntero real de columna
+                                
                                 foreach ($cells as $cell) {
+                                    // 1. Respetar los saltos de índice de Excel
+                                    $attrs = $cell->attributes($ns_ss);
+                                    if (isset($attrs['Index'])) {
+                                        $colIndex = (int)$attrs['Index'] - 1;
+                                    }
+                                    // 2. Extraer el dato
                                     $data = $cell->xpath('ss:Data') ?: $cell->xpath('Data');
-                                    $filaPlana[] = !empty($data) ? trim((string)$data[0]) : '';
+                                    $filaPlana[$colIndex] = !empty($data) ? trim((string)$data[0]) : '';
+                                    $colIndex++;
                                 }
-                                if (!empty(array_filter($filaPlana))) { $datosExcel[] = $filaPlana; }
+                                
+                                // 3. Rellenar huecos para evitar desalineación
+                                if (!empty($filaPlana)) {
+                                    $maxKey = max(array_keys($filaPlana));
+                                    $filaLimpia = [];
+                                    for ($i = 0; $i <= $maxKey; $i++) {
+                                        $filaLimpia[] = $filaPlana[$i] ?? '';
+                                    }
+                                    if (!empty(array_filter($filaLimpia))) { 
+                                        $datosExcel[] = $filaLimpia; 
+                                    }
+                                }
                             }
                             if (!empty($datosExcel)) return $datosExcel; 
                         }
                     }
                 }
 
+                // ==========================================
+                // ESCENARIO 2: XML ESTRUCTURADO GENÉRICO (<Registro><IP>...)
+                // ==========================================
                 $xmlString = preg_replace('/xmlns[^=]*="[^"]*"/i', '', $xmlString);
                 $xml = simplexml_load_string($xmlString);
                 if ($xml === false) return ["status" => "error", "msg" => "Formato XML corrupto o no estructurado."]; 
@@ -301,6 +328,8 @@ class AuditoriaDhcpController {
                 }
 
                 $filasLimpias = [];
+                $encabezadosExtraidos = false;
+
                 foreach ($datosFilas as $fila) {
                     if (!is_array($fila)) continue;
                     
@@ -312,6 +341,14 @@ class AuditoriaDhcpController {
                             $filaLimpia[$k] = $v;
                         }
                     }
+
+                    // 1. Inyectar las etiquetas XML como Fila 0 (Encabezados)
+                    if (!$encabezadosExtraidos && !empty($filaLimpia)) {
+                        $filasLimpias[] = array_keys($filaLimpia);
+                        $encabezadosExtraidos = true;
+                    }
+
+                    // 2. Insertar los valores
                     $filasLimpias[] = array_values($filaLimpia); 
                 }
                 return $filasLimpias;
