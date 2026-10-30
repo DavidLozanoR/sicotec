@@ -166,72 +166,31 @@ $(document).ready(function() {
         let peticion = (id_po === '' || id_po == 0) ? 'INSERT_PO' : 'UPDATE_PO';
         formData.append('peticion', peticion);
 
-        $btnGuardar.prop('disabled', true).html('<i class="fas fa-spinner fa-spin me-2"></i> Procesando...');
+        asyncProcessForm(formData, '_controller/PersonalOPAsync.php', "Guardando...", "Guardando empleado...", "¡Éxito!", function(response) {
+            if (peticion === 'INSERT_PO' && response.id_nuevo) {
+                $('#id_po').val(response.id_nuevo);
+                $('h3.fw-bold').text('Editar Empleado');
+                
+                let url_actual = window.location.href;
+                let base_url = url_actual.substring(0, url_actual.lastIndexOf('/') + 1);
+                window.history.replaceState({}, '', base_url + response.id_nuevo);
 
-        $.ajax({
-            url: '_controller/PersonalOPAsync.php',
-            type: 'POST',
-            data: formData,
-            processData: false,
-            contentType: false,
-            dataType: 'json',
-            success: function(response) {
-                if (response.result === 1) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: '¡Éxito!',
-                        text: response.msg,
-                        confirmButtonColor: '#285C4D',
-                        allowOutsideClick: false
-                    }).then((result) => {
-                        if (result.isConfirmed) {
-                            if (peticion === 'INSERT_PO' && response.id_nuevo) {
-                                $('#id_po').val(response.id_nuevo);
-                                $('h3.fw-bold').text('Editar Empleado');
-                                
-                                let url_actual = window.location.href;
-                                let base_url = url_actual.substring(0, url_actual.lastIndexOf('/') + 1);
-                                window.history.replaceState({}, '', base_url + response.id_nuevo);
-
-                                let htmlEquipos = `
-                                    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary-subtle pb-3">
-                                        <div>
-                                            <h5 class="fw-bold text-guinda mb-0">Dispositivos Vinculados</h5>
-                                            <small class="text-muted">Equipos asignados para uso diario o bajo resguardo legal.</small>
-                                        </div>
-                                        <a href="dispositivos/" class="btn btn-sm btn-guinda shadow-sm" id="btnVincularDispositivo">
-                                            <i class="fas fa-plus me-1"></i> Añadir Dispositivo
-                                        </a>
-                                    </div>
-                                    <div class="text-center py-5 text-muted border border-dashed rounded-3 bg-light">
-                                        <i class="fas fa-laptop fa-3x mb-3 opacity-25"></i>
-                                        <p class="mb-0">Este empleado no tiene dispositivos vinculados en el sistema.</p>
-                                    </div>
-                                `;
-                                $('#v-pills-equipos').html(htmlEquipos);
-                            }
-                            $btnGuardar.prop('disabled', false).html('<i class="fas fa-save me-2"></i> Guardar Empleado');
-                        }
-                    });
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Atención',
-                        text: response.msg,
-                        confirmButtonColor: '#9D2449'
-                    });
-                    $btnGuardar.prop('disabled', false).html('<i class="fas fa-save me-2"></i> Guardar Empleado');
-                }
-            },
-            error: function(xhr, status, error) {
-                console.error(xhr.responseText);
-                Swal.fire({
-                    icon: 'error',
-                    title: 'Error de Servidor',
-                    text: 'Ocurrió un problema de comunicación. Contacte a soporte técnico.',
-                    confirmButtonColor: '#9D2449'
-                });
-                $btnGuardar.prop('disabled', false).html('<i class="fas fa-save me-2"></i> Guardar Empleado');
+                let htmlEquipos = `
+                    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom border-secondary-subtle pb-3">
+                        <div>
+                            <h5 class="fw-bold text-guinda mb-0">Dispositivos Vinculados</h5>
+                            <small class="text-muted">Equipos asignados para uso diario o bajo resguardo legal.</small>
+                        </div>
+                        <a href="dispositivos/" class="btn btn-sm btn-guinda shadow-sm" id="btnVincularDispositivo">
+                            <i class="fas fa-plus me-1"></i> Añadir Dispositivo
+                        </a>
+                    </div>
+                    <div class="text-center py-5 text-muted border border-dashed rounded-3 bg-light">
+                        <i class="fas fa-laptop fa-3x mb-3 opacity-25"></i>
+                        <p class="mb-0">Este empleado no tiene dispositivos vinculados en el sistema.</p>
+                    </div>
+                `;
+                $('#v-pills-equipos').html(htmlEquipos);
             }
         });
     });
@@ -276,36 +235,14 @@ $(document).ready(function() {
             cancelButtonText: 'Cancelar'
         }).then((result) => {
             if (result.isConfirmed) {
-                Swal.showLoading();
-                $.ajax({
-                    url: '_controller/PersonalOPAsync.php',
-                    type: 'POST',
-                    dataType: 'json',
-                    data: {
-                        peticion: 'DESVINCULAR_EQUIPO',
-                        id_po: id_po,
-                        id_disp: id_disp,
-                        tipo_vinculo: action,
-                        id_sub: id_sub
-                    },
-                    success: function(response) {
-                        if (response.result === 1) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: '¡Desvinculado!',
-                                text: response.msg,
-                                confirmButtonColor: '#285C4D'
-                            }).then(() => {
-                                location.reload(); 
-                            });
-                        } else {
-                            Swal.fire({ icon: 'error', title: 'Atención', text: response.msg, confirmButtonColor: '#9D2449' });
-                        }
-                    },
-                    error: function() {
-                        Swal.fire({ icon: 'error', title: 'Error', text: 'Problema de comunicación con el servidor.', confirmButtonColor: '#9D2449' });
-                    }
-                });
+                const payload = {
+                    peticion: 'DESVINCULAR_EQUIPO',
+                    id_po: id_po,
+                    id_disp: id_disp,
+                    tipo_vinculo: action,
+                    id_sub: id_sub
+                };
+                asyncProcessForm(payload, '_controller/PersonalOPAsync.php', "Desvinculando...", "Desvinculando equipo...", "¡Desvinculado!");
             }
         });
     });

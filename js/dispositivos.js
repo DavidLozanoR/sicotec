@@ -213,35 +213,8 @@ $(document).ready(function() {
         });
 
         if (paso3.isConfirmed) {
-            Swal.fire({
-                title: 'Procesando Baja...',
-                text: 'Liberando recursos y registrando bitácora.',
-                allowOutsideClick: false,
-                didOpen: () => { Swal.showLoading(); }
-            });
-
-            fetch('_controller/DispositivosAsync.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    peticion: 'BAJA_DISP',
-                    id_disp: idDisp,
-                    id_sub: idSub
-                })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.status === 'success') {
-                    Swal.fire({ icon: 'success', title: 'Baja Exitosa', text: data.msg, confirmButtonColor: '#285C4D', timer:1500})
-                    .then(() => location.reload());
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: data.msg, confirmButtonColor: '#9D2449' });
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                Swal.fire({ icon: 'error', title: 'Error de servidor', text: 'Ocurrió un problema de comunicación.', confirmButtonColor: '#9D2449' });
-            });
+            const payload = { peticion: 'BAJA_DISP', id_disp: idDisp, id_sub: idSub };
+            asyncProcessForm(payload, '_controller/DispositivosAsync.php', "Procesando Baja...", "Liberando recursos y registrando bitácora...", "¡Baja Exitosa!");
         }
     });
 });

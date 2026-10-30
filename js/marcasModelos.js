@@ -148,7 +148,7 @@ function abrirModalModelo(id = null, nombre = '') {
 // ==========================================
 // 4. GUARDAR / EDITAR
 // ==========================================
-async function guardarCatalogo() {
+function guardarCatalogo() {
     const tipo = document.getElementById("tipoOperacion").value;
     const id_edicion = document.getElementById("idRegistroEdicion").value;
     const nombre = inputNombre.value.trim().replace(/\s{2,}/g, ' '); 
@@ -171,27 +171,19 @@ async function guardarCatalogo() {
         payload.nom_modelo = nombre;
     }
 
-    try {
-        const response = await fetch(ASYNC_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
-        const data = await response.json();
+    asyncProcessForm(payload, ASYNC_URL, "Guardando...", "Procesando información...", "¡Éxito!", function(res) {
+        const isSuccess = (res.result === 1 || res.status === "success");
+        const isWarning = (res.result === 2 || res.status === "exists_inactive");
 
-        if (data.status === "success") {
+        if (isSuccess) {
             modalCat.hide();
-            Swal.fire({ icon: 'success', timer:1000, title: 'Éxito', text: data.msg, timer: 1500, showConfirmButton: false }).then(() => {
-                if(tipo === "MARCA") location.reload();
-                else seleccionarMarca(marcaSeleccionadaId, document.getElementById("lblMarcaSeleccionada").textContent); 
-            });
-        } 
-        // LÓGICA DE REACTIVACIÓN DETECTADA
-        else if (data.status === "exists_inactive") {
+            if(tipo === "MARCA") location.reload();
+            else seleccionarMarca(marcaSeleccionadaId, document.getElementById("lblMarcaSeleccionada").textContent); 
+        } else if (isWarning) {
             modalCat.hide();
             Swal.fire({
                 title: 'Registro Inactivo',
-                text: data.msg,
+                text: res.msg,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#9D2449',
@@ -200,16 +192,11 @@ async function guardarCatalogo() {
                 cancelButtonText: 'Cancelar'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    reactivarRegistro(data.tabla, data.col_id, data.id_reactivar);
+                    reactivarRegistro(res.tabla, res.col_id, res.id_reactivar);
                 }
             });
-        } 
-        else {
-            Swal.fire({ icon: 'error', title: 'Error', text: data.msg });
         }
-    } catch (error) {
-        Swal.fire({ icon: 'error', title: 'Error de red', text: 'No se pudo conectar con el servidor.' });
-    }
+    });
 }
 
 // ==========================================
@@ -225,27 +212,16 @@ function eliminarRegistro(tabla, columna_id, id) {
         cancelButtonColor: '#6c757d',
         confirmButtonText: 'Sí, eliminar',
         cancelButtonText: 'Cancelar'
-    }).then(async (result) => {
+    }).then((result) => {
         if (result.isConfirmed) {
-            try {
-                const response = await fetch(ASYNC_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ peticion: 'ELIMINAR_REGISTRO', tabla: tabla, columna_id: columna_id, id: id, id_sub: idSubActual })
-                });
-                const data = await response.json();
-
-                if (data.status === "success") {
-                    Swal.fire({ icon: 'success', timer:1000, title: 'Eliminado', text: data.msg, timer: 1500, showConfirmButton: false }).then(() => {
-                        if(tabla === "marcas") location.reload();
-                        else seleccionarMarca(marcaSeleccionadaId, document.getElementById("lblMarcaSeleccionada").textContent);
-                    });
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: data.msg });
+            const payload = { peticion: 'ELIMINAR_REGISTRO', tabla: tabla, columna_id: columna_id, id: id, id_sub: idSubActual };
+            asyncProcessForm(payload, ASYNC_URL, "Eliminando...", "Borrando registro...", "¡Eliminado!", function(res) {
+                const isSuccess = (res.result === 1 || res.status === "success");
+                if (isSuccess) {
+                    if(tabla === "marcas") location.reload();
+                    else seleccionarMarca(marcaSeleccionadaId, document.getElementById("lblMarcaSeleccionada").textContent);
                 }
-            } catch (error) {
-                Swal.fire({ icon: 'error', title: 'Error de red', text: 'No se pudo completar la operación.' });
-            }
+            });
         }
     });
 }
@@ -253,24 +229,13 @@ function eliminarRegistro(tabla, columna_id, id) {
 // ==========================================
 // 6. REACTIVAR REGISTRO
 // ==========================================
-async function reactivarRegistro(tabla, columna_id, id) {
-    try {
-        const response = await fetch(ASYNC_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ peticion: 'REACTIVAR_REGISTRO', tabla: tabla, columna_id: columna_id, id: id, id_sub: idSubActual })
-        });
-        const data = await response.json();
-
-        if (data.status === "success") {
-            Swal.fire({ icon: 'success', title: 'Reactivado', text: data.msg, timer: 1500, showConfirmButton: false }).then(() => {
-                if(tabla === "marcas") location.reload();
-                else seleccionarMarca(marcaSeleccionadaId, document.getElementById("lblMarcaSeleccionada").textContent);
-            });
-        } else {
-            Swal.fire({ icon: 'error', title: 'Error', text: data.msg });
+function reactivarRegistro(tabla, columna_id, id) {
+    const payload = { peticion: 'REACTIVAR_REGISTRO', tabla: tabla, columna_id: columna_id, id: id, id_sub: idSubActual };
+    asyncProcessForm(payload, ASYNC_URL, "Reactivando...", "Por favor espere.", "¡Reactivado!", function(res) {
+        const isSuccess = (res.result === 1 || res.status === "success");
+        if (isSuccess) {
+            if(tabla === "marcas") location.reload();
+            else seleccionarMarca(marcaSeleccionadaId, document.getElementById("lblMarcaSeleccionada").textContent);
         }
-    } catch (error) {
-        Swal.fire({ icon: 'error', title: 'Error de red', text: 'No se pudo completar la operación.' });
-    }
+    });
 }

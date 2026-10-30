@@ -90,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // ==========================================
     // 3. ENVÍO AL BACKEND VÍA FORMDATA
     // ==========================================
-    btnIniciar.addEventListener('click', async () => {
+    btnIniciar.addEventListener('click', () => {
         if (!archivoSeleccionado) return;
 
         const btnOriginalText = btnIniciar.innerHTML;
@@ -102,27 +102,13 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('id_sub', idSubActual);
         formData.append('archivo_dhcp', archivoSeleccionado);
 
-        try {
-            const response = await fetch('_controller/AuditoriaDhcpAsync.php', {
-                method: 'POST',
-                body: formData
-            });
-
-            const data = await response.json();
-
-            if (data.status === 'success') {
-                prepararResultados(data.data);
-            } else {
-                Swal.fire({ icon: 'error', title: 'Error', text: data.msg, confirmButtonColor: '#9D2449' });
-                btnIniciar.innerHTML = btnOriginalText;
-                btnIniciar.disabled = false;
-            }
-        } catch (error) {
-            console.error("Error:", error);
-            Swal.fire({ icon: 'error', title: 'Error de Red', text: 'Fallo al comunicarse con el servidor.', confirmButtonColor: '#9D2449' });
+        asyncProcessForm(formData, '_controller/AuditoriaDhcpAsync.php', "Cruzando Información...", "Analizando archivo DHCP...", "¡Auditoría Completada!", function(res) {
             btnIniciar.innerHTML = btnOriginalText;
             btnIniciar.disabled = false;
-        }
+            if (res.status === 'success' || res.result === 1) {
+                prepararResultados(res.data);
+            }
+        });
     });
 
     // ==========================================
@@ -142,14 +128,6 @@ document.addEventListener('DOMContentLoaded', () => {
         resultadosAuditoria.huerfanas = data.huerfanas;
 
         renderizarTabActiva();
-
-        Swal.fire({ 
-            icon: 'success', 
-            title: 'Auditoría Completada', 
-            confirmButtonColor: '#13322B',
-            timer: 1500,
-            timerProgressBar: true
-        });    
     }
 
     function quitarAcentos(texto) {

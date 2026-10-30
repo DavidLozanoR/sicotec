@@ -295,41 +295,12 @@ $(document).ready(function() {
             return;
         }
 
-        let formData = $(this).serialize() + '&peticion=' + ($('#seg_id').val() === '' ? 'INSERT_SEG' : 'UPDATE_SEG') + '&id_sub=' + idSub;
+        let peticion = $('#seg_id').val() === '' ? 'INSERT_SEG' : 'UPDATE_SEG';
+        let bodyData = new FormData(this);
+        bodyData.append('peticion', peticion);
+        bodyData.append('id_sub', idSub);
 
-        const originalText = $('#btnGuardarSeg').html();
-        $('#btnGuardarSeg').html('<i class="fas fa-spinner fa-spin me-1"></i> Procesando...').prop('disabled', true);
-
-        $.ajax({
-            url: urlAsync,
-            type: 'POST',
-            data: formData,
-            dataType: 'json',
-            success: function(response) {
-                if (response.result === 1) {
-                    Swal.fire({
-                        icon: 'success',
-                        title: '¡Operación Exitosa!',
-                        timer:1000,
-                        text: response.msg,
-                        confirmButtonColor: '#285C4D'
-                    }).then(() => location.reload());
-                } else {
-                    Swal.fire({
-                        icon: 'error',
-                        title: 'Alerta de Validación',
-                        text: response.msg,
-                        confirmButtonColor: '#9D2449'
-                    });
-                }
-            },
-            error: function() {
-                Swal.fire('Error', 'Problema de conexión con el servidor.', 'error');
-            },
-            complete: function() {
-                $('#btnGuardarSeg').html(originalText).prop('disabled', false);
-            }
-        });
+        asyncProcessForm(bodyData, urlAsync, "Procesando...", "Guardando segmento...", "¡Operación Exitosa!");
     });
 
     // 4. ELIMINAR (BAJA LÓGICA)
@@ -347,14 +318,8 @@ $(document).ready(function() {
             confirmButtonText: 'Sí, dar de baja'
         }).then((result) => {
             if (result.isConfirmed) {
-                $.post(urlAsync, { peticion: 'DELETE_SEG', id_seg: id_seg, id_sub: idSub }, function(response) {
-                    if (response.result === 1) {
-                        Swal.fire({icon: 'success',timer:1000, title: 'Eliminado', text: response.msg, confirmButtonColor: '#285C4D'})
-                        .then(() => location.reload());
-                    } else {
-                        Swal.fire({icon: 'error', title: 'Bloqueo', text: response.msg, confirmButtonColor: '#9D2449'});
-                    }
-                }, 'json');
+                const payload = { peticion: 'DELETE_SEG', id_seg: id_seg, id_sub: idSub };
+                asyncProcessForm(payload, urlAsync, "Dando de baja...", "Eliminando segmento...", "¡Eliminado!");
             }
         });
     });
@@ -618,32 +583,12 @@ $(document).ready(function() {
             return;
         }
 
-        let accionPeticion = $('#vlan_id').val() === '' ? 'INSERT_VLAN' : 'UPDATE_VLAN';
-        let formData = $(this).serialize() + '&peticion=' + accionPeticion + '&id_sub=' + idSub;
+        let peticion = $('#vlan_id').val() === '' ? 'INSERT_VLAN' : 'UPDATE_VLAN';
+        let bodyData = new FormData(this);
+        bodyData.append('peticion', peticion);
+        bodyData.append('id_sub', idSub);
         
-        const originalText = $('#btnGuardarVlan').html();
-        $('#btnGuardarVlan').html('<i class="fas fa-spinner fa-spin"></i>').prop('disabled', true);
-
-        $.ajax({
-            url: urlAsync,
-            type: 'POST',
-            data: formData,
-            dataType: 'json',
-            success: function(response) {
-                if (response.result === 1) {
-                    Swal.fire({icon: 'success', timer:1000, title: 'Exitoso', text: response.msg, confirmButtonColor: '#285C4D'})
-                    .then(() => location.reload());
-                } else {
-                    Swal.fire({icon: 'warning', title: 'Alerta', text: response.msg, confirmButtonColor: '#9D2449'});
-                }
-            },
-            error: function() {
-                Swal.fire('Error', 'Problema de conexión con el servidor.', 'error');
-            },
-            complete: function() {
-                $('#btnGuardarVlan').html(originalText).prop('disabled', false);
-            }
-        });
+        asyncProcessForm(bodyData, urlAsync, "Procesando...", "Guardando VLAN...", "¡Exitoso!");
     });
 
     // Eliminar VLAN (Borrado Físico)
@@ -663,16 +608,8 @@ $(document).ready(function() {
             cancelButtonText: 'Cancelar'
         }).then((result) => {
             if (result.isConfirmed) {
-                $.post(urlAsync, { peticion: 'DELETE_VLAN', id_vlan: id_vlan, id_sub: idSub }, function(response) {
-                    if (response.result === 1) {
-                        Swal.fire({icon: 'success', timer:10000,showConfirmButton: false, title: 'Eliminado', text: response.msg, confirmButtonColor: '#285C4D'})
-                        .then(() => location.reload());
-                    } else {
-                        Swal.fire({icon: 'error', title: 'Operación denegada', text: response.msg, confirmButtonColor: '#9D2449'});
-                    }
-                }, 'json').fail(function() {
-                    Swal.fire('Error', 'Problema de comunicación con el servidor.', 'error');
-                });
+                const payload = { peticion: 'DELETE_VLAN', id_vlan: id_vlan, id_sub: idSub };
+                asyncProcessForm(payload, urlAsync, "Eliminando...", "Borrando VLAN...", "¡Eliminado!");
             }
         });
     });

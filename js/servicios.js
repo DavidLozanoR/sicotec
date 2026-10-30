@@ -362,16 +362,7 @@ $(document).ready(function() {
         formData.append('peticion', ($('#serv_id').val() === '') ? 'INSERT_SERV' : 'UPDATE_SERV');
         formData.append('id_sub', idSub);
 
-        $.ajax({
-            url: urlAsync, type: 'POST', data: formData, processData: false, contentType: false, dataType: 'json',
-            success: function(r) {
-                if (r.result === 1) {
-                    Swal.fire({icon: 'success', timer:1000, title: 'Éxito', text: r.msg, confirmButtonColor: '#9D2449'}).then(() => location.reload(true));
-                } else {
-                    Swal.fire({icon: 'error', title: 'Error', text: r.msg, confirmButtonColor: '#9D2449'});
-                }
-            }
-        });
+        asyncProcessForm(formData, urlAsync, "Procesando...", "Guardando servicio...", "¡Éxito!");
     });
 
     $('.btn-eliminar-serv').on('click', function(e) {
@@ -383,10 +374,8 @@ $(document).ready(function() {
             icon: 'warning', showCancelButton: true, confirmButtonColor: '#9D2449', confirmButtonText: 'Sí, eliminar'
         }).then((result) => {
             if (result.isConfirmed) {
-                $.post(urlAsync, {peticion: 'DELETE_SERV', id_serv: id_serv, id_sub: idSub}, function(r) {
-                    if (r.result === 1) Swal.fire({icon: 'success',timer:1000, title: 'Eliminado', text: r.msg, confirmButtonColor: '#9D2449'}).then(() => location.reload(true));
-                    else Swal.fire({icon: 'error', title: 'Atención', text: r.msg, confirmButtonColor: '#9D2449'});
-                }, 'json');
+                const payload = { peticion: 'DELETE_SERV', id_serv: id_serv, id_sub: idSub };
+                asyncProcessForm(payload, urlAsync, "Eliminando...", "Borrando servicio...", "¡Eliminado!");
             }
         });
     });
@@ -444,15 +433,10 @@ $(document).ready(function() {
         formData.append('peticion', 'ADD_VERSION');
         formData.append('id_sub', idSub);
 
-        $.ajax({
-            url: urlAsync, type: 'POST', data: formData, processData: false, contentType: false, dataType: 'json',
-            success: function(r) {
-                if (r.result === 1) {
-                    $('#nueva_version').val('');
-                    cargarVersiones(id_serv); 
-                } else {
-                    Swal.fire({icon: 'error', text: r.msg, confirmButtonColor: '#9D2449'});
-                }
+        asyncProcessForm(formData, urlAsync, "Procesando...", "Agregando versión...", "¡Versión agregada!", function(res) {
+            if (res.result === 1 || res.status === 'success') {
+                $('#nueva_version').val('');
+                cargarVersiones(id_serv); 
             }
         });
     });
@@ -463,13 +447,12 @@ $(document).ready(function() {
         let nuevo_estado = $(this).data('estado'); 
         let id_serv = $('#ver_id_serv').val();
 
-        $.post(urlAsync, {peticion: 'TOGGLE_VERSION_STATE', id_serv: id_serv, id_ver: id_ver, nuevo_estado: nuevo_estado, id_sub: idSub}, function(r) {
-            if (r.result === 1) {
+        const payload = { peticion: 'TOGGLE_VERSION_STATE', id_serv: id_serv, id_ver: id_ver, nuevo_estado: nuevo_estado, id_sub: idSub };
+        asyncProcessForm(payload, urlAsync, "Procesando...", "Actualizando estado...", "¡Estado actualizado!", function(res) {
+            if (res.result === 1 || res.status === 'success') {
                 cargarVersiones(id_serv); 
-            } else {
-                Swal.fire({icon: 'error', text: r.msg, confirmButtonColor: '#9D2449'});
             }
-        }, 'json');
+        });
     });
 
     document.getElementById('modalVersiones').addEventListener('hidden.bs.modal', function () {

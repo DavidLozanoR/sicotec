@@ -97,7 +97,7 @@ function abrirModalDominio(id = null, nombre = '') {
 // ==========================================
 // 4. GUARDAR / EDITAR REGISTRO
 // ==========================================
-async function guardarDominio() {
+function guardarDominio() {
     const id_edicion = document.getElementById("idRegistroEdicion").value;
     const nombre = inputNombre.value.trim().toLowerCase();
 
@@ -106,41 +106,24 @@ async function guardarDominio() {
         return;
     }
 
-    const originalBtnText = btnGuardar.innerHTML;
-    btnGuardar.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Guardando...';
-    btnGuardar.disabled = true;
+    const payload = {
+        peticion: 'GUARDAR_DOMINIO',
+        id_sub: idSubActual,
+        id_edicion: id_edicion,
+        nom_dom: nombre
+    };
 
-    try {
-        const response = await fetch(ASYNC_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                peticion: 'GUARDAR_DOMINIO',
-                id_sub: idSubActual,
-                id_edicion: id_edicion,
-                nom_dom: nombre
-            })
-        });
-        const data = await response.json();
-
-        if (data.status === "success") {
+    asyncProcessForm(payload, ASYNC_URL, "Guardando...", "Procesando la información del dominio.", "¡Guardado!", function(res) {
+        const isSuccess = (res.result === 1 || res.status === "success");
+        const isWarning = (res.result === 2 || res.status === "exists_inactive");
+        
+        if (isSuccess) {
+            location.reload();
+        } else if (isWarning) {
             modalDom.hide();
-            // CIERRE AUTOMÁTICO DE ALERTA DE ÉXITO
-            Swal.fire({ 
-                icon: 'success', 
-                title: 'Éxito', 
-                text: data.msg, 
-                timer: 1500, 
-                timerProgressBar: true,
-                showConfirmButton: false 
-            }).then(() => location.reload());
-        } 
-        else if (data.status === "exists_inactive") {
-            modalDom.hide();
-            // Alerta interactiva para reactivar (Esta sí requiere interacción manual del usuario)
             Swal.fire({
                 title: 'Dominio Inactivo',
-                text: data.msg,
+                text: res.msg,
                 icon: 'warning',
                 showCancelButton: true,
                 confirmButtonColor: '#9D2449',
@@ -149,21 +132,13 @@ async function guardarDominio() {
                 cancelButtonText: 'Cancelar'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    reactivarDominio(data.id_reactivar);
+                    reactivarDominio(res.id_reactivar || res.id_dom);
                 } else {
-                    modalDom.show(); // Vuelve a mostrar el modal si cancela la operación
+                    modalDom.show(); 
                 }
             });
-        } 
-        else {
-            Swal.fire({ icon: 'error', title: 'Error', text: data.msg, confirmButtonColor: '#9D2449' });
         }
-    } catch (error) {
-        Swal.fire({ icon: 'error', title: 'Error de red', text: 'No se pudo conectar con el servidor.', confirmButtonColor: '#9D2449' });
-    } finally {
-        btnGuardar.innerHTML = originalBtnText;
-        btnGuardar.disabled = false;
-    }
+    });
 }
 
 // ==========================================
@@ -179,32 +154,10 @@ function eliminarDominio(id) {
         cancelButtonColor: '#6c757d',
         confirmButtonText: 'Sí, eliminar',
         cancelButtonText: 'Cancelar'
-    }).then(async (result) => {
+    }).then((result) => {
         if (result.isConfirmed) {
-            try {
-                const response = await fetch(ASYNC_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ peticion: 'ELIMINAR_DOMINIO', id_dom: id, id_sub: idSubActual })
-                });
-                const data = await response.json();
-
-                if (data.status === "success") {
-                    // CIERRE AUTOMÁTICO DE ALERTA DE ÉXITO
-                    Swal.fire({ 
-                        icon: 'success', 
-                        title: 'Eliminado', 
-                        text: data.msg, 
-                        timer: 1500, 
-                        timerProgressBar: true,
-                        showConfirmButton: false 
-                    }).then(() => location.reload());
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Error', text: data.msg, confirmButtonColor: '#9D2449' });
-                }
-            } catch (error) {
-                Swal.fire({ icon: 'error', title: 'Error de red', text: 'No se pudo completar la operación.', confirmButtonColor: '#9D2449' });
-            }
+            const payload = { peticion: 'ELIMINAR_DOMINIO', id_dom: id, id_sub: idSubActual };
+            asyncProcessForm(payload, ASYNC_URL, "Eliminando...", "Borrando registro...", "¡Eliminado!");
         }
     });
 }
@@ -212,29 +165,7 @@ function eliminarDominio(id) {
 // ==========================================
 // 6. REACTIVAR REGISTRO
 // ==========================================
-async function reactivarDominio(id) {
-    try {
-        const response = await fetch(ASYNC_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ peticion: 'REACTIVAR_DOMINIO', id_dom: id, id_sub: idSubActual })
-        });
-        const data = await response.json();
-
-        if (data.status === "success") {
-            // CIERRE AUTOMÁTICO DE ALERTA DE ÉXITO
-            Swal.fire({ 
-                icon: 'success', 
-                title: 'Reactivado', 
-                text: data.msg, 
-                timer: 1500, 
-                timerProgressBar: true,
-                showConfirmButton: false 
-            }).then(() => location.reload());
-        } else {
-            Swal.fire({ icon: 'error', title: 'Error', text: data.msg, confirmButtonColor: '#9D2449' });
-        }
-    } catch (error) {
-        Swal.fire({ icon: 'error', title: 'Error de red', text: 'No se pudo completar la operación.', confirmButtonColor: '#9D2449' });
-    }
+function reactivarDominio(id) {
+    const payload = { peticion: 'REACTIVAR_DOMINIO', id_dom: id, id_sub: idSubActual };
+    asyncProcessForm(payload, ASYNC_URL, "Reactivando...", "Por favor espere.", "¡Reactivado!");
 }

@@ -75,22 +75,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     cancelButtonText: 'Cancelar'
                 }).then((result) => {
                     if (result.isConfirmed) {
-                        fetch('_controller/DiccionarioAsync.php', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ action: 'borrar', Id_nom: id })
-                        })
-                        .then(res => res.json())
-                        .then(data => {
-                            if (data.status === 'success') {
-                                Toast.fire({ icon: 'success', title: 'Registro eliminado' });
+                        const payload = { action: 'borrar', Id_nom: id };
+                        asyncProcessForm(payload, '_controller/DiccionarioAsync.php', 'Borrando...', 'Por favor espere.', '¡Eliminado!', function(res) {
+                            if (res.status === 'success' || res.result === 1) {
                                 cargarDiccionario();
-                            } else {
-                                // MODIFICADO: Mostrar mensaje real del servidor (ej. Acceso Denegado)
-                                Swal.fire({ icon: 'error', title: 'Acción rechazada', text: data.message || 'Error al borrar', confirmButtonColor: '#9D2449' });
                             }
-                        })
-                        .catch(error => console.error('Error:', error));
+                        });
                     }
                 });
             }

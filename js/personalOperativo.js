@@ -231,44 +231,12 @@ $(document).ready(function() {
             cancelButtonText: 'Cancelar'
         }).then((result) => {
             if (result.isConfirmed) {
-                $.ajax({
-                    url: '_controller/PersonalOPAsync.php',
-                    type: 'POST',
-                    dataType: 'json',
-                    data: {
-                        peticion: 'BAJA_PO',
-                        id_po: id_po,
-                        id_sub: id_sub
-                    },
-                    success: function(response) {
-                        if (response.result === 1) {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Baja Exitosa',
-                                timer:1000,
-                                text: response.msg,
-                                confirmButtonColor: '#285C4D'
-                            }).then(() => {
-                                location.reload();
-                            });
-                        } else {
-                            Swal.fire({
-                                icon: 'error',
-                                title: 'No se pudo completar',
-                                text: response.msg,
-                                confirmButtonColor: '#9D2449'
-                            });
-                        }
-                    },
-                    error: function() {
-                        Swal.fire({
-                            icon: 'error',
-                            title: 'Error de servidor',
-                            text: 'Hubo un problema al procesar la solicitud.',
-                            confirmButtonColor: '#9D2449'
-                        });
-                    }
-                });
+                const payload = {
+                    peticion: 'BAJA_PO',
+                    id_po: id_po,
+                    id_sub: id_sub
+                };
+                asyncProcessForm(payload, '_controller/PersonalOPAsync.php', "Dando de baja...", "Procesando baja del empleado...", "¡Baja Exitosa!");
             }
         });
     });

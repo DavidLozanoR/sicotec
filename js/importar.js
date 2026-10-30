@@ -141,25 +141,16 @@ document.addEventListener('DOMContentLoaded', () => {
         UI.buttons.finalize.disabled = true;
         UI.buttons.finalize.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Ejecutando...';
 
-        try {
-            const res = await fetch('_controller/ImportacionAsync.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ peticion: 'EJECUTAR_FINAL', id_sub: ID_SUB_PERSONAL, resolucionesDepts, numCobrosBaja })
-            });
-            const data = await parseJSON(res);
-
-            if (data.status === 'success') {
-                await Swal.fire('Completado', data.msg, 'success');
+        const payload = { peticion: 'EJECUTAR_FINAL', id_sub: ID_SUB_PERSONAL, resolucionesDepts, numCobrosBaja };
+        
+        asyncProcessForm(payload, '_controller/ImportacionAsync.php', "Ejecutando...", "Sincronizando información...", "¡Completado!", function(res) {
+            if (res.status === 'success' || res.result === 1) {
                 window.location.href = 'personal';
             } else {
-                throw new Error(data.msg);
+                UI.buttons.finalize.disabled = false;
+                UI.buttons.finalize.innerText = 'Ejecutar Sincronización Final';
             }
-        } catch (error) {
-            Swal.fire('Fallo en Sincronización', error.message, 'error');
-            UI.buttons.finalize.disabled = false;
-            UI.buttons.finalize.innerText = 'Ejecutar Sincronización Final';
-        }
+        });
     }
 
     // ==========================================

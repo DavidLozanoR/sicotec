@@ -1110,27 +1110,13 @@ document.addEventListener('DOMContentLoaded', () => {
             btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin me-2"></i> Guardando...';
             btnSubmit.disabled = true;
 
-            fetch('_controller/DispositivosAsync.php', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(dataObj) 
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.result === 1 || data.status === 'success') {
-                    Swal.fire({ icon: 'success', timer:1500, title: '¡Guardado!', text: 'El dispositivo se guardó correctamente.', confirmButtonColor: '#9D2449' })
-                    .then(() => window.location.href = 'dispositivos/');
-                } else {
-                    Swal.fire({ icon: 'error', title: 'Error de Permisos o Guardado', text: data.msg || 'Ocurrió un problema.', confirmButtonColor: '#9D2449' });
-                }
-            })
-            .catch(error => {
-                console.error('Error:', error);
-                Toast.fire({ icon: 'error', title: 'Error de comunicación con el servidor.' });
-            })
-            .finally(() => {
+            asyncProcessForm(dataObj, '_controller/DispositivosAsync.php', "Guardando...", "Guardando dispositivo...", "¡Guardado!", function(res) {
                 btnSubmit.innerHTML = originalBtnText;
                 btnSubmit.disabled = false;
+                
+                if (res.result === 1 || res.status === 'success') {
+                    window.location.href = 'dispositivos/';
+                }
             });
         });
     }

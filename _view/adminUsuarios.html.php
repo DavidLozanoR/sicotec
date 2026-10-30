@@ -1,13 +1,48 @@
+<?php
+$catalogos_requeridos = [
+    ['datos' => $roles_disponibles ?? [], 'nombre' => 'Roles de Acceso', 'url' => 'roles/']
+];
+
+$faltantes = [];
+foreach ($catalogos_requeridos as $catalogo) {
+    if (empty($catalogo['datos'])) {
+        $faltantes[] = [
+            'nombre' => $catalogo['nombre'],
+            'url'    => $catalogo['url']
+        ];
+    }
+}
+$bloquear_formulario = !empty($faltantes);
+?>
 <div class="container-fluid px-4 py-3" id="main-admin-container" data-id-sub="<?php echo $id_sub_actual ?? 7; ?>">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h3 class="fw-bold mb-0" style="color: #333;">Administración de Usuarios</h3>
             <p class="text-secondary mb-0">Gestión de cuentas de acceso al sistema</p>
         </div>
-        <button class="btn btn-guinda px-4 py-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalUsuario">
+        <button class="btn btn-guinda px-4 py-2 shadow-sm" data-bs-toggle="modal" data-bs-target="#modalUsuario" <?php echo $bloquear_formulario ? 'disabled' : ''; ?>>
             <i class="fas fa-plus me-2"></i> Nuevo Usuario
         </button>
     </div>
+
+    <?php if ($bloquear_formulario): ?>
+        <div class="alert alert-danger shadow-sm border-0 border-start border-5 border-danger mb-4">
+            <h5 class="fw-bold text-danger"><i class="fas fa-exclamation-triangle me-2"></i>¡Atención! Faltan Catálogos Obligatorios</h5>
+            <p class="mb-3 text-dark">Para poder registrar o editar un usuario, el sistema requiere que primero exista información en los siguientes catálogos:</p>
+            
+            <ul class="list-unstyled mb-0 ms-2">
+                <?php foreach ($faltantes as $faltante): ?>
+                    <li class="mb-2 d-flex align-items-center bg-white p-2 rounded-3 shadow-sm border border-danger-subtle" style="max-width: 500px;">
+                        <i class="fas fa-times-circle text-danger mx-2 fs-5"></i>
+                        <span class="fw-bold text-danger me-auto"><?php echo $faltante['nombre']; ?></span>
+                        <a href="<?php echo $faltante['url']; ?>" class="btn btn-sm btn-danger fw-bold rounded-pill px-3 shadow-sm" target="_blank">
+                            Ir al catálogo <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </li>
+                <?php endforeach; ?>
+            </ul>
+        </div>
+    <?php endif; ?>
 
     <div class="card shadow-sm border-0 rounded-3 mb-4">
         <div class="card-body p-4">
@@ -40,7 +75,7 @@
                                                 data-nombres="<?php echo htmlspecialchars($usr['nombres']); ?>"
                                                 data-ape_pa="<?php echo htmlspecialchars($usr['ape_pa']); ?>"
                                                 data-ape_ma="<?php echo htmlspecialchars($usr['ape_ma']); ?>"
-                                                data-id_rol="<?php echo $usr['id_rol']; ?>" title="Editar Usuario">
+                                                data-id_rol="<?php echo $usr['id_rol']; ?>" title="Editar Usuario" <?php echo $bloquear_formulario ? 'disabled' : ''; ?>>
                                             <i class="fas fa-edit" style="pointer-events: none;"></i>
                                         </button>
                                         

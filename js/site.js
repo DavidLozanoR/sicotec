@@ -1,14 +1,13 @@
 /*
- * Diálogo de respuesta SweetAlert2 que ejecuta una operación ajax enviando un formulario vía POST.
- * @param {form} form - La referencia al formulario.
- * @param {string} actionUrl - La dirección que procesará el formulario vía POST.
- * @param {string} titleProcess - El título del díalogo de procesamiento.
- * @param {string} textProcess - El texto del díalogo de procesamiento.
- * @param {string} titleResult - El título del díalogo de resultado.
+ * Diálogo de respuesta SweetAlert2 que ejecuta una operación ajax enviando datos al servidor.
+ * @param {HTMLFormElement|FormData|Object} formOrData - El formulario, FormData o un objeto JSON con los datos.
+ * @param {string} actionUrl - La dirección que procesará la petición.
+ * @param {string|function} arg3 - El título del diálogo o la función callback.
+ * @param {string} textProcess - El texto del diálogo de procesamiento.
+ * @param {string} titleResult - El título del diálogo de resultado.
  * @param {function} funcSuccess - Función a ejecutar luego de un procesamiento exitoso.
- * @param {function} argsFuncSuccess - Argumentos de la función a ejecutar.
  */
-function asyncProcessForm(form, actionUrl, arg3 = "Procesando", textProcess = "Por favor espere...", titleResult = "¡Éxito!", funcSuccess = null, argsFuncSuccess = null) {
+function asyncProcessForm(formOrData, actionUrl, arg3 = "Procesando", textProcess = "Por favor espere...", titleResult = "¡Éxito!", funcSuccess = null) {
     
     let titleProcess = "Procesando";
     let callback = funcSuccess;
@@ -20,7 +19,20 @@ function asyncProcessForm(form, actionUrl, arg3 = "Procesando", textProcess = "P
         titleProcess = arg3;
     }
 
-    const formData = new FormData(form);
+    let bodyData;
+    let headers = {};
+
+    if (formOrData instanceof HTMLFormElement) {
+        bodyData = new FormData(formOrData);
+    } else if (formOrData instanceof FormData) {
+        bodyData = formOrData;
+    } else if (typeof formOrData === 'object' && formOrData !== null) {
+        bodyData = JSON.stringify(formOrData);
+        headers['Content-Type'] = 'application/json';
+    } else {
+        console.error("El primer parámetro debe ser un HTMLFormElement, FormData o un Objeto JSON.");
+        return;
+    }
     
     // Aseguramos la ruta absoluta si la constante SITE_URL existe
     const urlAbsoluta = (typeof SITE_URL !== 'undefined' ? SITE_URL : '') + actionUrl;
@@ -34,11 +46,17 @@ function asyncProcessForm(form, actionUrl, arg3 = "Procesando", textProcess = "P
         didOpen: async () => {
             Swal.showLoading(); 
             try {
-                // Enviar la petición asíncrona usando la URL absoluta
-                const response = await fetch(urlAbsoluta, {
+                // Enviar la petición asíncrona
+                const fetchOptions = {
                     method: "POST",
-                    body: formData,
-                });
+                    body: bodyData,
+                };
+                
+                if (Object.keys(headers).length > 0) {
+                    fetchOptions.headers = headers;
+                }
+                
+                const response = await fetch(urlAbsoluta, fetchOptions);
 
                 if (!response.ok) {
                     throw new Error(`Error: ${response.statusText}`);
@@ -48,23 +66,28 @@ function asyncProcessForm(form, actionUrl, arg3 = "Procesando", textProcess = "P
 
                 Swal.hideLoading(); 
 
+                // Estandarizar lectura de respuestas (Soporta Backend nuevo con 'status' y antiguo con 'result')
+                const isSuccess = (res.result === 1 || res.status === "success");
+                const isWarning = (res.result === 2 || res.status === "exists_inactive");
+                const isIntegrityError = (res.result === 99);
+
                 // 1. Caso Integridad (Error 99)
-                if (res.result === 99) {
+                if (isIntegrityError) {
                     if (callback != null) {
                         callback(res); 
                     }
                     return; 
                 }
                 
-                // 2. Caso Éxito (result = 1)
-                if (res.result === 1) {
+                // 2. Caso Éxito
+                if (isSuccess) {
                     Swal.fire({
                         icon: "success", 
                         title: (typeof arg3 === 'string') ? titleResult : "Hecho",
                         text: res.msg,
                         showConfirmButton: false, // Ocultamos el botón
-                        timer: 2500, // Se cerrará automáticamente en 2 segundos (2000 ms)
-                        timerProgressBar: true // Muestra una línea de tiempo para avisar al usuario
+                        timer: 2500, // Se cerrará automáticamente en 2.5 segundos
+                        timerProgressBar: true
                     }).then(() => {
                         // El '.then()' se dispara automáticamente cuando el timer se acaba
                         if (typeof callback === "function") {
@@ -73,14 +96,16 @@ function asyncProcessForm(form, actionUrl, arg3 = "Procesando", textProcess = "P
                             location.reload();
                         }
                     });
-                } else if (res.result === 2) {
+                } else if (isWarning) {
                     if (typeof callback === "function") {
-                        callback(res); // Le pasamos la respuesta al JS para que saque el modal de confirmación
+                        callback(res); // Le pasamos la respuesta al JS para que saque el modal de confirmación manual
+                    } else {
+                        // Si no hay callback, mostramos la alerta por defecto (Fallback)
+                        Swal.fire({ icon: "warning", title: "Atención", text: res.msg, confirmButtonColor: '#9D2449' });
                     }
                 }
-                // 3. Caso Error General (result = 0)
+                // 3. Caso Error General
                 else {
-                    // Cambiamos el título a algo más genérico que "Acceso Denegado"
                     let tituloError = res.msg && res.msg.toLowerCase().includes("acceso") ? "Acceso Denegado" : "Atención";
                     
                     Swal.fire({
@@ -90,7 +115,7 @@ function asyncProcessForm(form, actionUrl, arg3 = "Procesando", textProcess = "P
                         allowOutsideClick: false, 
                         allowEscapeKey: false,    
                         confirmButtonText: "Entendido",
-                        confirmButtonColor: "#d33" 
+                        confirmButtonColor: "#9D2449" 
                     });
                 }
             } catch (error) {
@@ -99,6 +124,7 @@ function asyncProcessForm(form, actionUrl, arg3 = "Procesando", textProcess = "P
                     icon: "error",
                     title: "Error de Conexión",
                     text: error.message || "Error inesperado durante el procesamiento.",
+                    confirmButtonColor: "#9D2449"
                 });
             }
         },

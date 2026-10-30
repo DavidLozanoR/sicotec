@@ -109,57 +109,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 cancelButtonColor: '#6c757d',
                 confirmButtonText: 'Sí, eliminar',
                 cancelButtonText: 'Cancelar'
-            }).then(async (result) => {
+            }).then((result) => {
                 if (result.isConfirmed) {
-                    Swal.fire({
-                        title: 'Eliminando...',
-                        allowOutsideClick: false,
-                        didOpen: () => { Swal.showLoading(); }
-                    });
-
-                    const formData = new FormData();
-                    formData.append('peticion', 'DELETE_DEP');
-                    formData.append('id_sub', idSub);
-                    formData.append('id_dep', idDep);
-
-                    try {
-                        const response = await fetch('_controller/DepartamentosAsync.php', {
-                            method: 'POST',
-                            body: formData
-                        });
-                        const data = await response.json();
-
-                        if (data.result === 1 || data.status === 'success') {
-                            Swal.fire({
-                                icon: 'success',
-                                title: 'Eliminado',
-                                text: data.msg,
-                                confirmButtonColor: '#285C4D',
-                                timer: 2000,
-                                showConfirmButton: false
-                            }).then(() => {
-                                window.location.href = window.location.href;
-                            });
-                        } else {
-                            Swal.fire('Error', data.msg, 'error');
-                        }
-                    } catch (error) {
-                        console.error('Error:', error);
-                        Swal.fire('Error', 'Hubo un problema de red.', 'error');
-                    }
+                    const payload = { peticion: 'DELETE_DEP', id_sub: idSub, id_dep: idDep };
+                    asyncProcessForm(payload, '_controller/DepartamentosAsync.php', "Eliminando...", "Borrando registro...", "¡Eliminado!");
                 }
             });
         }
     });
 
     // --- ENVIAR FORMULARIO (INSERTAR/ACTUALIZAR) ---
-    formDepto.addEventListener('submit', async (e) => {
+    formDepto.addEventListener('submit', (e) => {
         e.preventDefault();
 
         inputClave.value = limpiarEspacios(inputClave.value);
         inputNom.value = limpiarEspacios(inputNom.value);
-            
-
 
         if (!formDepto.checkValidity()) {
             formDepto.classList.add('was-validated');
@@ -178,41 +142,7 @@ document.addEventListener('DOMContentLoaded', () => {
         formData.append('peticion', peticionAccion);
         formData.append('id_sub', idSub);
 
-        const btnSubmit = formDepto.querySelector('button[type="submit"]');
-        const textoOriginal = btnSubmit.innerHTML;
-        btnSubmit.disabled = true;
-        btnSubmit.innerHTML = '<i class="fas fa-spinner fa-spin me-1"></i> Guardando...';
-
-        try {
-            const response = await fetch('_controller/DepartamentosAsync.php', {
-                method: 'POST',
-                body: formData
-            });
-
-            const data = await response.json();
-
-            if (data.result === 1 || data.status === 'success') {
-                modalDepto.hide();
-                Swal.fire({
-                    icon: 'success',
-                    title: '¡Éxito!',
-                    text: data.msg || 'Guardado correctamente.',
-                    confirmButtonColor: '#285C4D',
-                    timer: 2000,
-                    showConfirmButton: false
-                }).then(() => {
-                    window.location.href = window.location.href;
-                });
-            } else {
-                Swal.fire({ icon: 'error', title: 'Error', text: data.msg || 'No se pudo procesar la solicitud.', confirmButtonColor: '#9D2449' });
-            }
-        } catch (error) {
-            console.error('Error:', error);
-            Swal.fire({ icon: 'error', title: 'Error de red', text: 'Problema de conexión con el servidor.', confirmButtonColor: '#9D2449' });
-        } finally {
-            btnSubmit.disabled = false;
-            btnSubmit.innerHTML = textoOriginal;
-        }
+        asyncProcessForm(formData, '_controller/DepartamentosAsync.php', "Guardando...", "Procesando la información.", "¡Éxito!");
     });
 });
 

@@ -366,15 +366,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const idDestino = selectDestino.value;
 
-        fetch('_controller/ResponsivaAsync.php', {
-            method: 'POST',
-            body: formData
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.result === 1) {
+        asyncProcessForm(formData, '_controller/ResponsivaAsync.php', "Procesando...", "Realizando transferencia...", "¡Transferencia Exitosa!", function(res) {
+            btnSubmit.innerHTML = originalText;
+            btnSubmit.disabled = false;
+            
+            if (res.result === 1 || res.status === 'success') {
                 modalTransferir.hide();
-                Swal.fire({ icon: 'success',timer:1000, title: '¡Transferencia Exitosa!', text: data.msg, confirmButtonColor: '#9D2449' });
                 
                 // Actualizar contadores del DOM
                 const itemOrigen = document.querySelector(`.po-item[data-id="${poActivoId}"]`);
@@ -404,17 +401,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 aplicarFiltros(); 
                 cargarInventario();
-                
-            } else {
-                Swal.fire({ icon: 'error', title: 'Error', text: data.msg, confirmButtonColor: '#9D2449' });
             }
-        })
-        .catch(error => {
-            Toast.fire({ icon: 'error', title: 'Error al procesar la transferencia.' });
-        })
-        .finally(() => {
-            btnSubmit.innerHTML = originalText;
-            btnSubmit.disabled = false;
         });
     });
 
