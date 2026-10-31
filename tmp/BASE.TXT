@@ -1,7 +1,5 @@
 -- =========================================================
-
 -- 0. CREACIÓN DE LA BASE DE DATOS
-
 -- =========================================================
 
 DROP DATABASE IF EXISTS `sicosote`;
@@ -9,7 +7,6 @@ DROP DATABASE IF EXISTS `sicosote`;
 CREATE DATABASE `sicosote` CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;
 
 USE `sicosote`;
-
 
 SET FOREIGN_KEY_CHECKS=0;
 
@@ -19,6 +16,9 @@ SET FOREIGN_KEY_CHECKS=0;
 DROP TABLE IF EXISTS `bitacora`;
 DROP TABLE IF EXISTS `departamentos`;
 DROP TABLE IF EXISTS `diccionario_nomenclaturas`;
+DROP TABLE IF EXISTS `dominios`;
+DROP TABLE IF EXISTS `marcas`;
+DROP TABLE IF EXISTS `modelos`;
 DROP TABLE IF EXISTS `dispositivo_servicio`;
 DROP TABLE IF EXISTS `dispositivos`;
 DROP TABLE IF EXISTS `infraestructura_red`;
@@ -69,18 +69,48 @@ CREATE TABLE `diccionario_nomenclaturas` (
   PRIMARY KEY (`id_nom`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
+-- NUEVA TABLA: Dominios Institucionales
+CREATE TABLE `dominios` (
+  `id_dom` int(11) NOT NULL AUTO_INCREMENT,
+  `nom_dom` varchar(100) NOT NULL,
+  `estatus` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id_dom`),
+  UNIQUE KEY `nom_dom` (`nom_dom`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- NUEVA TABLA: Marcas
+CREATE TABLE `marcas` (
+  `id_marca` int(11) NOT NULL AUTO_INCREMENT,
+  `nom_marca` varchar(100) NOT NULL,
+  `estatus` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id_marca`),
+  UNIQUE KEY `nom_marca` (`nom_marca`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
+-- NUEVA TABLA: Modelos
+CREATE TABLE `modelos` (
+  `id_modelo` int(11) NOT NULL AUTO_INCREMENT,
+  `id_marca` int(11) NOT NULL,
+  `nom_modelo` varchar(100) NOT NULL,
+  `estatus` tinyint(1) NOT NULL DEFAULT 1,
+  PRIMARY KEY (`id_modelo`),
+  KEY `fk_modelos_marcas` (`id_marca`),
+  CONSTRAINT `fk_modelos_marcas` FOREIGN KEY (`id_marca`) REFERENCES `marcas` (`id_marca`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+
 CREATE TABLE `dispositivos` (
   `id_disp` int(11) NOT NULL AUTO_INCREMENT,
   `nom_host` varchar(100) DEFAULT NULL,
-  `marca` varchar(50) DEFAULT NULL,
-  `modelo` varchar(50) DEFAULT NULL,
+  `id_marca` int(11) DEFAULT NULL,
+  `id_modelo` int(11) DEFAULT NULL,
   `num_ser` varchar(100) DEFAULT NULL,
   `num_inv` varchar(100) DEFAULT NULL,
   `mac_ethernet` varchar(17) DEFAULT NULL,
   `mac_wifi` varchar(17) DEFAULT NULL,
-  `dom` varchar(100) DEFAULT NULL,
+  `id_dom` int(11) DEFAULT NULL,
   `especs_hw` text DEFAULT NULL,
   `resp_po_id` int(11) DEFAULT NULL,
+  `id_dep` int(11) DEFAULT NULL,
   `asig_po_id` int(11) DEFAULT NULL,
   `id_u_int` int(11) DEFAULT NULL,
   `fec_u_int` datetime DEFAULT NULL,
@@ -88,9 +118,17 @@ CREATE TABLE `dispositivos` (
   UNIQUE KEY `nom_host` (`nom_host`),
   UNIQUE KEY `num_ser` (`num_ser`),
   UNIQUE KEY `num_inv` (`num_inv`),
+  KEY `fk_disp_marca` (`id_marca`),
+  KEY `fk_disp_modelo` (`id_modelo`),
+  KEY `fk_disp_dom` (`id_dom`),
   KEY `fk_disp_resp` (`resp_po_id`),
+  KEY `fk_disp_dep` (`id_dep`),
   KEY `fk_disp_asig` (`asig_po_id`),
-  KEY `fk_disp_usuar` (`id_u_int`)
+  KEY `fk_disp_usuar` (`id_u_int`),
+  CONSTRAINT `fk_disp_marca` FOREIGN KEY (`id_marca`) REFERENCES `marcas` (`id_marca`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_disp_modelo` FOREIGN KEY (`id_modelo`) REFERENCES `modelos` (`id_modelo`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_disp_dom` FOREIGN KEY (`id_dom`) REFERENCES `dominios` (`id_dom`) ON DELETE SET NULL ON UPDATE CASCADE,
+  CONSTRAINT `fk_disp_dep` FOREIGN KEY (`id_dep`) REFERENCES `departamentos` (`id_dep`) ON DELETE SET NULL ON UPDATE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
 
 CREATE TABLE `servicios` (
@@ -299,20 +337,24 @@ INSERT INTO `modulos` (`id_mod`, `nom_mod`, `descripcion`, `icono`, `orden`) VAL
 (3, 'Consultas y Auditoría', 'Realizar búsquedas avanzadas, auditorías de movimientos y generar reportes del sistema.', 'fas fa-search', 3),
 (4, 'Administración de Usuarios', 'Gestionar cuentas de acceso al sistema, roles y establecer permisos de seguridad.', 'fas fa-shield-alt', 4),
 (5, 'Gestion Dispositivos', 'Gestiona todos los dispositvos asignados al personal operativo', 'fas fa-desktop', 5),
-(6, 'Administración de Roles', 'Gestión de roles y permisos de acceso al sistema.', 'fas fa-user-shield', 6);
+(6, 'Administración de Roles', 'Gestión de roles y permisos de acceso al sistema.', 'fas fa-user-shield', 6),
+(7, 'Auditoría y Conciliación DHCP', 'Realizar comparación de la informacion proveniente del DHCP con la del sistema.', 'fas fa-clipboard-check',7);
 
 -- Inserción de Submódulos
 INSERT INTO `submodulos` (`id_sub`, `id_mod`, `nom_sub`, `slug`, `mostrar_en_menu`, `orden`) VALUES 
-(1, 1, 'Panel de Personal', 'personal', 0, 1),
+(1, 1, 'Panel de Personal', 'personal', 1, 1),
 (2, 2, 'Catálogo de Servicios', 'servicios', 1, 1),
 (3, 2, 'Infraestructura de Red', 'red', 1, 2),
 (4, 2, 'Responsables de Equipo', 'responsables', 1, 3),
 (5, 2, 'Diccionario de Nomenclaturas', 'diccionario', 1, 5),
-(6, 3, 'Panel de Consultas', 'consultas', 0, 1),
-(7, 4, 'Panel de Usuarios', 'usuarios', 0, 1),
+(6, 3, 'Panel de Consultas', 'consultas', 1, 1),
+(7, 4, 'Panel de Usuarios', 'usuarios', 1, 1),
 (8, 5, 'Panel de Dispositivo', 'dispositivos', 1, 5),
 (9, 6, 'Catálogo de Roles', 'roles', 1, 1),
-(10, 2, 'Catálogo de departamentos', 'departamentos', 1, 4);
+(10, 2, 'Catálogo de departamentos', 'departamentos', 1, 4),
+(11, 7, 'Auditoria DHCP', 'dhcp', 1, 6),
+(12, 2, 'Catálogo de Marcas y Modelos de Dispositivos', 'marcas', 1, 6),
+(13, 2, 'Catálogo de Dominios Institucionales', 'dominios', 1, 7);
 
 -- Inserción de Permisos
 INSERT INTO `permisos` (`id_perm`, `nom_perm`, `descripcion`) VALUES 
@@ -323,7 +365,7 @@ INSERT INTO `permisos` (`id_perm`, `nom_perm`, `descripcion`) VALUES
 
 -- Inserción de Rol_Modulo (Acceso del Admin a todos los Módulos)
 INSERT INTO `rol_modulo` (`id_rol`, `id_mod`) VALUES 
-(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6);
+(1, 1), (1, 2), (1, 3), (1, 4), (1, 5), (1, 6), (1, 7);
 
 -- Inserción de Rol_Submodulo_Permiso (Permisos totales del Admin)
 INSERT INTO `rol_submodulo_permiso` (`id_rol`, `id_sub`, `id_perm`) VALUES 
@@ -336,8 +378,10 @@ INSERT INTO `rol_submodulo_permiso` (`id_rol`, `id_sub`, `id_perm`) VALUES
 (1, 7, 1), (1, 7, 2), (1, 7, 3), (1, 7, 4), 
 (1, 8, 1), (1, 8, 2), (1, 8, 3), (1, 8, 4), 
 (1, 9, 1), (1, 9, 2), (1, 9, 3), (1, 9, 4),
-(1, 10, 1), (1, 10, 2), (1, 10, 3), (1, 10, 4);
-
+(1, 10, 1), (1, 10, 2), (1, 10, 3), (1, 10, 4),
+(1, 11, 1), (1, 11, 2), (1, 11, 3), (1, 11, 4),
+(1, 12, 1), (1, 12, 2), (1, 12, 3), (1, 12, 4),
+(1, 13, 1), (1, 13, 2), (1, 13, 3), (1, 13, 4);
 
 -- =========================================================
 -- 4. CREACIÓN DE VISTAS (VIEWS)
@@ -357,7 +401,6 @@ SELECT `po`.`id_po` AS `id_po`,`po`.`num_cobro` AS `num_cobro`,
        `po`.`estatus` AS `estatus`,
        (SELECT COUNT(`dsp`.`id_disp`) FROM `dispositivos` `dsp` WHERE `dsp`.`resp_po_id` = `po`.`id_po`) AS `total_equipos` 
 FROM `personal_operativo` `po`;
-
 
 -- =========================================================
 -- 5. PROCEDIMIENTOS ALMACENADOS Y TRIGGERS (FORMATO SEGURO)
@@ -467,9 +510,9 @@ BEGIN
         po.ape_ma = t.ape_ma,
         po.puesto = t.puesto,
         po.correo = NULLIF(TRIM(t.correo), ''),
-        po.dir = NULLIF(TRIM(t.dir), ''),         -- <-- NUEVO CAMPO AGREGADO
-        po.ext = NULLIF(TRIM(t.ext), ''),         -- <-- NUEVO CAMPO AGREGADO
-        po.cta_dom = NULLIF(TRIM(t.cta_dom), ''), -- <-- NUEVO CAMPO AGREGADO
+        po.dir = NULLIF(TRIM(t.dir), ''),         
+        po.ext = NULLIF(TRIM(t.ext), ''),         
+        po.cta_dom = NULLIF(TRIM(t.cta_dom), ''), 
         po.id_dep = COALESCE(t.id_dep_final, po.id_dep),
         po.estatus = 1;
 
@@ -482,9 +525,9 @@ BEGIN
         t.ape_ma, 
         t.puesto, 
         NULLIF(TRIM(t.correo), ''), 
-        NULLIF(TRIM(t.dir), ''),         -- <-- NUEVO CAMPO AGREGADO
-        NULLIF(TRIM(t.ext), ''),         -- <-- NUEVO CAMPO AGREGADO
-        NULLIF(TRIM(t.cta_dom), ''),     -- <-- NUEVO CAMPO AGREGADO
+        NULLIF(TRIM(t.dir), ''),         
+        NULLIF(TRIM(t.ext), ''),         
+        NULLIF(TRIM(t.cta_dom), ''),     
         t.id_dep_final, 
         1
     FROM temp_importacion_po t
